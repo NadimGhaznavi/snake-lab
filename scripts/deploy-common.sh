@@ -36,6 +36,7 @@ validate_release_checkout() {
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
         "snake_lab/client.py"
+        "snake_lab/protocol.py"
         "snake_lab/server.py"
         "systemd/snake-lab.service"
         "utils/__init__.py"
@@ -62,7 +63,53 @@ ensure_service_account() {
 prepare_installation_directories() {
     install -d -m 0755 "${INSTALL_DIR}"
     install -d -m 0755 "${INSTALL_DIR}/scripts"
+    install -d -o root -g snake-lab -m 0750 "${INSTALL_DIR}/config"
     install -d -o snake-lab -g snake-lab -m 0750 "${INSTALL_DIR}/logs"
+}
+
+provision_database() {
+    local credentials_file db_host db_name db_password db_user
+
+    credentials_file=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
+        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_CREDENTIALS_FILE)')
+    db_host=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
+        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_HOST)')
+    db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
+        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
+    db_user=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
+        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_USER)')
+
+    [[ "${credentials_file}" == "${INSTALL_DIR}/config/database.json" ]] ||
+        die "Database credentials file must be inside ${INSTALL_DIR}/config."
+    [[ "${db_host}" =~ ^[A-Za-z0-9_.-]+$ ]] ||
+        die "Invalid database host: ${db_host}"
+    [[ "${db_name}" =~ ^[A-Za-z0-9_]+$ ]] ||
+        die "Invalid database name: ${db_name}"
+    [[ "${db_user}" =~ ^[A-Za-z0-9_]+$ ]] ||
+        die "Invalid database user: ${db_user}"
+
+    if [[ -f "${credentials_file}" ]]; then
+        db_password=$(python3 -c \
+            'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["password"])' \
+            "${credentials_file}")
+    else
+        db_password=$(openssl rand -hex 32)
+        printf '{"password":"%s"}\n' "${db_password}" >"${credentials_file}"
+        chown root:snake-lab "${credentials_file}"
+        chmod 0640 "${credentials_file}"
+    fi
+
+    [[ "${db_password}" =~ ^[0-9a-f]{64}$ ]] ||
+        die "Invalid database password in ${credentials_file}."
+
+    mariadb --batch <<SQL
+CREATE DATABASE IF NOT EXISTS \`${db_name}\`
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${db_user}'@'${db_host}'
+    IDENTIFIED BY '${db_password}';
+ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}';
+GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}';
+SQL
 }
 
 deploy_application() {

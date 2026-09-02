@@ -3,6 +3,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -60,13 +61,35 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(self.server.returncode, 0)
 
     def test_health_request(self) -> None:
-        self.assertEqual(self.client.health(), {"status": "ok"})
+        response = self.client.health()
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["payload"], {"service": "snake-lab"})
 
-    def test_unknown_message(self) -> None:
-        self.assertEqual(
-            self.client.request("unknown"),
-            {"status": "error", "error": "unknown message"},
+    def test_submit_and_complete_simulation(self) -> None:
+        response = self.client.submit(
+            {"schema_version": 1, "name": "integration", "epochs": 25}
         )
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["payload"]["state"], "queued")
+        run_id = response["payload"]["run_id"]
+
+        deadline = time.monotonic() + 1
+        while True:
+            status = self.client.status(run_id)
+            if status["payload"]["state"] == "completed":
+                break
+            if time.monotonic() >= deadline:
+                self.fail("Simulation did not complete")
+
+        self.assertEqual(status["payload"]["epochs"], 25)
+        self.assertEqual(status["payload"]["completed_epochs"], 25)
+
+    def test_invalid_config_is_rejected(self) -> None:
+        response = self.client.submit(
+            {"schema_version": 1, "name": "invalid", "epochs": 0}
+        )
+        self.assertEqual(response["status"], "error")
+        self.assertEqual(response["error"]["code"], "invalid_config")
 
 
 if __name__ == "__main__":
