@@ -1,21 +1,41 @@
 """ZeroMQ request/reply server for SnakeLab."""
 
 import argparse
-import json
+import queue
 import signal
 import threading
+import time
+import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import zmq
 
-from constants.DSnakeLab import DSnakeLab
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
+from constants.DSnakeLab import DSnakeLab
+from snake_lab.protocol import (
+    METHOD_HEALTH,
+    METHOD_SIMULATION_STATUS,
+    METHOD_SIMULATION_SUBMIT,
+    ProtocolError,
+    Request,
+    error_response,
+    success_response,
+)
 from utils.MyLog import MyLog
 
 
+@dataclass(slots=True)
+class SimulationRun:
+    run_id: str
+    config: dict[str, Any]
+    state: str = "queued"
+    completed_epochs: int = 0
+
+
 class SnakeLabServer:
-    """Listen for SnakeLab control requests over ZeroMQ."""
+    """Accept and execute SnakeLab simulation requests."""
 
     def __init__(
         self,
@@ -28,6 +48,12 @@ class SnakeLabServer:
         self._socket = self._context.socket(zmq.REP)
         self._socket.setsockopt(zmq.LINGER, 0)
         self._stop_event = threading.Event()
+        self._run_queue: queue.Queue[SimulationRun | None] = queue.Queue()
+        self._runs: dict[str, SimulationRun] = {}
+        self._worker = threading.Thread(
+            target=self._worker_loop,
+            name="simulation-worker",
+        )
         self.log = MyLog(
             client_id=DModule.SERVER,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -35,19 +61,127 @@ class SnakeLabServer:
         )
 
     def stop(self) -> None:
-        """Request a clean shutdown of the server loop."""
         self._stop_event.set()
 
     @staticmethod
-    def handle_message(message: str) -> dict[str, Any]:
-        """Return the response for a control message."""
-        if message.strip().lower() == "health":
-            return {"status": "ok"}
-        return {"status": "error", "error": "unknown message"}
+    def validate_config(config: Any) -> dict[str, Any]:
+        if not isinstance(config, dict):
+            raise ProtocolError("invalid_config", "config must be an object")
+        if set(config) != {"schema_version", "name", "epochs"}:
+            raise ProtocolError(
+                "invalid_config",
+                "config must contain only schema_version, name, and epochs",
+            )
+        if config["schema_version"] != 1:
+            raise ProtocolError(
+                "invalid_config", "schema_version must equal 1"
+            )
+        if not isinstance(config["name"], str) or not config["name"].strip():
+            raise ProtocolError(
+                "invalid_config", "name must be a non-empty string"
+            )
+        if type(config["epochs"]) is not int or config["epochs"] <= 0:
+            raise ProtocolError(
+                "invalid_config", "epochs must be a positive integer"
+            )
+        return dict(config)
+
+    def _submit(self, request: Request) -> dict[str, Any]:
+        if set(request.payload) != {"config"}:
+            raise ProtocolError(
+                "invalid_request", "submit payload must contain only config"
+            )
+
+        config = self.validate_config(request.payload["config"])
+        run = SimulationRun(run_id=str(uuid.uuid4()), config=config)
+        self._runs[run.run_id] = run
+        queue_position = self._run_queue.qsize() + 1
+        response = success_response(
+            request.request_id,
+            {
+                "run_id": run.run_id,
+                "state": "queued",
+                "queue_position": queue_position,
+            },
+        )
+        self._run_queue.put(run)
+        self.log.info(f"Queued simulation {run.run_id}: {config['name']}")
+        return response
+
+    def _status(self, request: Request) -> dict[str, Any]:
+        if set(request.payload) != {"run_id"}:
+            raise ProtocolError(
+                "invalid_request", "status payload must contain only run_id"
+            )
+        run_id = request.payload["run_id"]
+        if not isinstance(run_id, str) or not run_id:
+            raise ProtocolError(
+                "invalid_request", "run_id must be a non-empty string"
+            )
+        if run_id not in self._runs:
+            raise ProtocolError("run_not_found", f"Unknown run: {run_id}")
+
+        run = self._runs[run_id]
+        return success_response(
+            request.request_id,
+            {
+                "run_id": run.run_id,
+                "state": run.state,
+                "epochs": run.config["epochs"],
+                "completed_epochs": run.completed_epochs,
+            },
+        )
+
+    def handle_request(self, data: Any) -> dict[str, Any]:
+        request_id = data.get("request_id") if isinstance(data, dict) else None
+        try:
+            request = Request.from_dict(data)
+            if request.method == METHOD_HEALTH:
+                if request.payload:
+                    raise ProtocolError(
+                        "invalid_request", "health payload must be empty"
+                    )
+                return success_response(
+                    request.request_id, {"service": "snake-lab"}
+                )
+            if request.method == METHOD_SIMULATION_SUBMIT:
+                return self._submit(request)
+            if request.method == METHOD_SIMULATION_STATUS:
+                return self._status(request)
+            raise ProtocolError(
+                "unknown_method", f"Unknown method: {request.method}"
+            )
+        except ProtocolError as error:
+            return error_response(request_id, error.code, str(error))
+
+    def _execute_simulation(self, run: SimulationRun) -> None:
+        """Stub simulation execution for the configured epoch count."""
+        time.sleep(0.05)
+        run.completed_epochs = run.config["epochs"]
+
+    def _write_results(self, run: SimulationRun) -> None:
+        """Stub result persistence until MariaDB integration is added."""
+        self.log.info(
+            f"Simulation {run.run_id} completed {run.completed_epochs} epochs"
+        )
+
+    def _worker_loop(self) -> None:
+        while True:
+            run = self._run_queue.get()
+            if run is None:
+                return
+            if self._stop_event.is_set():
+                return
+
+            run.state = "running"
+            self.log.info(f"Running simulation {run.run_id}")
+            self._execute_simulation(run)
+            self._write_results(run)
+            run.state = "completed"
 
     def run(self) -> None:
-        """Bind the REP socket and process requests until stopped."""
         self._socket.bind(self.endpoint)
+        self._worker.start()
         print(f"SnakeLab server listening on {self.endpoint}", flush=True)
         self.log.info(f"SnakeLab server listening on {self.endpoint}")
 
@@ -55,20 +189,18 @@ class SnakeLabServer:
             while not self._stop_event.is_set():
                 if self._socket.poll(timeout=500) == 0:
                     continue
-
-                message = self._socket.recv_string()
-                response = self.handle_message(message)
-                self._socket.send_string(
-                    json.dumps(response, separators=(",", ":"))
-                )
+                response = self.handle_request(self._socket.recv_json())
+                self._socket.send_json(response)
         finally:
+            self._stop_event.set()
+            self._run_queue.put(None)
+            self._worker.join()
             self._socket.close()
             self._context.term()
             self.log.shutdown()
 
 
 def main() -> None:
-    """Run the SnakeLab server process."""
     parser = argparse.ArgumentParser(description="Run the SnakeLab server")
     parser.add_argument("--address", default="*")
     parser.add_argument("--port", type=int, default=DSnakeLab.PORT)

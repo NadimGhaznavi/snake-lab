@@ -10,7 +10,9 @@ readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
-require_commands systemctl install cmp getent useradd mktemp chmod mv rm
+require_commands \
+    python3 systemctl install cmp getent useradd mktemp chmod chown mv rm \
+    mariadb openssl
 validate_release_checkout
 
 [[ -d "${INSTALL_DIR}" ]] ||
@@ -29,6 +31,7 @@ fi
 systemctl stop snake-lab.service
 ensure_service_account
 prepare_installation_directories
+provision_database
 deploy_application
 deploy_runtime_files
 remove_legacy_layout
