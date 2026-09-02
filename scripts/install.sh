@@ -14,7 +14,7 @@ if [[ ${EUID} -ne 0 ]]; then
     exit 1
 fi
 
-for command in python3 systemctl install ln; do
+for command in python3 systemctl install ln getent useradd; do
     command -v "${command}" >/dev/null 2>&1 || {
         printf '[ERROR] Required command not found: %s\n' "${command}" >&2
         exit 1
@@ -30,15 +30,32 @@ done
     exit 1
 }
 
+systemctl stop snake-lab.service 2>/dev/null || true
+
+if ! getent passwd snake-lab >/dev/null; then
+    useradd \
+        --system \
+        --user-group \
+        --home-dir "${INSTALL_DIR}" \
+        --shell /usr/sbin/nologin \
+        snake-lab
+fi
+
 install -d -m 0755 "${INSTALL_DIR}/snake_lab"
 install -d -m 0755 "${INSTALL_DIR}/constants"
 install -d -m 0755 "${INSTALL_DIR}/client"
 install -d -m 0755 "${INSTALL_DIR}/scripts"
+install -d -o snake-lab -g snake-lab -m 0750 "${INSTALL_DIR}/logs"
+install -d -m 0755 "${INSTALL_DIR}/utils"
 install -m 0644 "${PROJECT_DIR}/snake_lab/__init__.py" "${INSTALL_DIR}/snake_lab/__init__.py"
 install -m 0644 "${PROJECT_DIR}/snake_lab/server.py" "${INSTALL_DIR}/snake_lab/server.py"
 install -m 0644 "${PROJECT_DIR}/snake_lab/client.py" "${INSTALL_DIR}/snake_lab/client.py"
 install -m 0644 "${PROJECT_DIR}/constants/__init__.py" "${INSTALL_DIR}/constants/__init__.py"
+install -m 0644 "${PROJECT_DIR}/constants/DModule.py" "${INSTALL_DIR}/constants/DModule.py"
+install -m 0644 "${PROJECT_DIR}/constants/DMyLog.py" "${INSTALL_DIR}/constants/DMyLog.py"
 install -m 0644 "${PROJECT_DIR}/constants/DSnakeLab.py" "${INSTALL_DIR}/constants/DSnakeLab.py"
+install -m 0644 "${PROJECT_DIR}/utils/__init__.py" "${INSTALL_DIR}/utils/__init__.py"
+install -m 0644 "${PROJECT_DIR}/utils/MyLog.py" "${INSTALL_DIR}/utils/MyLog.py"
 install -m 0644 "${PROJECT_DIR}/requirements.txt" "${INSTALL_DIR}/requirements.txt"
 install -m 0755 "${PROJECT_DIR}/scripts/rebuild-venv.sh" "${INSTALL_DIR}/scripts/rebuild-venv.sh"
 install -m 0755 "${PROJECT_DIR}/client/lab-client.sh" "${INSTALL_DIR}/client/lab-client.sh"

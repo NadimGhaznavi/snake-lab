@@ -8,11 +8,13 @@ WorkingDirectory=/opt/snake-lab
 ExecStart=/opt/snake-lab/venv/bin/python -m snake_lab.server
 Restart=on-failure
 RestartSec=5
-DynamicUser=yes
+User=snake-lab
+Group=snake-lab
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
+ReadWritePaths=/opt/snake-lab/logs
 
 [Install]
 WantedBy=multi-user.target
