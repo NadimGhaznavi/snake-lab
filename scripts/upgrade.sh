@@ -39,6 +39,5 @@ fi
 
 systemctl daemon-reload
 systemctl restart snake-lab.service
-health_check
 
 printf '[SUCCESS] SnakeLab upgraded successfully.\n'

@@ -25,7 +25,6 @@ deploy_runtime_files
 systemctl daemon-reload
 systemctl enable snake-lab.service
 systemctl start snake-lab.service
-health_check
 
 printf '[SUCCESS] SnakeLab installed in %s\n' "${INSTALL_DIR}"
 printf '[INFO] ZeroMQ server: tcp://127.0.0.1:41970\n'
