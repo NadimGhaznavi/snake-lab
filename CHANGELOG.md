@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Persistent server logging under `/opt/snake-lab/logs`.
+
+### Changed
+
+- Run the systemd service as a dedicated `snake-lab` system account with write
+  access limited to its log directory.
+
 ## [0.1.0] - 2026-09-02 @ 16:44
 
 ### Added

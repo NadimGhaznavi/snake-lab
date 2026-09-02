@@ -2,6 +2,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -20,6 +21,8 @@ def available_tcp_port() -> int:
 class ZeroMQIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.port = available_tcp_port()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        log_file = str(Path(self.temp_dir.name) / "server.log")
         self.server = subprocess.Popen(
             [
                 sys.executable,
@@ -29,6 +32,8 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 "127.0.0.1",
                 "--port",
                 str(self.port),
+                "--log-file",
+                log_file,
             ],
             cwd=PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -51,6 +56,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.server.wait(timeout=2)
         self.server.stdout.close()
         self.server.stderr.close()
+        self.temp_dir.cleanup()
         self.assertEqual(self.server.returncode, 0)
 
     def test_health_request(self) -> None:
