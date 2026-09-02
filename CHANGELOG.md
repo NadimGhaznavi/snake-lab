@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-09-02 @ 15:51
+
 ### Added
 
 - Initial standalone Snake Game server project documentation.
