@@ -104,16 +104,3 @@ remove_legacy_layout() {
         "${INSTALL_DIR}/snake_lab" \
         "${INSTALL_DIR}/utils"
 }
-
-health_check() {
-    cd -- "${APP_DIR}"
-    "${INSTALL_DIR}/venv/bin/python" -c \
-        'from snake_lab.client import LabClient
-client = LabClient()
-try:
-    response = client.health()
-finally:
-    client.close()
-if response != {"status": "ok"}:
-    raise RuntimeError(f"Health check failed: {response!r}")'
-}
