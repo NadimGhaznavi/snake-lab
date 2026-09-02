@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   persistent `venv/` and `logs/` directories.
 - Rebuild the production virtual environment during an upgrade only when
   `requirements.txt` changes.
+- Ensure staged application directories retain service-readable permissions
+  when promoted into place.
 
 ## [0.1.1] - 2026-09-02 @ 17:13
 
