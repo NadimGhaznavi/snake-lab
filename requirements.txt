@@ -1,0 +1,3 @@
+# Requirements for running the Snake Lab server
+PyMySQL>=1.1,<2
+pyzmq>=27.1,<28

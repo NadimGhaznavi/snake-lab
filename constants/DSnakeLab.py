@@ -3,4 +3,5 @@ from typing import Final
 
 class DSnakeLab:
 
-    VERSION: Final[str] = "0.0.1"
+    PORT: Final[int] = 41970
+    VERSION: Final[str] = "0.1.0"
