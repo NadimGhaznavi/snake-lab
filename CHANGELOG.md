@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-02 @ 17:20
+
+### Added
+
+- In-place upgrade tooling with a post-restart ZeroMQ health check.
+
+### Changed
+
+- Separate replaceable application files under `/opt/snake-lab/app` from the
+  persistent `venv/` and `logs/` directories.
+- Rebuild the production virtual environment during an upgrade only when
+  `requirements.txt` changes.
+
 ## [0.1.1] - 2026-09-02 @ 17:13
 
 ### Added
