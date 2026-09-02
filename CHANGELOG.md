@@ -9,25 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- MariaDB connection constants and installer provisioning for a dedicated
+  `snakelab` database and local `snakelab` database user.
+- Generated database credentials stored outside the application tree at
+  `/opt/snake-lab/config/database.json`.
+- Versioned ZeroMQ JSON messaging for simulation submission and status queries.
+- Strict validation for the initial simulation configuration schema.
+- FIFO simulation queue with stub execution and result persistence.
+- Administrative client support for submitting JSON configuration files.
+- Sample simulation configuration under `examples/`.
+
 ## [0.1.4] - 2026-09-02 @ 17:26
-
-## [0.1.3] - 2026-09-02 @ 17:22
-
-## [0.1.2] - 2026-09-02 @ 17:20
 
 ### Added
 
-- In-place upgrade tooling for deploying new releases while preserving runtime
-  data.
+- In-place `upgrade.sh` tooling and shared deployment functions used by both
+  fresh installations and upgrades.
 
 ### Changed
 
-- Separate replaceable application files under `/opt/snake-lab/app` from the
-  persistent `venv/` and `logs/` directories.
-- Rebuild the production virtual environment during an upgrade only when
-  `requirements.txt` changes.
-- Ensure staged application directories retain service-readable permissions
-  when promoted into place.
+- Split replaceable application code under `/opt/snake-lab/app` from persistent
+  `venv/` and `logs/` directories.
+- Preserve the production virtual environment during upgrades, rebuilding it
+  only when `requirements.txt` changes.
+- Remove obsolete flat-layout application directories during migration.
+- Update the systemd working directory and installed client launcher for the
+  new application layout.
+
+### Fixed
+
+- Set service-readable permissions on staged application directories before
+  promotion, preventing systemd `status=200/CHDIR` startup failures.
 
 ## [0.1.1] - 2026-09-02 @ 17:13
 

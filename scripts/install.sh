@@ -10,7 +10,9 @@ readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
-require_commands python3 systemctl install getent useradd mktemp chmod mv rm
+require_commands \
+    python3 systemctl install getent useradd mktemp chmod chown mv rm \
+    mariadb openssl
 validate_release_checkout
 
 [[ ! -e "${INSTALL_DIR}" ]] ||
@@ -18,6 +20,7 @@ validate_release_checkout
 
 ensure_service_account
 prepare_installation_directories
+provision_database
 deploy_application
 deploy_runtime_files
 "${INSTALL_DIR}/scripts/rebuild-venv.sh"

@@ -1,11 +1,19 @@
 """Text-based administrative client for SnakeLab."""
 
 import json
+import uuid
+from pathlib import Path
 from typing import Any
 
 import zmq
 
 from constants.DSnakeLab import DSnakeLab
+from snake_lab.protocol import (
+    METHOD_HEALTH,
+    METHOD_SIMULATION_STATUS,
+    METHOD_SIMULATION_SUBMIT,
+    PROTOCOL_VERSION,
+)
 
 
 class LabClient:
@@ -25,41 +33,65 @@ class LabClient:
         self._socket.setsockopt(zmq.SNDTIMEO, timeout_ms)
         self._socket.connect(self.endpoint)
 
-    def request(self, message: str) -> dict[str, Any]:
-        """Send one request and return its JSON-object response."""
-        self._socket.send_string(message)
+    def request(
+        self, method: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        request_id = str(uuid.uuid4())
+        self._socket.send_json(
+            {
+                "protocol_version": PROTOCOL_VERSION,
+                "request_id": request_id,
+                "method": method,
+                "payload": payload,
+            }
+        )
         response = self._socket.recv_json()
+
         if not isinstance(response, dict):
             raise TypeError("SnakeLab response must be a JSON object")
+        if response.get("protocol_version") != PROTOCOL_VERSION:
+            raise ValueError("SnakeLab response has an unsupported protocol")
+        if response.get("request_id") != request_id:
+            raise ValueError("SnakeLab response request_id does not match")
         return response
 
     def health(self) -> dict[str, Any]:
-        """Return the server health response."""
-        return self.request("health")
+        return self.request(METHOD_HEALTH, {})
+
+    def submit(self, config: dict[str, Any]) -> dict[str, Any]:
+        return self.request(METHOD_SIMULATION_SUBMIT, {"config": config})
+
+    def status(self, run_id: str) -> dict[str, Any]:
+        return self.request(METHOD_SIMULATION_STATUS, {"run_id": run_id})
 
     def close(self) -> None:
-        """Release the ZeroMQ socket and context."""
         self._socket.close()
         self._context.term()
 
     def menu(self) -> None:
-        """Run the administrative menu until the user quits."""
         while True:
             print("\nSnakeLab Client")
             print("1. Health check")
-            print("2. Quit")
+            print("2. Submit simulation config")
+            print("3. Quit")
 
             choice = input("Select an option: ").strip()
             if choice == "1":
                 print(json.dumps(self.health(), separators=(",", ":")))
             elif choice == "2":
+                config_path = Path(input("Config JSON file: ").strip())
+                with config_path.open(encoding="utf-8") as config_file:
+                    config = json.load(config_file)
+                if not isinstance(config, dict):
+                    raise TypeError("Simulation config must be a JSON object")
+                print(json.dumps(self.submit(config), separators=(",", ":")))
+            elif choice == "3":
                 return
             else:
-                print("Invalid option. Please select 1 or 2.")
+                print("Invalid option. Please select 1, 2, or 3.")
 
 
 def main() -> None:
-    """Run the SnakeLab administrative client."""
     client = LabClient()
     try:
         client.menu()
@@ -69,4 +101,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
