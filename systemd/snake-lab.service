@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/snake-lab
+WorkingDirectory=/opt/snake-lab/app
 ExecStart=/opt/snake-lab/venv/bin/python -m snake_lab.server
 Restart=on-failure
 RestartSec=5
