@@ -10,7 +10,7 @@ readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
-require_commands python3 systemctl install getent useradd mktemp mv rm
+require_commands python3 systemctl install getent useradd mktemp chmod mv rm
 validate_release_checkout
 
 [[ ! -e "${INSTALL_DIR}" ]] ||

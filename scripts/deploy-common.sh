@@ -68,6 +68,7 @@ prepare_installation_directories() {
 deploy_application() {
     local staging_dir
     staging_dir=$(mktemp -d "${INSTALL_DIR}/.app.XXXXXX")
+    chmod 0755 "${staging_dir}"
 
     install -d -m 0755 \
         "${staging_dir}/client" \

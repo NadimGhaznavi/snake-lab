@@ -10,7 +10,7 @@ readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
-require_commands systemctl install cmp getent useradd mktemp mv rm
+require_commands systemctl install cmp getent useradd mktemp chmod mv rm
 validate_release_checkout
 
 [[ -d "${INSTALL_DIR}" ]] ||
