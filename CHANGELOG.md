@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02 @ 16:44
+
 ### Added
 
 - Unit and process-level ZeroMQ integration tests for health and unknown-message
