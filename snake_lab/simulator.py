@@ -1,27 +1,36 @@
 """SnakeLab simulation runtime."""
 
+from copy import deepcopy
 from typing import Any
 
 import torch
 
 
-def runtime_description(torch_module: Any = torch) -> str:
-    """Exercise PyTorch and describe the device used by the operation."""
-    if torch_module.cuda.is_available():
-        device = torch_module.device("cuda")
-        location = f"GPU ({torch_module.cuda.get_device_name(device)})"
-    else:
-        device = torch_module.device("cpu")
-        location = "CPU"
+class Simulator:
+    """Execute one isolated SnakeLab simulation."""
 
-    probe = torch_module.ones(1, device=device)
-    (probe + 1).sum().item()
-    if device.type == "cuda":
-        torch_module.cuda.synchronize(device)
+    def __init__(
+        self, config: dict[str, Any], torch_module: Any = torch
+    ) -> None:
+        self.config = deepcopy(config)
+        self._torch = torch_module
+        if self._torch.cuda.is_available():
+            self.device = self._torch.device("cuda")
+            device_name = self._torch.cuda.get_device_name(self.device)
+            self._location = f"GPU ({device_name})"
+        else:
+            self.device = self._torch.device("cpu")
+            self._location = "CPU"
 
-    return f"Simulation running on {location}"
+    @property
+    def runtime_description(self) -> str:
+        return f"Simulation running on {self._location}"
 
+    def run(self) -> None:
+        """Run the initial simulator stack-validation workload."""
+        probe = self._torch.ones(1, device=self.device)
+        (probe + 1).sum().item()
+        if self.device.type == "cuda":
+            self._torch.cuda.synchronize(self.device)
 
-def run_simulation() -> None:
-    """Run the initial simulator stack-validation workload."""
-    print(runtime_description(), flush=True)
+        print(self.runtime_description, flush=True)
