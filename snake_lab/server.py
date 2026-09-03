@@ -13,6 +13,10 @@ import zmq
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
+from snake_lab.configuration import (
+    ConfigurationError,
+    simulation_config_template,
+)
 from snake_lab.protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_STATUS,
@@ -22,7 +26,7 @@ from snake_lab.protocol import (
     error_response,
     success_response,
 )
-from snake_lab.simulator import run_simulation
+from snake_lab.simulator import Simulator
 from utils.MyLog import MyLog
 
 
@@ -50,6 +54,7 @@ class SnakeLabServer:
         self._stop_event = threading.Event()
         self._run_queue: queue.Queue[SimulationRun | None] = queue.Queue()
         self._runs: dict[str, SimulationRun] = {}
+        self._config_template = simulation_config_template()
         self._worker = threading.Thread(
             target=self._worker_loop,
             name="simulation-worker",
@@ -64,28 +69,11 @@ class SnakeLabServer:
     def stop(self) -> None:
         self._stop_event.set()
 
-    @staticmethod
-    def validate_config(config: Any) -> dict[str, Any]:
-        if not isinstance(config, dict):
-            raise ProtocolError("invalid_config", "config must be an object")
-        if set(config) != {"schema_version", "name", "epochs"}:
-            raise ProtocolError(
-                "invalid_config",
-                "config must contain only schema_version, name, and epochs",
-            )
-        if config["schema_version"] != 1:
-            raise ProtocolError(
-                "invalid_config", "schema_version must equal 1"
-            )
-        if not isinstance(config["name"], str) or not config["name"].strip():
-            raise ProtocolError(
-                "invalid_config", "name must be a non-empty string"
-            )
-        if type(config["epochs"]) is not int or config["epochs"] <= 0:
-            raise ProtocolError(
-                "invalid_config", "epochs must be a positive integer"
-            )
-        return dict(config)
+    def validate_config(self, config: Any) -> dict[str, Any]:
+        try:
+            return self._config_template.resolve(config)
+        except ConfigurationError as error:
+            raise ProtocolError("invalid_config", str(error)) from error
 
     def _submit(self, request: Request) -> dict[str, Any]:
         if set(request.payload) != {"config"}:
@@ -106,7 +94,9 @@ class SnakeLabServer:
             },
         )
         self._run_queue.put(run)
-        self.log.info(f"Queued simulation {run.run_id}: {config['name']}")
+        self.log.info(
+            f"Queued simulation {run.run_id}: {config['epochs']} epochs"
+        )
         return response
 
     def _status(self, request: Request) -> dict[str, Any]:
@@ -157,7 +147,7 @@ class SnakeLabServer:
 
     def _execute_simulation(self, run: SimulationRun) -> None:
         """Execute the simulation workload."""
-        run_simulation()
+        Simulator(run.config).run()
         run.completed_epochs = run.config["epochs"]
 
     def _write_results(self, run: SimulationRun) -> None:

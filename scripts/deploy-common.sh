@@ -38,7 +38,9 @@ validate_release_checkout() {
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
         "snake_lab/client.py"
+        "snake_lab/configuration.py"
         "snake_lab/protocol.py"
+        "snake_lab/schemas/simulation-config-v1.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"
         "systemd/snake-lab.service"
@@ -124,6 +126,7 @@ deploy_application() {
         "${staging_dir}/client" \
         "${staging_dir}/constants" \
         "${staging_dir}/snake_lab" \
+        "${staging_dir}/snake_lab/schemas" \
         "${staging_dir}/utils"
 
     install -m 0755 "${PROJECT_DIR}/client/lab-client" \
@@ -132,6 +135,8 @@ deploy_application() {
         "${staging_dir}/constants/"
     install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
         "${staging_dir}/snake_lab/"
+    install -m 0644 "${PROJECT_DIR}/snake_lab/schemas/"*.json \
+        "${staging_dir}/snake_lab/schemas/"
     install -m 0644 "${PROJECT_DIR}/utils/"*.py \
         "${staging_dir}/utils/"
 
