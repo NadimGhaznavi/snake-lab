@@ -23,7 +23,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.port = available_tcp_port()
         self.temp_dir = tempfile.TemporaryDirectory()
-        log_file = str(Path(self.temp_dir.name) / "server.log")
+        self.log_file = Path(self.temp_dir.name) / "server.log"
         self.server = subprocess.Popen(
             [
                 sys.executable,
@@ -34,7 +34,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 "--port",
                 str(self.port),
                 "--log-file",
-                log_file,
+                str(self.log_file),
             ],
             cwd=PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -42,12 +42,23 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             text=True,
         )
 
-        startup = self.server.stdout.readline()
-        if startup != (
-            f"SnakeLab server listening on tcp://127.0.0.1:{self.port}\n"
-        ):
-            _, stderr = self.server.communicate(timeout=1)
-            self.fail(f"Server failed to start: {startup}{stderr}")
+        startup_message = (
+            f"SnakeLab server listening on tcp://127.0.0.1:{self.port}"
+        )
+        deadline = time.monotonic() + 10
+        while True:
+            if self.server.poll() is not None:
+                stdout, stderr = self.server.communicate(timeout=1)
+                self.fail(f"Server failed to start: {stdout}{stderr}")
+            if self.log_file.exists() and startup_message in (
+                self.log_file.read_text(encoding="utf-8")
+            ):
+                break
+            if time.monotonic() >= deadline:
+                self.server.terminate()
+                stdout, stderr = self.server.communicate(timeout=2)
+                self.fail(f"Server startup timed out: {stdout}{stderr}")
+            time.sleep(0.05)
 
         self.client = LabClient(port=self.port, timeout_ms=1000)
 
@@ -81,6 +92,10 @@ class ZeroMQIntegrationTests(unittest.TestCase):
 
         self.assertEqual(status["payload"]["epochs"], 100)
         self.assertEqual(status["payload"]["completed_epochs"], 100)
+        self.assertIn(
+            "[simulator] Simulation running on CPU",
+            self.log_file.read_text(encoding="utf-8"),
+        )
 
     def test_submit_uses_default_config(self) -> None:
         response = self.client.submit({})

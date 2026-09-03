@@ -1,6 +1,4 @@
 import unittest
-from contextlib import redirect_stdout
-from io import StringIO
 
 from snake_lab.simulator import Simulator
 
@@ -50,34 +48,44 @@ class FakeTorch:
         return FakeTensor()
 
 
+class FakeLog:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def info(self, message: str) -> None:
+        self.messages.append(message)
+
+
 class SimulatorTests(unittest.TestCase):
     def test_cpu_runtime(self) -> None:
         torch_module = FakeTorch(cuda_available=False)
-        output = StringIO()
+        log = FakeLog()
 
-        with redirect_stdout(output):
-            simulator = Simulator({"epochs": 1500}, torch_module)
-            simulator.run()
+        simulator = Simulator(
+            {"epochs": 1500}, torch_module=torch_module, log=log
+        )
+        simulator.run()
 
-        self.assertEqual(output.getvalue(), "Simulation running on CPU\n")
         self.assertEqual(simulator.runtime_description, "Simulation running on CPU")
+        self.assertEqual(log.messages, ["Simulation running on CPU"])
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
 
     def test_gpu_runtime(self) -> None:
         torch_module = FakeTorch(cuda_available=True)
-        output = StringIO()
+        log = FakeLog()
 
-        with redirect_stdout(output):
-            simulator = Simulator({"epochs": 1500}, torch_module)
-            simulator.run()
-
-        self.assertEqual(
-            output.getvalue(), "Simulation running on GPU (Test GPU)\n"
+        simulator = Simulator(
+            {"epochs": 1500}, torch_module=torch_module, log=log
         )
+        simulator.run()
+
         self.assertEqual(
             simulator.runtime_description,
             "Simulation running on GPU (Test GPU)",
+        )
+        self.assertEqual(
+            log.messages, ["Simulation running on GPU (Test GPU)"]
         )
         self.assertEqual(torch_module.tensor_device.type, "cuda")
         self.assertTrue(torch_module.cuda.synchronized)
