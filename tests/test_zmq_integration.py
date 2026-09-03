@@ -66,9 +66,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(response["payload"], {"service": "snake-lab"})
 
     def test_submit_and_complete_simulation(self) -> None:
-        response = self.client.submit(
-            {"schema_version": 1, "name": "integration", "epochs": 25}
-        )
+        response = self.client.submit({"epochs": 100})
         self.assertEqual(response["status"], "ok")
         self.assertEqual(response["payload"]["state"], "queued")
         run_id = response["payload"]["run_id"]
@@ -81,13 +79,19 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             if time.monotonic() >= deadline:
                 self.fail("Simulation did not complete")
 
-        self.assertEqual(status["payload"]["epochs"], 25)
-        self.assertEqual(status["payload"]["completed_epochs"], 25)
+        self.assertEqual(status["payload"]["epochs"], 100)
+        self.assertEqual(status["payload"]["completed_epochs"], 100)
+
+    def test_submit_uses_default_config(self) -> None:
+        response = self.client.submit({})
+        self.assertEqual(response["status"], "ok")
+        run_id = response["payload"]["run_id"]
+
+        status = self.client.status(run_id)
+        self.assertEqual(status["payload"]["epochs"], 1500)
 
     def test_invalid_config_is_rejected(self) -> None:
-        response = self.client.submit(
-            {"schema_version": 1, "name": "invalid", "epochs": 0}
-        )
+        response = self.client.submit({"epochs": 99})
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["error"]["code"], "invalid_config")
 

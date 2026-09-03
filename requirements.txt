@@ -1,4 +1,5 @@
 # Requirements for running the Snake Lab server
+jsonschema>=4.25,<5
 numpy>=2.2,<3
 PyMySQL>=1.1,<2
 pyzmq>=27.1,<28

@@ -1,6 +1,8 @@
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 
-from snake_lab.simulator import runtime_description
+from snake_lab.simulator import Simulator
 
 
 class FakeDevice:
@@ -48,22 +50,35 @@ class FakeTorch:
         return FakeTensor()
 
 
-class RuntimeDescriptionTests(unittest.TestCase):
+class SimulatorTests(unittest.TestCase):
     def test_cpu_runtime(self) -> None:
         torch_module = FakeTorch(cuda_available=False)
+        output = StringIO()
 
-        description = runtime_description(torch_module)
+        with redirect_stdout(output):
+            simulator = Simulator({"epochs": 1500}, torch_module)
+            simulator.run()
 
-        self.assertEqual(description, "Simulation running on CPU")
+        self.assertEqual(output.getvalue(), "Simulation running on CPU\n")
+        self.assertEqual(simulator.runtime_description, "Simulation running on CPU")
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
 
     def test_gpu_runtime(self) -> None:
         torch_module = FakeTorch(cuda_available=True)
+        output = StringIO()
 
-        description = runtime_description(torch_module)
+        with redirect_stdout(output):
+            simulator = Simulator({"epochs": 1500}, torch_module)
+            simulator.run()
 
-        self.assertEqual(description, "Simulation running on GPU (Test GPU)")
+        self.assertEqual(
+            output.getvalue(), "Simulation running on GPU (Test GPU)\n"
+        )
+        self.assertEqual(
+            simulator.runtime_description,
+            "Simulation running on GPU (Test GPU)",
+        )
         self.assertEqual(torch_module.tensor_device.type, "cuda")
         self.assertTrue(torch_module.cuda.synchronized)
 

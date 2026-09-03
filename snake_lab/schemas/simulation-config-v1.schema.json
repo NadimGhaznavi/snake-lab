@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snake-lab.local/schemas/simulation-config-v1.schema.json",
+  "title": "SnakeLab simulation configuration",
+  "description": "Configuration for one SnakeLab simulation run.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "epochs": {
+      "title": "Number of epochs",
+      "description": "Number of training epochs to execute.",
+      "type": "integer",
+      "default": 1500,
+      "minimum": 100,
+      "maximum": 5000,
+      "x-snakelab-unit": "epochs",
+      "x-snakelab-sweepable": true
+    }
+  },
+  "required": [
+    "epochs"
+  ]
+}

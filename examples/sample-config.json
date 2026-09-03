@@ -1,5 +1,3 @@
 {
-  "schema_version": 1,
-  "name": "sample-run",
-  "epochs": 100
+  "epochs": 1500
 }
