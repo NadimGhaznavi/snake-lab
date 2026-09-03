@@ -48,6 +48,7 @@ class SnakeLabServer:
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
     ) -> None:
         self.endpoint = f"tcp://{address}:{port}"
+        self._log_file = log_file
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REP)
         self._socket.setsockopt(zmq.LINGER, 0)
@@ -147,7 +148,7 @@ class SnakeLabServer:
 
     def _execute_simulation(self, run: SimulationRun) -> None:
         """Execute the simulation workload."""
-        Simulator(run.config).run()
+        Simulator(run.config, log_file=self._log_file).run()
         run.completed_epochs = run.config["epochs"]
 
     def _write_results(self, run: SimulationRun) -> None:
@@ -173,7 +174,6 @@ class SnakeLabServer:
     def run(self) -> None:
         self._socket.bind(self.endpoint)
         self._worker.start()
-        print(f"SnakeLab server listening on {self.endpoint}", flush=True)
         self.log.info(f"SnakeLab server listening on {self.endpoint}")
 
         try:

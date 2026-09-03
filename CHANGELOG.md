@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-03 @ 04:23
+
 ## [0.4.0] - 2026-09-03 @ 04:09
 
 ### Added
 
+- Simulator logging to the shared server log with a distinct component name.
 - Versioned JSON Schema simulation configuration template with external
   defaults, validation constraints, and descriptive metadata.
 - Configuration management that resolves submitted overrides into complete,
