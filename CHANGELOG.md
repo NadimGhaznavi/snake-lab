@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic epsilon-greedy exploration with episode-based decay,
+  configurable floor and cutoff, and injection counters.
+- Native deterministic Snake environment with immutable game snapshots,
+  relative actions, egocentric observations, configurable rewards, and
+  explicit terminal outcomes.
+- Game-mechanics tests covering movement, collisions, food, board completion,
+  observation rotation, move budgets, and seeded reproducibility.
+- Fixed-shape, episode-aware replay memory that produces dense NumPy batches
+  for recurrent training without crossing episode boundaries.
+- Native recurrent model and Double DQN trainer with batched sequence training,
+  target-network updates, and CPU/GPU device support.
+
 ## [0.4.2] - 2026-09-03 @ 04:25
 
 ## [0.4.1] - 2026-09-03 @ 04:23

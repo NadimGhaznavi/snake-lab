@@ -93,7 +93,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(status["payload"]["epochs"], 100)
         self.assertEqual(status["payload"]["completed_epochs"], 100)
         self.assertIn(
-            "[simulator] Simulation running on CPU",
+            "[Simulator] Simulation running on CPU",
             self.log_file.read_text(encoding="utf-8"),
         )
 

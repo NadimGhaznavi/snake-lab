@@ -1,3 +1,8 @@
 {
-  "epochs": 1500
+  "epochs": 1500,
+  "epsilon": {
+    "initial": 0.96,
+    "minimum": 0.0,
+    "decay": 0.97
+  }
 }

@@ -82,6 +82,14 @@ class ConfigTemplate:
             raise ConfigurationError(
                 f"{self._error_path(error)}: {error.message}"
             )
+        epsilon = resolved.get("epsilon")
+        if (
+            isinstance(epsilon, dict)
+            and epsilon.get("minimum", 0) > epsilon.get("initial", 1)
+        ):
+            raise ConfigurationError(
+                "$.epsilon.minimum: cannot exceed initial epsilon"
+            )
         return resolved
 
 

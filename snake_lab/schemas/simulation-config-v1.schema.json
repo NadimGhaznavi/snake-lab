@@ -15,9 +15,53 @@
       "maximum": 5000,
       "x-snakelab-unit": "epochs",
       "x-snakelab-sweepable": true
+    },
+    "epsilon": {
+      "title": "Epsilon-greedy exploration",
+      "description": "Episode-based epsilon-greedy exploration schedule.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "initial": {
+          "title": "Initial epsilon",
+          "description": "Probability of selecting a random action at the beginning of a simulation.",
+          "type": "number",
+          "default": 0.96,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "x-snakelab-unit": "probability",
+          "x-snakelab-sweepable": true
+        },
+        "minimum": {
+          "title": "Minimum epsilon",
+          "description": "Lowest random-action probability retained by the schedule.",
+          "type": "number",
+          "default": 0.0,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "x-snakelab-unit": "probability",
+          "x-snakelab-sweepable": true
+        },
+        "decay": {
+          "title": "Epsilon decay",
+          "description": "Multiplier applied to epsilon after each completed episode.",
+          "type": "number",
+          "default": 0.97,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1.0,
+          "x-snakelab-unit": "multiplier-per-episode",
+          "x-snakelab-sweepable": true
+        }
+      },
+      "required": [
+        "initial",
+        "minimum",
+        "decay"
+      ]
     }
   },
   "required": [
-    "epochs"
+    "epochs",
+    "epsilon"
   ]
 }
