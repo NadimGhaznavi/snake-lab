@@ -27,7 +27,7 @@ class Simulator:
             client_id=DModule.SIMULATOR,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
             log_file=log_file,
-            to_console=False,
+            to_console=True,
         )
         if self._torch.cuda.is_available():
             self.device = self._torch.device("cuda")
