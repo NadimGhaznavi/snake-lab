@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Initial PyTorch simulator runtime probe that executes a tensor operation and
+  reports whether it ran on the CPU or an identified CUDA GPU.
+- Hardware-aware PyTorch environment installation using a CPU wheel on
+  development hosts and a CUDA 12.6 wheel on NVIDIA GPU hosts.
+
+### Fixed
+
+- Preserve the caller's working directory in client launchers so relative
+  configuration paths resolve from where `lab-client` was invoked.
+
 ## [0.2.0] - 2026-09-02 @ 17:58
 
 ### Added

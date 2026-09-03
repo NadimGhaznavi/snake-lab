@@ -4,7 +4,6 @@ import argparse
 import queue
 import signal
 import threading
-import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +22,7 @@ from snake_lab.protocol import (
     error_response,
     success_response,
 )
+from snake_lab.simulator import run_simulation
 from utils.MyLog import MyLog
 
 
@@ -58,6 +58,7 @@ class SnakeLabServer:
             client_id=DModule.SERVER,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
             log_file=log_file,
+            to_console=False,
         )
 
     def stop(self) -> None:
@@ -155,8 +156,8 @@ class SnakeLabServer:
             return error_response(request_id, error.code, str(error))
 
     def _execute_simulation(self, run: SimulationRun) -> None:
-        """Stub simulation execution for the configured epoch count."""
-        time.sleep(0.05)
+        """Execute the simulation workload."""
+        run_simulation()
         run.completed_epochs = run.config["epochs"]
 
     def _write_results(self, run: SimulationRun) -> None:
