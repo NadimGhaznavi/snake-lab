@@ -5,6 +5,5 @@ set -Eeuo pipefail
 
 readonly INSTALL_DIR="/opt/snake-lab"
 
-cd -- "${INSTALL_DIR}/app"
-exec "${INSTALL_DIR}/venv/bin/python" -m snake_lab.client "$@"
-
+PYTHONPATH="${INSTALL_DIR}/app" \
+    exec "${INSTALL_DIR}/venv/bin/python" -m snake_lab.client "$@"

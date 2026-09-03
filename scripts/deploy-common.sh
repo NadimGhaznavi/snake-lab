@@ -33,11 +33,14 @@ validate_release_checkout() {
         "constants/DMyLog.py"
         "constants/DSnakeLab.py"
         "requirements.txt"
+        "requirements-torch-cpu.txt"
+        "requirements-torch-cuda.txt"
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
         "snake_lab/client.py"
         "snake_lab/protocol.py"
         "snake_lab/server.py"
+        "snake_lab/simulator.py"
         "systemd/snake-lab.service"
         "utils/__init__.py"
         "utils/MyLog.py"
@@ -139,6 +142,10 @@ deploy_application() {
 deploy_runtime_files() {
     install -m 0644 "${PROJECT_DIR}/requirements.txt" \
         "${INSTALL_DIR}/requirements.txt"
+    install -m 0644 \
+        "${PROJECT_DIR}/requirements-torch-cpu.txt" \
+        "${PROJECT_DIR}/requirements-torch-cuda.txt" \
+        "${INSTALL_DIR}/"
     install -m 0755 "${PROJECT_DIR}/scripts/rebuild-venv.sh" \
         "${INSTALL_DIR}/scripts/rebuild-venv.sh"
     install -m 0755 "${PROJECT_DIR}/client/lab-client" "${CLIENT_DEST}"

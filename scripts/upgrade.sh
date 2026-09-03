@@ -23,10 +23,13 @@ validate_release_checkout
     die "Installed requirements.txt is missing."
 
 requirements_changed=false
-if ! cmp -s "${PROJECT_DIR}/requirements.txt" \
-    "${INSTALL_DIR}/requirements.txt"; then
-    requirements_changed=true
-fi
+for requirements_file in \
+    requirements.txt requirements-torch-cpu.txt requirements-torch-cuda.txt; do
+    if ! cmp -s "${PROJECT_DIR}/${requirements_file}" \
+        "${INSTALL_DIR}/${requirements_file}"; then
+        requirements_changed=true
+    fi
+done
 
 systemctl stop snake-lab.service
 ensure_service_account
