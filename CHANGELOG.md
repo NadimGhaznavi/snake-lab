@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-03 @ 03:15
+
 ### Added
 
 - Initial PyTorch simulator runtime probe that executes a tensor operation and
