@@ -10,4 +10,4 @@ class DSnakeLab:
     DB_USER: Final[str] = "snakelab"
     PORT: Final[int] = 41970
     SERVER_LOG_FILE: Final[str] = "/opt/snake-lab/logs/server.log"
-    VERSION: Final[str] = "0.2.0"
+    VERSION: Final[str] = "0.3.0"

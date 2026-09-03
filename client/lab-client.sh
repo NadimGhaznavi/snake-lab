@@ -11,5 +11,4 @@ readonly PYTHON="${PROJECT_DIR}/venv/bin/python"
     exit 1
 }
 
-cd -- "${PROJECT_DIR}"
-exec "${PYTHON}" -m snake_lab.client "$@"
+PYTHONPATH="${PROJECT_DIR}" exec "${PYTHON}" -m snake_lab.client "$@"
