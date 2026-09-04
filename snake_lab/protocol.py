@@ -6,6 +6,11 @@ from typing import Any
 
 PROTOCOL_VERSION = 1
 METHOD_HEALTH = "health"
+METHOD_SIMULATION_ACTIVE = "simulation.active"
+METHOD_SIMULATION_CANCEL = "simulation.cancel"
+METHOD_SIMULATION_PAUSE = "simulation.pause"
+METHOD_SIMULATION_RESUME = "simulation.resume"
+METHOD_SIMULATION_SET_MOVE_DELAY = "simulation.set_move_delay"
 METHOD_SIMULATION_STATUS = "simulation.status"
 METHOD_SIMULATION_SUBMIT = "simulation.submit"
 

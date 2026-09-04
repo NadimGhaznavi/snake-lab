@@ -47,6 +47,7 @@ validate_release_checkout() {
         "snake_lab/memory.py"
         "snake_lab/model.py"
         "snake_lab/protocol.py"
+        "snake_lab/runtime_control.py"
         "snake_lab/schemas/simulation-config-v1.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"

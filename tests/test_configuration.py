@@ -10,7 +10,7 @@ class ConfigTemplateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.template = simulation_config_template()
         self.defaults = {
-            "epochs": 1500,
+            "epochs": 100,
             "seed": 1970,
             "game": {
                 "board_width": 20,
@@ -56,7 +56,7 @@ class ConfigTemplateTests(unittest.TestCase):
         self.assertEqual(self.template.resolve({"epochs": 2500}), expected)
 
     def test_epoch_boundaries_are_accepted(self) -> None:
-        for epochs in (100, 5000):
+        for epochs in (50, 5000):
             with self.subTest(epochs=epochs):
                 expected = {**self.defaults, "epochs": epochs}
                 self.assertEqual(
@@ -64,7 +64,7 @@ class ConfigTemplateTests(unittest.TestCase):
                 )
 
     def test_epochs_outside_range_are_rejected(self) -> None:
-        for epochs in (99, 5001):
+        for epochs in (49, 5001):
             with self.subTest(epochs=epochs):
                 with self.assertRaises(ConfigurationError):
                     self.template.resolve({"epochs": epochs})
