@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-![Akbar]({{ '/pages/images/akbar.png' | relative_url }})
+![Fr3d]({{ '/pages/images/fr3d.png' | relative_url }})
 
 ## Introduction
 
