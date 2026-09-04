@@ -1,4 +1,5 @@
 import signal
+import json
 import socket
 import subprocess
 import sys
@@ -7,7 +8,16 @@ import time
 import unittest
 from pathlib import Path
 
+import zmq
+
 from snake_lab.client import LabClient
+from snake_lab.telemetry import (
+    TOPIC_EPISODE,
+    TOPIC_FRAME,
+    TOPIC_RUN,
+    FrameTelemetry,
+    TelemetryEnvelope,
+)
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -22,6 +32,9 @@ def available_tcp_port() -> int:
 class ZeroMQIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.port = available_tcp_port()
+        self.telemetry_port = available_tcp_port()
+        while self.telemetry_port == self.port:
+            self.telemetry_port = available_tcp_port()
         self.temp_dir = tempfile.TemporaryDirectory()
         self.log_file = Path(self.temp_dir.name) / "server.log"
         self.server = subprocess.Popen(
@@ -33,6 +46,8 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 "127.0.0.1",
                 "--port",
                 str(self.port),
+                "--telemetry-port",
+                str(self.telemetry_port),
                 "--log-file",
                 str(self.log_file),
             ],
@@ -77,6 +92,15 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(response["payload"], {"service": "snake-lab"})
 
     def test_submit_and_complete_simulation(self) -> None:
+        telemetry_context = zmq.Context()
+        telemetry_socket = telemetry_context.socket(zmq.SUB)
+        telemetry_socket.setsockopt(zmq.LINGER, 0)
+        telemetry_socket.setsockopt(zmq.SUBSCRIBE, b"snake_lab.")
+        telemetry_socket.connect(
+            f"tcp://127.0.0.1:{self.telemetry_port}"
+        )
+        time.sleep(0.1)
+
         response = self.client.submit(
             {
                 "epochs": 100,
@@ -104,12 +128,40 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         run_id = response["payload"]["run_id"]
 
         deadline = time.monotonic() + 10
+        telemetry_messages = []
         while True:
+            while telemetry_socket.poll(timeout=0):
+                topic_bytes, payload_bytes = telemetry_socket.recv_multipart()
+                envelope = TelemetryEnvelope.from_dict(
+                    json.loads(payload_bytes.decode("utf-8"))
+                )
+                telemetry_messages.append(
+                    (topic_bytes.decode("utf-8"), envelope)
+                )
             status = self.client.status(run_id)
             if status["payload"]["state"] == "completed":
                 break
             if time.monotonic() >= deadline:
                 self.fail("Simulation did not complete")
+
+        telemetry_deadline = time.monotonic() + 1
+        while time.monotonic() < telemetry_deadline:
+            if telemetry_socket.poll(timeout=20):
+                topic_bytes, payload_bytes = telemetry_socket.recv_multipart()
+                envelope = TelemetryEnvelope.from_dict(
+                    json.loads(payload_bytes.decode("utf-8"))
+                )
+                telemetry_messages.append(
+                    (topic_bytes.decode("utf-8"), envelope)
+                )
+                if (
+                    topic_bytes.decode("utf-8") == TOPIC_RUN
+                    and envelope.payload.get("state") == "completed"
+                ):
+                    break
+
+        telemetry_socket.close()
+        telemetry_context.term()
 
         self.assertEqual(status["payload"]["epochs"], 100)
         self.assertEqual(status["payload"]["completed_epochs"], 100)
@@ -117,6 +169,21 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(status["payload"]["high_score"], 0)
         self.assertEqual(status["payload"]["last_episode"]["episode"], 100)
         self.assertIsInstance(status["payload"]["last_episode"]["seed"], int)
+        topics = {topic for topic, _envelope in telemetry_messages}
+        self.assertEqual(
+            topics,
+            {TOPIC_RUN, TOPIC_FRAME, TOPIC_EPISODE},
+        )
+        frame_messages = [
+            envelope
+            for topic, envelope in telemetry_messages
+            if topic == TOPIC_FRAME
+        ]
+        self.assertLess(len(frame_messages), 100)
+        frame_envelope = frame_messages[0]
+        frame = FrameTelemetry.from_dict(frame_envelope.payload)
+        self.assertEqual(frame.board.width, 4)
+        self.assertEqual(frame.board.height, 1)
         self.assertIn(
             "[Simulator] Simulation running on CPU",
             self.log_file.read_text(encoding="utf-8"),

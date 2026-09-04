@@ -27,6 +27,7 @@ from snake_lab.protocol import (
     success_response,
 )
 from snake_lab.simulator import EpisodeResult, SimulationState, Simulator
+from snake_lab.telemetry_zmq import TelemetryPublisher
 from utils.MyLog import MyLog
 
 
@@ -52,6 +53,8 @@ class SnakeLabServer:
         self,
         address: str = "*",
         port: int = DSnakeLab.PORT,
+        telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
+        telemetry_frame_rate: float = DSnakeLab.TELEMETRY_FRAME_RATE,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
     ) -> None:
         self.endpoint = f"tcp://{address}:{port}"
@@ -64,6 +67,12 @@ class SnakeLabServer:
         self._runs: dict[str, SimulationRun] = {}
         self._config_template = simulation_config_template()
         self._worker_task: asyncio.Task[None] | None = None
+        self.telemetry = TelemetryPublisher(
+            context=self._context,
+            address=address,
+            port=telemetry_port,
+            frame_rate=telemetry_frame_rate,
+        )
         self.log = MyLog(
             client_id=DModule.SERVER,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -99,6 +108,10 @@ class SnakeLabServer:
             },
         )
         self._run_queue.put_nowait(run)
+        self.telemetry.offer_run(
+            run.run_id,
+            {"state": "queued", "epochs": config["epochs"]},
+        )
         self.log.info(
             f"Queued simulation {run.run_id}: {config['epochs']} epochs"
         )
@@ -175,11 +188,29 @@ class SnakeLabServer:
             run.epsilon_injections = state.total_epsilon_injections
             run.last_loss = state.last_loss
             run.last_episode = episode
+            self.telemetry.offer_episode(
+                run.run_id,
+                {
+                    "episode": episode.to_dict(),
+                    "summary": state.summary(),
+                },
+            )
 
         simulator = Simulator(
             run.config,
             log_file=self._log_file,
             on_episode=update_progress,
+            on_frame=lambda frame: self.telemetry.offer_frame(
+                run.run_id, frame
+            ),
+        )
+        self.telemetry.offer_run(
+            run.run_id,
+            {
+                "state": "running",
+                "epochs": run.config["epochs"],
+                "runtime": simulator.runtime_description,
+            },
         )
         await simulator.run()
 
@@ -197,14 +228,30 @@ class SnakeLabServer:
                 run.state = "running"
                 self.log.info(f"Running simulation {run.run_id}")
                 await self._execute_simulation(run)
-                self._write_results(run)
                 run.state = "completed"
+                self._write_results(run)
+                self.telemetry.offer_run(
+                    run.run_id,
+                    {"state": "completed", **self._run_summary(run)},
+                )
             except asyncio.CancelledError:
                 run.state = "cancelled"
+                self.telemetry.offer_run(
+                    run.run_id,
+                    {"state": "cancelled", **self._run_summary(run)},
+                )
                 raise
             except Exception as error:
                 run.state = "failed"
                 run.error = str(error)
+                self.telemetry.offer_run(
+                    run.run_id,
+                    {
+                        "state": "failed",
+                        "error": run.error,
+                        **self._run_summary(run),
+                    },
+                )
                 self.log.error(
                     f"Simulation {run.run_id} failed: {error}"
                 )
@@ -222,15 +269,35 @@ class SnakeLabServer:
         while not self._run_queue.empty():
             run = self._run_queue.get_nowait()
             run.state = "cancelled"
+            self.telemetry.offer_run(
+                run.run_id,
+                {"state": "cancelled", **self._run_summary(run)},
+            )
             self._run_queue.task_done()
+
+    @staticmethod
+    def _run_summary(run: SimulationRun) -> dict[str, Any]:
+        return {
+            "epochs": run.config["epochs"],
+            "completed_epochs": run.completed_epochs,
+            "total_steps": run.total_steps,
+            "high_score": run.high_score,
+            "total_reward": run.total_reward,
+            "epsilon_injections": run.epsilon_injections,
+            "last_loss": run.last_loss,
+        }
 
     async def run(self) -> None:
         """Serve requests and one serial simulation worker."""
         self._socket.bind(self.endpoint)
+        self.telemetry.start()
         self._worker_task = asyncio.create_task(
             self._worker_loop(), name="simulation-worker"
         )
         self.log.info(f"SnakeLab server listening on {self.endpoint}")
+        self.log.info(
+            f"SnakeLab telemetry publishing on {self.telemetry.endpoint}"
+        )
 
         try:
             while not self._stop_event.is_set():
@@ -242,6 +309,7 @@ class SnakeLabServer:
         finally:
             self._stop_event.set()
             await self._shutdown_worker()
+            await self.telemetry.close()
             self._socket.close()
             self._context.term()
             self.log.shutdown()
@@ -251,12 +319,22 @@ async def amain() -> None:
     parser = argparse.ArgumentParser(description="Run the SnakeLab server")
     parser.add_argument("--address", default="*")
     parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
+    parser.add_argument(
+        "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
+    )
+    parser.add_argument(
+        "--telemetry-frame-rate",
+        type=float,
+        default=DSnakeLab.TELEMETRY_FRAME_RATE,
+    )
     parser.add_argument("--log-file", default=DSnakeLab.SERVER_LOG_FILE)
     args = parser.parse_args()
 
     server = SnakeLabServer(
         address=args.address,
         port=args.port,
+        telemetry_port=args.telemetry_port,
+        telemetry_frame_rate=args.telemetry_frame_rate,
         log_file=args.log_file,
     )
 

@@ -10,8 +10,8 @@
       "title": "Number of epochs",
       "description": "Number of complete Snake episodes to execute.",
       "type": "integer",
-      "default": 1500,
-      "minimum": 100,
+      "default": 100,
+      "minimum": 50,
       "maximum": 5000,
       "x-snakelab-unit": "episodes",
       "x-snakelab-sweepable": true

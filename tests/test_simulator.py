@@ -175,10 +175,12 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
             }
         )
         completed = []
+        frames = []
         simulator = Simulator(
             config,
             log=FakeLog(),
             on_episode=lambda result, _state: completed.append(result),
+            on_frame=frames.append,
         )
 
         state = await simulator.run()
@@ -187,6 +189,8 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.total_steps, 100)
         self.assertEqual(len(state.episodes), 100)
         self.assertEqual(len(completed), 100)
+        self.assertEqual(len(frames), 100)
+        self.assertTrue(frames[-1].done)
         self.assertEqual(simulator.replay.episode_count, 100)
         self.assertIsNotNone(state.last_loss)
 

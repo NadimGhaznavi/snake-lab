@@ -6,6 +6,7 @@ readonly APP_DIR="${INSTALL_DIR}/app"
 readonly UNIT_SOURCE="${PROJECT_DIR}/systemd/snake-lab.service"
 readonly UNIT_DEST="/etc/systemd/system/snake-lab.service"
 readonly CLIENT_DEST="/usr/local/bin/lab-client"
+readonly VIEWER_DEST="/usr/local/bin/lab-viewer"
 
 die() {
     printf '[ERROR] %s\n' "$*" >&2
@@ -28,6 +29,7 @@ validate_release_checkout() {
     local path
     local -a required_files=(
         "client/lab-client"
+        "client/lab-viewer"
         "constants/__init__.py"
         "constants/DModule.py"
         "constants/DMyLog.py"
@@ -39,6 +41,7 @@ validate_release_checkout() {
         "requirements-torch-cuda.txt"
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
+        "snake_lab/board.py"
         "snake_lab/client.py"
         "snake_lab/configuration.py"
         "snake_lab/memory.py"
@@ -47,7 +50,10 @@ validate_release_checkout() {
         "snake_lab/schemas/simulation-config-v1.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"
+        "snake_lab/telemetry.py"
+        "snake_lab/telemetry_zmq.py"
         "snake_lab/trainer.py"
+        "snake_lab/viewer.py"
         "systemd/snake-lab.service"
         "utils/__init__.py"
         "utils/MyLog.py"
@@ -136,6 +142,8 @@ deploy_application() {
 
     install -m 0755 "${PROJECT_DIR}/client/lab-client" \
         "${staging_dir}/client/lab-client"
+    install -m 0755 "${PROJECT_DIR}/client/lab-viewer" \
+        "${staging_dir}/client/lab-viewer"
     install -m 0644 "${PROJECT_DIR}/constants/"*.py \
         "${staging_dir}/constants/"
     install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
@@ -159,6 +167,7 @@ deploy_runtime_files() {
     install -m 0755 "${PROJECT_DIR}/scripts/rebuild-venv.sh" \
         "${INSTALL_DIR}/scripts/rebuild-venv.sh"
     install -m 0755 "${PROJECT_DIR}/client/lab-client" "${CLIENT_DEST}"
+    install -m 0755 "${PROJECT_DIR}/client/lab-viewer" "${VIEWER_DEST}"
     install -m 0644 "${UNIT_SOURCE}" "${UNIT_DEST}"
 }
 

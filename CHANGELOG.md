@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-04 @ 04:38
+
+### Added
+
+- Live ZeroMQ PUB/SUB telemetry for run lifecycle, complete episodes, and
+  rate-limited latest-frame board snapshots on port 41971.
+- A stripped-down `lab-viewer` Textual interface with a flicker-free live
+  Snake board, run status, training state, and event display.
+
+### Changed
+
+- Decoupled display frame rate from simulation speed so attaching a viewer
+  never adds a move delay to the simulation hot loop.
+
 ## [0.6.0] - 2026-09-04 @ 03:32
 
 ### Added
