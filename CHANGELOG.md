@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-09-04 @ 05:48
+
 ## [0.7.3] - 2026-09-04 @ 05:38
 
 ### Added
 
+- Non-interactive `lab-client -c <config.json>` submission with JSON output
+  and process status suitable for shell automation.
 - Human-only pause, resume, cancellation, and move-delay controls in
   `lab-viewer`, including active-run discovery and cancellation confirmation.
 - Cooperative per-run runtime control that leaves reproducible experiment
@@ -21,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Moved and compacted the viewer controls so they remain visible in standard
+  24-row terminals.
 - Preserve every game frame when a nonzero diagnostic move delay is active;
   full-speed simulations continue to use rate-limited latest-frame telemetry.
 
