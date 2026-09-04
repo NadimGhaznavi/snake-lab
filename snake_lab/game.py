@@ -79,13 +79,13 @@ class Direction:
 class RewardConfig:
     """Rewards applied by the game rules."""
 
-    food: float = DGameDef.FOOD_REWARD
-    wall: float = DGameDef.WALL_REWARD
-    snake: float = DGameDef.SNAKE_REWARD
-    max_moves: float = DGameDef.MAX_MOVES_REWARD
-    empty: float = DGameDef.EMPTY_REWARD
-    closer_to_food: float = DGameDef.CLOSER_TO_FOOD_REWARD
-    further_from_food: float = DGameDef.FURTHER_FROM_FOOD_REWARD
+    food: float
+    wall: float
+    snake: float
+    max_moves: float
+    empty: float
+    closer_to_food: float
+    further_from_food: float
 
     def __post_init__(self) -> None:
         for name in self.__dataclass_fields__:
@@ -368,13 +368,11 @@ class SnakeGame:
         self,
         *,
         seed: int,
-        grid_size: tuple[int, int] = (
-            DGameDef.BOARD_WIDTH,
-            DGameDef.BOARD_HEIGHT,
-        ),
-        initial_snake_length: int = DGameDef.INITIAL_SNAKE_LENGTH,
-        max_moves_multiplier: int = DGameDef.MAX_MOVES_MULTIPLIER,
-        rewards: RewardConfig | None = None,
+        grid_size: tuple[int, int],
+        initial_snake_length: int,
+        max_moves_multiplier: int,
+        rewards: RewardConfig,
+        episode_id: int = 1,
     ) -> None:
         if type(seed) is not int:
             raise TypeError("seed must be an integer")
@@ -396,14 +394,19 @@ class SnakeGame:
             )
         if type(max_moves_multiplier) is not int or max_moves_multiplier <= 0:
             raise ValueError("max_moves_multiplier must be a positive integer")
+        if type(episode_id) is not int or episode_id <= 0:
+            raise ValueError("episode_id must be a positive integer")
 
         self.seed = seed
         self.grid_size = grid_size
         self.initial_snake_length = initial_snake_length
         self.max_moves_multiplier = max_moves_multiplier
-        self.rewards = rewards or RewardConfig()
+        if not isinstance(rewards, RewardConfig):
+            raise TypeError("rewards must be a RewardConfig")
+
+        self.rewards = rewards
         self._rng = random.Random(seed)
-        self._episode_id = 0
+        self._episode_id = episode_id - 1
         self._done = False
         self._state = self._new_state()
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
-from constants.DNNet import DNetDef, DRNN
+from constants.DNNet import DNetDef
 from constants.DSnakeLab import DSnakeLab
 from utils.MyLog import MyLog
 
@@ -17,9 +17,9 @@ class RNNModel(nn.Module):
         self,
         *,
         seed: int,
-        hidden_size: int = DRNN.HIDDEN_SIZE,
-        dropout: float = DRNN.DROPOUT_P_VALUE,
-        layers: int = DRNN.RNN_LAYERS,
+        hidden_size: int,
+        dropout: float,
+        layers: int,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         log: MyLog | None = None,
     ) -> None:

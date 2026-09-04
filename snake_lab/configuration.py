@@ -90,6 +90,38 @@ class ConfigTemplate:
             raise ConfigurationError(
                 "$.epsilon.minimum: cannot exceed initial epsilon"
             )
+
+        game = resolved.get("game", {})
+        initial_length = game.get("initial_snake_length")
+        width = game.get("board_width")
+        height = game.get("board_height")
+        if isinstance(initial_length, int) and isinstance(width, int):
+            if initial_length > width:
+                raise ConfigurationError(
+                    "$.game.initial_snake_length: cannot exceed board width"
+                )
+        if (
+            isinstance(initial_length, int)
+            and isinstance(width, int)
+            and isinstance(height, int)
+            and initial_length >= width * height
+        ):
+            raise ConfigurationError(
+                "$.game.initial_snake_length: board must have room for food"
+            )
+
+        training = resolved.get("training", {})
+        sequence_length = training.get("sequence_length")
+        batch_size = training.get("batch_size")
+        replay_max_frames = training.get("replay_max_frames")
+        if all(
+            isinstance(value, int)
+            for value in (sequence_length, batch_size, replay_max_frames)
+        ) and replay_max_frames < sequence_length * batch_size:
+            raise ConfigurationError(
+                "$.training.replay_max_frames: must hold at least one "
+                "complete training batch"
+            )
         return resolved
 
 

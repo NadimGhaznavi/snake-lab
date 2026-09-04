@@ -11,6 +11,36 @@ class ConfigTemplateTests(unittest.TestCase):
         self.template = simulation_config_template()
         self.defaults = {
             "epochs": 1500,
+            "seed": 1970,
+            "game": {
+                "board_width": 20,
+                "board_height": 20,
+                "initial_snake_length": 3,
+                "max_moves_multiplier": 100,
+                "rewards": {
+                    "food": 10.0,
+                    "wall": -10.0,
+                    "snake": -10.0,
+                    "max_moves": -10.0,
+                    "empty": 0.0,
+                    "closer_to_food": 0.1,
+                    "further_from_food": -0.1,
+                },
+            },
+            "model": {
+                "hidden_size": 192,
+                "layers": 3,
+                "dropout": 0.1,
+            },
+            "training": {
+                "sequence_length": 4,
+                "batch_size": 64,
+                "replay_max_frames": 150000,
+                "learning_rate": 0.002,
+                "gamma": 0.96,
+                "tau": 0.001,
+                "max_gradient_norm": 1.0,
+            },
             "epsilon": {
                 "initial": 0.96,
                 "minimum": 0.0,
@@ -79,6 +109,44 @@ class ConfigTemplateTests(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             self.template.resolve(
                 {"epsilon": {"initial": 0.2, "minimum": 0.3}}
+            )
+
+    def test_nested_runtime_defaults_can_be_partially_overridden(self) -> None:
+        resolved = self.template.resolve(
+            {
+                "game": {"rewards": {"food": 20}},
+                "model": {"hidden_size": 64},
+                "training": {"batch_size": 32},
+            }
+        )
+
+        self.assertEqual(resolved["game"]["rewards"]["food"], 20)
+        self.assertEqual(resolved["game"]["rewards"]["wall"], -10.0)
+        self.assertEqual(resolved["model"]["hidden_size"], 64)
+        self.assertEqual(resolved["model"]["layers"], 3)
+        self.assertEqual(resolved["training"]["batch_size"], 32)
+
+    def test_initial_snake_must_fit_on_board(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            self.template.resolve(
+                {
+                    "game": {
+                        "board_width": 2,
+                        "initial_snake_length": 3,
+                    }
+                }
+            )
+
+    def test_replay_must_hold_one_training_batch(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            self.template.resolve(
+                {
+                    "training": {
+                        "sequence_length": 4,
+                        "batch_size": 64,
+                        "replay_max_frames": 255,
+                    }
+                }
             )
 
 

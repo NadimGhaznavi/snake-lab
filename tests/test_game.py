@@ -15,6 +15,28 @@ from snake_lab.game import (
 )
 
 
+TEST_REWARDS = RewardConfig(
+    food=10.0,
+    wall=-10.0,
+    snake=-10.0,
+    max_moves=-10.0,
+    empty=0.0,
+    closer_to_food=0.1,
+    further_from_food=-0.1,
+)
+
+
+def make_game(seed: int = 7, **overrides) -> SnakeGame:
+    values = {
+        "grid_size": (20, 20),
+        "initial_snake_length": 3,
+        "max_moves_multiplier": 100,
+        "rewards": TEST_REWARDS,
+    }
+    values.update(overrides)
+    return SnakeGame(seed=seed, **values)
+
+
 def make_state(
     *,
     head: Position = Position(2, 2),
@@ -42,7 +64,7 @@ def step(state: GameState, action: Action | int):
         state,
         action,
         rng=random.Random(7),
-        rewards=RewardConfig(),
+        rewards=TEST_REWARDS,
         max_moves_multiplier=100,
     )
 
@@ -146,7 +168,7 @@ class GameRulesTests(unittest.TestCase):
             state,
             Action.STRAIGHT,
             rng=random.Random(7),
-            rewards=RewardConfig(),
+            rewards=TEST_REWARDS,
             max_moves_multiplier=100,
         )
 
@@ -206,15 +228,15 @@ class ObservationTests(unittest.TestCase):
 
 class SnakeGameTests(unittest.TestCase):
     def test_same_seed_and_actions_are_reproducible(self) -> None:
-        first = SnakeGame(seed=19)
-        second = SnakeGame(seed=19)
+        first = make_game(seed=19)
+        second = make_game(seed=19)
 
         self.assertEqual(first.state, second.state)
         for action in (Action.LEFT, Action.RIGHT, Action.STRAIGHT):
             self.assertEqual(first.step(action), second.step(action))
 
     def test_reset_starts_a_new_episode(self) -> None:
-        game = SnakeGame(seed=7)
+        game = make_game(seed=7)
         first_episode = game.state.episode_id
         observation = game.reset()
 
@@ -223,7 +245,7 @@ class SnakeGameTests(unittest.TestCase):
         self.assertFalse(game.done)
 
     def test_initial_snake_is_in_bounds_for_custom_length(self) -> None:
-        game = SnakeGame(
+        game = make_game(
             seed=7,
             grid_size=(4, 2),
             initial_snake_length=4,
@@ -236,7 +258,7 @@ class SnakeGameTests(unittest.TestCase):
         )
 
     def test_completed_episode_must_be_reset_before_stepping(self) -> None:
-        game = SnakeGame(
+        game = make_game(
             seed=7,
             grid_size=(4, 1),
             initial_snake_length=3,
@@ -248,7 +270,7 @@ class SnakeGameTests(unittest.TestCase):
             game.step(Action.STRAIGHT)
 
     def test_invalid_actions_are_rejected(self) -> None:
-        game = SnakeGame(seed=7)
+        game = make_game(seed=7)
         for action in (-1, 3, True, "1"):
             with self.subTest(action=action):
                 with self.assertRaises((TypeError, ValueError)):

@@ -2,6 +2,7 @@ import math
 import unittest
 
 import torch
+import torch.nn as nn
 
 from constants.DNNet import DNetDef
 from snake_lab.memory import ReplayMemory, Transition
@@ -16,6 +17,17 @@ class FakeLog:
     def debug(self, _message: str) -> None:
         pass
 
+
+class ShapeRecordingLoss(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.shapes: tuple[torch.Size, torch.Size] | None = None
+
+    def forward(
+        self, predicted: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor:
+        self.shapes = (predicted.shape, target.shape)
+        return torch.square(predicted - target).mean()
 
 class RNNModelTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -78,13 +90,20 @@ class TrainerTests(unittest.TestCase):
             model=model,
             replay=replay,
             device=torch.device("cpu"),
+            learning_rate=0.002,
+            gamma=0.96,
+            tau=0.001,
+            max_gradient_norm=1.0,
             log=FakeLog(),
         )
+        criterion = ShapeRecordingLoss()
+        trainer.criterion = criterion
 
         loss = trainer.train()
 
         self.assertIsNotNone(loss)
         self.assertTrue(math.isfinite(loss))
+        self.assertEqual(criterion.shapes, (torch.Size([2]), torch.Size([2])))
         self.assertEqual(trainer.get_average_loss(), loss)
         self.assertIsNone(trainer.get_average_loss())
 

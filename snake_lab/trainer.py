@@ -6,7 +6,6 @@ import torch
 
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
-from constants.DNNet import DRNN
 from constants.DSnakeLab import DSnakeLab
 from constants.DTrainer import DTrainer
 from snake_lab.memory import ReplayMemory
@@ -23,10 +22,10 @@ class Trainer:
         model: RNNModel,
         replay: ReplayMemory,
         device: torch.device,
-        learning_rate: float = DRNN.LEARNING_RATE,
-        gamma: float = DRNN.GAMMA,
-        tau: float = DRNN.TAU,
-        max_gradient_norm: float | None = 1.0,
+        learning_rate: float,
+        gamma: float,
+        tau: float,
+        max_gradient_norm: float | None,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         log: MyLog | None = None,
     ) -> None:
@@ -94,19 +93,23 @@ class Trainer:
 
         self.model.train()
         predicted_all = self.model.forward_sequence(states)
-        predicted = predicted_all.gather(
-            2, actions.unsqueeze(-1)
+        predicted = predicted_all[:, -1, :].gather(
+            1, actions[:, -1].unsqueeze(-1)
         ).squeeze(-1)
 
         with torch.no_grad():
             self.model.eval()
-            next_actions = self.model.forward_sequence(next_states).argmax(
-                dim=2, keepdim=True
-            )
+            online_next = self.model.forward_sequence(next_states)[:, -1, :]
+            next_actions = online_next.argmax(dim=1, keepdim=True)
             self.model.train()
             target_all = self.target_model.forward_sequence(next_states)
-            target_next = target_all.gather(2, next_actions).squeeze(-1)
-            target = rewards + self.gamma * target_next * (~dones)
+            target_next = target_all[:, -1, :].gather(
+                1, next_actions
+            ).squeeze(-1)
+            target = (
+                rewards[:, -1]
+                + self.gamma * target_next * (~dones[:, -1])
+            )
 
         loss = self.criterion(predicted, target)
         self.optimizer.zero_grad(set_to_none=True)
