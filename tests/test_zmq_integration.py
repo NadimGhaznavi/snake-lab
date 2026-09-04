@@ -60,7 +60,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 self.fail(f"Server startup timed out: {stdout}{stderr}")
             time.sleep(0.05)
 
-        self.client = LabClient(port=self.port, timeout_ms=1000)
+        self.client = LabClient(port=self.port, timeout_ms=3000)
 
     def tearDown(self) -> None:
         self.client.close()
@@ -77,12 +77,33 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(response["payload"], {"service": "snake-lab"})
 
     def test_submit_and_complete_simulation(self) -> None:
-        response = self.client.submit({"epochs": 100})
+        response = self.client.submit(
+            {
+                "epochs": 100,
+                "seed": 7,
+                "game": {
+                    "board_width": 4,
+                    "board_height": 1,
+                    "initial_snake_length": 3,
+                    "max_moves_multiplier": 1,
+                },
+                "model": {
+                    "hidden_size": 8,
+                    "layers": 1,
+                    "dropout": 0,
+                },
+                "training": {
+                    "sequence_length": 1,
+                    "batch_size": 2,
+                    "replay_max_frames": 100,
+                },
+            }
+        )
         self.assertEqual(response["status"], "ok")
         self.assertEqual(response["payload"]["state"], "queued")
         run_id = response["payload"]["run_id"]
 
-        deadline = time.monotonic() + 1
+        deadline = time.monotonic() + 10
         while True:
             status = self.client.status(run_id)
             if status["payload"]["state"] == "completed":
@@ -92,8 +113,12 @@ class ZeroMQIntegrationTests(unittest.TestCase):
 
         self.assertEqual(status["payload"]["epochs"], 100)
         self.assertEqual(status["payload"]["completed_epochs"], 100)
+        self.assertEqual(status["payload"]["total_steps"], 100)
+        self.assertGreaterEqual(status["payload"]["high_score"], 0)
+        self.assertEqual(status["payload"]["last_episode"]["episode"], 100)
+        self.assertIsInstance(status["payload"]["last_episode"]["seed"], int)
         self.assertIn(
-            "[simulator] Simulation running on CPU",
+            "[Simulator] Simulation running on CPU",
             self.log_file.read_text(encoding="utf-8"),
         )
 

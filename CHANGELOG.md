@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic epsilon-greedy exploration with episode-based decay,
+  configurable floor and cutoff, and injection counters.
+- Native deterministic Snake environment with immutable game snapshots,
+  relative actions, egocentric observations, configurable rewards, and
+  explicit terminal outcomes.
+- Game-mechanics tests covering movement, collisions, food, board completion,
+  observation rotation, move budgets, and seeded reproducibility.
+- Fixed-shape, episode-aware replay memory that produces dense NumPy batches
+  for recurrent training without crossing episode boundaries.
+- Native recurrent model and Double DQN trainer with batched sequence training,
+  target-network updates, and CPU/GPU device support.
+
+### Changed
+
+- Replaced the threaded simulation worker with a single asyncio FIFO worker
+  and made the simulator an async, cooperatively yielding task.
+- Expanded the external JSON Schema into the authoritative source for game,
+  reward, model, replay, trainer, epsilon, and random-seed configuration.
+- Added the complete serial simulation loop with independent deterministic
+  episode seeds, rolling recurrent policy windows, and run/episode results.
+- Changed recurrent Double DQN training to calculate loss from the final frame
+  of each sampled sequence while retaining earlier frames as temporal context.
+- Added live simulation progress and last-episode details to status responses,
+  plus a simulation-status option in the administrative CLI.
+
 ## [0.4.2] - 2026-09-03 @ 04:25
 
 ## [0.4.1] - 2026-09-03 @ 04:23

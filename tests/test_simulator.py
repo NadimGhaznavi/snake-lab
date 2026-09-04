@@ -1,5 +1,10 @@
 import unittest
+from collections import deque
 
+import torch
+
+from constants.DGame import DGameDef
+from snake_lab.configuration import simulation_config_template
 from snake_lab.simulator import Simulator
 
 
@@ -55,6 +60,27 @@ class FakeLog:
     def info(self, message: str) -> None:
         self.messages.append(message)
 
+    def debug(self, _message: str) -> None:
+        pass
+
+
+class GreedyEpsilon:
+    @staticmethod
+    def maybe_random_action() -> None:
+        return None
+
+
+class CapturingModel:
+    def __init__(self) -> None:
+        self.input_shape = None
+
+    def eval(self) -> None:
+        pass
+
+    def __call__(self, states):
+        self.input_shape = states.shape
+        return torch.tensor([[0.0, 2.0, 1.0]])
+
 
 class SimulatorTests(unittest.TestCase):
     def test_cpu_runtime(self) -> None:
@@ -64,9 +90,11 @@ class SimulatorTests(unittest.TestCase):
         simulator = Simulator(
             {"epochs": 1500}, torch_module=torch_module, log=log
         )
-        simulator.run()
+        simulator.probe_runtime()
 
-        self.assertEqual(simulator.runtime_description, "Simulation running on CPU")
+        self.assertEqual(
+            simulator.runtime_description, "Simulation running on CPU"
+        )
         self.assertEqual(log.messages, ["Simulation running on CPU"])
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
@@ -78,7 +106,7 @@ class SimulatorTests(unittest.TestCase):
         simulator = Simulator(
             {"epochs": 1500}, torch_module=torch_module, log=log
         )
-        simulator.run()
+        simulator.probe_runtime()
 
         self.assertEqual(
             simulator.runtime_description,
@@ -89,6 +117,78 @@ class SimulatorTests(unittest.TestCase):
         )
         self.assertEqual(torch_module.tensor_device.type, "cuda")
         self.assertTrue(torch_module.cuda.synchronized)
+
+    def test_episode_seeds_are_independent_and_reproducible(self) -> None:
+        first = Simulator({"epochs": 100}, log=FakeLog())
+        second = Simulator({"epochs": 100}, log=FakeLog())
+
+        first_seeds = [first._new_game(index).seed for index in (1, 2)]
+        second_seeds = [second._new_game(index).seed for index in (1, 2)]
+
+        self.assertEqual(first_seeds, second_seeds)
+        self.assertNotEqual(first_seeds[0], first_seeds[1])
+
+    def test_policy_receives_the_complete_rolling_window(self) -> None:
+        simulator = Simulator({"epochs": 100}, log=FakeLog())
+        model = CapturingModel()
+        simulator.model = model
+        simulator.epsilon = GreedyEpsilon()
+        history = deque(
+            [
+                tuple([float(index)] * DGameDef.OBSERVATION_SIZE)
+                for index in range(4)
+            ],
+            maxlen=4,
+        )
+
+        action = simulator._select_action(history)
+
+        self.assertEqual(action, 1)
+        self.assertEqual(
+            model.input_shape,
+            torch.Size([4, DGameDef.OBSERVATION_SIZE]),
+        )
+
+
+class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
+    async def test_run_executes_complete_episodes_and_training(self) -> None:
+        config = simulation_config_template().resolve(
+            {
+                "epochs": 100,
+                "seed": 7,
+                "game": {
+                    "board_width": 4,
+                    "board_height": 1,
+                    "initial_snake_length": 3,
+                    "max_moves_multiplier": 1,
+                },
+                "model": {
+                    "hidden_size": 8,
+                    "layers": 1,
+                    "dropout": 0,
+                },
+                "training": {
+                    "sequence_length": 1,
+                    "batch_size": 2,
+                    "replay_max_frames": 100,
+                },
+            }
+        )
+        completed = []
+        simulator = Simulator(
+            config,
+            log=FakeLog(),
+            on_episode=lambda result, _state: completed.append(result),
+        )
+
+        state = await simulator.run()
+
+        self.assertEqual(state.completed_epochs, 100)
+        self.assertEqual(state.total_steps, 100)
+        self.assertEqual(len(state.episodes), 100)
+        self.assertEqual(len(completed), 100)
+        self.assertEqual(simulator.replay.episode_count, 100)
+        self.assertIsNotNone(state.last_loss)
 
 
 if __name__ == "__main__":
