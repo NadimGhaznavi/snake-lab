@@ -140,13 +140,13 @@ class SnakeLabViewer(App[None]):
         height: 100%;
     }
     #status-panel {
-        height: 16;
+        height: 10;
         border: round #2aa5ce;
         border-title-color: #42bbc4;
         padding: 0 1;
     }
     #controls-panel {
-        height: 12;
+        height: 10;
         border: round #2aa5ce;
         border-title-color: #42bbc4;
         padding: 0 1;
@@ -211,21 +211,6 @@ class SnakeLabViewer(App[None]):
             with Vertical(id="board-panel"):
                 yield SnakeBoard(id="board")
             with Vertical(id="sidebar"):
-                with Vertical(id="status-panel"):
-                    yield Label(
-                        f"Control: {self._host}:{self._control_port}",
-                        id="connection",
-                    )
-                    yield Label(
-                        f"Telemetry: {self._host}:{self._telemetry_port}"
-                    )
-                    yield Label("Run: waiting", id="run")
-                    yield Label("State: idle", id="run-state")
-                    yield Label("Progress: 0/0", id="progress")
-                    yield Label("Episode: 0  Step: 0", id="episode")
-                    yield Label("Score: 0  High: 0", id="score")
-                    yield Label("Epsilon: --", id="epsilon")
-                    yield Label("Loss: --", id="loss")
                 with Vertical(id="controls-panel"):
                     with Horizontal(id="control-buttons"):
                         yield Button(
@@ -248,6 +233,19 @@ class SnakeLabViewer(App[None]):
                     yield Label(
                         "Sampled telemetry", id="diagnostic-mode"
                     )
+                with Vertical(id="status-panel"):
+                    yield Label(
+                        f"Server: {self._host} "
+                        f"({self._control_port}/{self._telemetry_port})",
+                        id="connection",
+                    )
+                    yield Label("Run: waiting", id="run")
+                    yield Label("State: idle", id="run-state")
+                    yield Label("Progress: 0/0", id="progress")
+                    yield Label("Episode: 0  Step: 0", id="episode")
+                    yield Label("Score: 0  High: 0", id="score")
+                    yield Label("Epsilon: --", id="epsilon")
+                    yield Label("Loss: --", id="loss")
                 yield RichLog(id="event-log", wrap=True, markup=True)
 
     async def on_mount(self) -> None:
