@@ -23,6 +23,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.server._shutdown_worker()
+        await self.server.telemetry.close()
         self.server._socket.close()
         self.server._context.term()
 

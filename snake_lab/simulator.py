@@ -21,6 +21,7 @@ from snake_lab.epsilon import EpsilonAlgo
 from snake_lab.game import Outcome, RewardConfig, SnakeGame
 from snake_lab.memory import ReplayMemory, Transition
 from snake_lab.model import RNNModel
+from snake_lab.telemetry import FrameTelemetry
 from snake_lab.trainer import Trainer
 from utils.MyLog import MyLog
 
@@ -88,6 +89,7 @@ class SimulationState:
 
 
 EpisodeCallback = Callable[[EpisodeResult, SimulationState], None]
+FrameCallback = Callable[[FrameTelemetry], None]
 
 
 def _derived_seed(master_seed: int, namespace: str, index: int = 0) -> int:
@@ -107,12 +109,14 @@ class Simulator:
         torch_module: Any = torch,
         log: MyLog | None = None,
         on_episode: EpisodeCallback | None = None,
+        on_frame: FrameCallback | None = None,
     ) -> None:
         self.config = simulation_config_template().resolve(deepcopy(config))
         self._torch = torch_module
         self._log_file = log_file
         self._provided_log = log
         self._on_episode = on_episode
+        self._on_frame = on_frame
         self.log = log or MyLog(
             client_id=DModule.SIMULATOR,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -245,6 +249,14 @@ class Simulator:
                 )
             )
             episode_reward += step.reward
+            if self._on_frame is not None:
+                self._on_frame(
+                    FrameTelemetry.from_step(
+                        episode=episode,
+                        action=action,
+                        result=step,
+                    )
+                )
 
             await asyncio.sleep(0)
             if step.done:
