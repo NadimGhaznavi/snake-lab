@@ -17,7 +17,7 @@ from textual.widgets import Button, Input, Label, RichLog, Select
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.board import SnakeBoard
 from snake_lab.control_client import AsyncLabClient, load_config
-from snake_lab.runtime_control import MAX_MOVE_DELAY_MS
+from snake_lab.runtime_control import MAX_MOVE_DELAY_MS, MOVE_DELAY_STEP_MS
 from snake_lab.telemetry import (
     TOPIC_EPISODE,
     TOPIC_FRAME,
@@ -55,7 +55,7 @@ class ControlResult(Message):
 
 
 class ConfigFileScreen(ModalScreen[str | None]):
-    """Prompt for a JSON configuration file on the viewer host."""
+    """Prompt for a JSON configuration file on the client host."""
 
     BINDINGS = [
         ("escape", "dismiss_config", "Back"),
@@ -290,7 +290,11 @@ class SnakeLabClient(App[None]):
     def compose(self) -> ComposeResult:
         delay_options = [("Off — full speed", 0)] + [
             (f"{delay} ms", delay)
-            for delay in range(50, MAX_MOVE_DELAY_MS + 1, 50)
+            for delay in range(
+                MOVE_DELAY_STEP_MS,
+                MAX_MOVE_DELAY_MS + 1,
+                MOVE_DELAY_STEP_MS,
+            )
         ]
         yield Label("SnakeLab Live Telemetry", id="title")
         with Vertical(id="main"):

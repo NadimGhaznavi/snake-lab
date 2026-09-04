@@ -19,11 +19,12 @@ Start `lab-client` to load and submit a local JSON configuration, then watch
 the simulation live. The client remembers the last configuration path for the
 next submission.
 
-The viewer provides human-only pause, resume, cancellation, and move-delay
-controls. A zero move delay leaves the simulation at full speed and displays
-sampled telemetry. A nonzero delay enables diagnostic mode: the server slows
-between moves and preserves every frame for visual inspection. These runtime
-controls are deliberately separate from the reproducible experiment JSON.
+The client provides human-only pause, resume, cancellation, and move-delay
+controls. Move delay ranges from 0 through 100 milliseconds in 20-millisecond
+steps. Zero leaves the simulation at full speed and displays sampled telemetry;
+a nonzero delay enables diagnostic mode, slowing the server between moves and
+preserving every frame for visual inspection. These runtime controls remain
+separate from the reproducible experiment JSON.
 
 For development checkouts, use `client/lab-client.sh` instead of the installed
 launcher.

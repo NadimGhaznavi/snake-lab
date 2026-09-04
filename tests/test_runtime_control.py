@@ -32,7 +32,7 @@ class SimulationControlTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_changing_delay_wakes_the_current_delay(self) -> None:
         control = SimulationControl()
-        control.set_move_delay(1000)
+        control.set_move_delay(100)
         checkpoint = asyncio.create_task(control.checkpoint())
         await asyncio.sleep(0.01)
 
@@ -42,7 +42,12 @@ class SimulationControlTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_delay_values_are_bounded_steps(self) -> None:
         control = SimulationControl()
-        for value in (-50, 25, 1050, 1.0, True):
+        for value in (0, 20, 40, 60, 80, 100):
+            with self.subTest(value=value):
+                control.set_move_delay(value)
+                self.assertEqual(control.move_delay_ms, value)
+
+        for value in (-20, 10, 120, 1.0, True):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 control.set_move_delay(value)
 
