@@ -11,8 +11,7 @@ source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
 require_commands \
-    python3 systemctl install cmp getent useradd mktemp chmod chown mv rm \
-    mariadb openssl
+    python3 systemctl install cmp getent useradd mktemp chmod chown mv rm
 validate_release_checkout
 
 [[ -d "${INSTALL_DIR}" ]] ||
@@ -34,7 +33,6 @@ done
 systemctl stop snake-lab.service
 ensure_service_account
 prepare_installation_directories
-provision_database
 deploy_application
 deploy_runtime_files
 remove_legacy_layout

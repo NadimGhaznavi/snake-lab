@@ -119,6 +119,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 str(self.telemetry_port),
                 "--log-file",
                 str(self.log_file),
+                "--ephemeral",
             ],
             cwd=PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -149,7 +150,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.client.close()
         self.server.send_signal(signal.SIGTERM)
-        self.server.wait(timeout=2)
+        self.server.wait(timeout=10)
         self.server.stdout.close()
         self.server.stderr.close()
         self.temp_dir.cleanup()

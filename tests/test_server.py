@@ -1,6 +1,7 @@
 import asyncio
 import unittest
 
+from snake_lab.database import MemorySimulationStore
 from snake_lab.protocol import PROTOCOL_VERSION
 from snake_lab.server import SimulationRun, SnakeLabServer
 
@@ -13,12 +14,27 @@ class FakeLog:
         pass
 
 
+class FakeStore:
+    def mark_started(self, _run_id: str) -> None:
+        pass
+
+    def set_status(self, _run_id: str, _status: str) -> None:
+        pass
+
+    def finish_run(self, *_args, **_kwargs) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
 class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.server = SnakeLabServer(
             address="127.0.0.1",
             port=0,
             log_file=None,
+            store=FakeStore(),
         )
         self.server.log = FakeLog()
 
@@ -86,6 +102,16 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(first.state, "failed")
         self.assertEqual(second.state, "completed")
+
+    async def test_fatal_worker_failure_is_reported_to_server(self) -> None:
+        async def fail() -> None:
+            raise RuntimeError("database unavailable")
+
+        self.server._worker_task = asyncio.create_task(fail())
+        await asyncio.sleep(0)
+
+        with self.assertRaisesRegex(RuntimeError, "database unavailable"):
+            self.server._check_worker()
 
     async def test_shutdown_cancels_active_and_queued_runs(self) -> None:
         started = asyncio.Event()
@@ -165,6 +191,22 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(active["payload"]["run"]["run_id"], run.run_id)
         self.assertEqual(resumed["payload"]["state"], "running")
         self.assertFalse(run.control.paused)
+
+    async def test_duplicate_submission_returns_existing_run(self) -> None:
+        self.server.store = MemorySimulationStore()
+        first = self.server.handle_request(
+            self._request("simulation.submit", {"config": {}})
+        )
+        second = self.server.handle_request(
+            self._request("simulation.submit", {"config": {}})
+        )
+
+        self.assertEqual(first["status"], "ok")
+        self.assertEqual(
+            second["payload"]["run_id"], first["payload"]["run_id"]
+        )
+        self.assertTrue(second["payload"]["duplicate"])
+        self.assertEqual(self.server._run_queue.qsize(), 1)
 
     @staticmethod
     def _request(method: str, payload: dict) -> dict:

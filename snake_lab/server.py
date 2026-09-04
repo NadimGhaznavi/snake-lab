@@ -17,6 +17,11 @@ from snake_lab.configuration import (
     ConfigurationError,
     simulation_config_template,
 )
+from snake_lab.database import (
+    MariaDBSimulationStore,
+    MemorySimulationStore,
+    SimulationStore,
+)
 from snake_lab.protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_ACTIVE,
@@ -66,6 +71,7 @@ class SnakeLabServer:
         telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
         telemetry_frame_rate: float = DSnakeLab.TELEMETRY_FRAME_RATE,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
+        store: SimulationStore | None = None,
     ) -> None:
         self.endpoint = f"tcp://{address}:{port}"
         self._log_file = log_file
@@ -76,6 +82,7 @@ class SnakeLabServer:
         self._run_queue: asyncio.Queue[SimulationRun] = asyncio.Queue()
         self._runs: dict[str, SimulationRun] = {}
         self._config_template = simulation_config_template()
+        self.store = store or MemorySimulationStore()
         self._worker_task: asyncio.Task[None] | None = None
         self.telemetry = TelemetryPublisher(
             context=self._context,
@@ -106,7 +113,20 @@ class SnakeLabServer:
             )
 
         config = self.validate_config(request.payload["config"])
-        run = SimulationRun(run_id=str(uuid.uuid4()), config=config)
+        registration = self.store.create_run(
+            str(uuid.uuid4()), config, DSnakeLab.VERSION
+        )
+        if not registration.created:
+            return success_response(
+                request.request_id,
+                {
+                    "run_id": registration.run_id,
+                    "state": registration.status,
+                    "duplicate": True,
+                },
+            )
+
+        run = SimulationRun(run_id=registration.run_id, config=config)
         self._runs[run.run_id] = run
         queue_position = self._run_queue.qsize() + 1
         response = success_response(
@@ -177,6 +197,7 @@ class SnakeLabServer:
         if run.state == "running":
             run.control.pause()
             run.state = "paused"
+            self.store.set_status(run.run_id, run.state)
             self.log.info(f"Paused simulation {run.run_id}")
             self._publish_run(run)
         elif run.state != "paused":
@@ -191,6 +212,7 @@ class SnakeLabServer:
         if run.state == "paused":
             run.control.resume()
             run.state = "running"
+            self.store.set_status(run.run_id, run.state)
             self.log.info(f"Resumed simulation {run.run_id}")
             self._publish_run(run)
         elif run.state != "running":
@@ -205,11 +227,18 @@ class SnakeLabServer:
         if run.state == "queued":
             run.control.cancel()
             run.state = "cancelled"
+            self.store.finish_run(
+                run.run_id,
+                run.state,
+                run.completed_epochs,
+                run.high_score,
+            )
             self.log.info(f"Cancelled queued simulation {run.run_id}")
             self._publish_run(run)
         elif run.state in {"running", "paused"}:
             run.control.cancel()
             run.state = "cancelling"
+            self.store.set_status(run.run_id, run.state)
             self.log.info(f"Cancelling simulation {run.run_id}")
             self._publish_run(run)
         elif run.state not in {"cancelling", "cancelled"}:
@@ -305,6 +334,12 @@ class SnakeLabServer:
             run.epsilon_injections = state.total_epsilon_injections
             run.last_loss = state.last_loss
             run.last_episode = episode
+            self.store.record_episode(
+                run.run_id,
+                episode,
+                run.completed_epochs,
+                run.high_score,
+            )
             self.telemetry.offer_episode(
                 run.run_id,
                 {
@@ -328,7 +363,13 @@ class SnakeLabServer:
         await simulator.run()
 
     def _write_results(self, run: SimulationRun) -> None:
-        """Stub result persistence until MariaDB integration is added."""
+        """Finalize a successfully completed persistent run."""
+        self.store.finish_run(
+            run.run_id,
+            run.state,
+            run.completed_epochs,
+            run.high_score,
+        )
         self.log.info(
             f"Simulation {run.run_id} completed {run.completed_epochs} epochs"
         )
@@ -341,6 +382,7 @@ class SnakeLabServer:
                 if run.state == "cancelled":
                     continue
                 run.state = "running"
+                self.store.mark_started(run.run_id)
                 self.log.info(f"Running simulation {run.run_id}")
                 await self._execute_simulation(run)
                 run.state = "completed"
@@ -351,10 +393,22 @@ class SnakeLabServer:
                 )
             except SimulationCancelled:
                 run.state = "cancelled"
+                self.store.finish_run(
+                    run.run_id,
+                    run.state,
+                    run.completed_epochs,
+                    run.high_score,
+                )
                 self.log.info(f"Cancelled simulation {run.run_id}")
                 self._publish_run(run)
             except asyncio.CancelledError:
                 run.state = "cancelled"
+                self.store.finish_run(
+                    run.run_id,
+                    run.state,
+                    run.completed_epochs,
+                    run.high_score,
+                )
                 self.telemetry.offer_run(
                     run.run_id,
                     {"state": "cancelled", **self._run_summary(run)},
@@ -363,6 +417,13 @@ class SnakeLabServer:
             except Exception as error:
                 run.state = "failed"
                 run.error = str(error)
+                self.store.finish_run(
+                    run.run_id,
+                    run.state,
+                    run.completed_epochs,
+                    run.high_score,
+                    run.error,
+                )
                 self.telemetry.offer_run(
                     run.run_id,
                     {
@@ -388,11 +449,24 @@ class SnakeLabServer:
         while not self._run_queue.empty():
             run = self._run_queue.get_nowait()
             run.state = "cancelled"
+            self.store.finish_run(
+                run.run_id,
+                run.state,
+                run.completed_epochs,
+                run.high_score,
+            )
             self.telemetry.offer_run(
                 run.run_id,
                 {"state": "cancelled", **self._run_summary(run)},
             )
             self._run_queue.task_done()
+
+    def _check_worker(self) -> None:
+        """Fail the service if its only simulation worker has stopped."""
+        if self._worker_task is None or not self._worker_task.done():
+            return
+        self._worker_task.result()
+        raise RuntimeError("simulation worker stopped unexpectedly")
 
     @staticmethod
     def _run_summary(run: SimulationRun) -> dict[str, Any]:
@@ -421,6 +495,7 @@ class SnakeLabServer:
 
         try:
             while not self._stop_event.is_set():
+                self._check_worker()
                 if await self._socket.poll(timeout=500) == 0:
                     continue
                 request = await self._socket.recv_json()
@@ -432,6 +507,7 @@ class SnakeLabServer:
             await self.telemetry.close()
             self._socket.close()
             self._context.term()
+            self.store.close()
             self.log.shutdown()
 
 
@@ -448,7 +524,18 @@ async def amain() -> None:
         default=DSnakeLab.TELEMETRY_FRAME_RATE,
     )
     parser.add_argument("--log-file", default=DSnakeLab.SERVER_LOG_FILE)
+    parser.add_argument(
+        "--ephemeral",
+        action="store_true",
+        help="keep simulation results in memory instead of MariaDB",
+    )
     args = parser.parse_args()
+
+    store: SimulationStore
+    if args.ephemeral:
+        store = MemorySimulationStore()
+    else:
+        store = MariaDBSimulationStore.connect()
 
     server = SnakeLabServer(
         address=args.address,
@@ -456,6 +543,7 @@ async def amain() -> None:
         telemetry_port=args.telemetry_port,
         telemetry_frame_rate=args.telemetry_frame_rate,
         log_file=args.log_file,
+        store=store,
     )
 
     loop = asyncio.get_running_loop()
