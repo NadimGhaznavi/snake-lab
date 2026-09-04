@@ -31,4 +31,6 @@ systemctl start snake-lab.service
 
 printf '[SUCCESS] SnakeLab installed in %s\n' "${INSTALL_DIR}"
 printf '[INFO] ZeroMQ server: tcp://127.0.0.1:41970\n'
+printf '[INFO] Live telemetry: tcp://127.0.0.1:41971\n'
 printf '[INFO] Run the client with: lab-client\n'
+printf '[INFO] Live telemetry viewer: lab-viewer\n'

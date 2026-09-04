@@ -6,6 +6,7 @@ set -Eeuo pipefail
 readonly INSTALL_DIR="/opt/snake-lab"
 readonly UNIT_FILE="/etc/systemd/system/snake-lab.service"
 readonly CLIENT_FILE="/usr/local/bin/lab-client"
+readonly VIEWER_FILE="/usr/local/bin/lab-viewer"
 
 if [[ ${EUID} -ne 0 ]]; then
     printf '[ERROR] Run this uninstaller as root.\n' >&2
@@ -22,6 +23,7 @@ done
 systemctl disable --now snake-lab.service 2>/dev/null || true
 rm -f -- "${UNIT_FILE}"
 rm -f -- "${CLIENT_FILE}"
+rm -f -- "${VIEWER_FILE}"
 rm -rf -- "${INSTALL_DIR}"
 systemctl daemon-reload
 systemctl reset-failed snake-lab.service 2>/dev/null || true
