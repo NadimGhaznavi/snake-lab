@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.5] - 2026-09-04 @ 17:23
+### Added
 
-## [0.7.4] - 2026-09-04 @ 05:48
+- Local JSON configuration loading and submission from `lab-client` through
+  the existing simulation submission API.
+
+### Changed
+
+- Promoted the Textual viewer to the single human-facing `lab-client`
+  application.
+
+### Removed
+
+- The menu-driven administrative client, non-interactive `-c` mode, and the
+  separate `lab-viewer` command.
 
 ## [0.7.3] - 2026-09-04 @ 05:38
 

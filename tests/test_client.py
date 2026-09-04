@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from textual.widgets import Button, Label, Select
+from textual.widgets import Button, Input, Label, Select
 
 from snake_lab.board import SnakeBoard
 from snake_lab.game import Outcome
@@ -12,7 +14,7 @@ from snake_lab.telemetry import (
     FrameTelemetry,
     TelemetryEnvelope,
 )
-from snake_lab.viewer import SnakeLabViewer, TelemetryReceived
+from snake_lab.client import SnakeLabClient, TelemetryReceived
 
 
 class FakeControlClient:
@@ -49,6 +51,19 @@ class FakeControlClient:
             "payload": {"run": None},
         }
 
+    async def submit(self, config: dict) -> dict:
+        self.operations.append(("submit", config))
+        return {
+            "protocol_version": 1,
+            "request_id": "test",
+            "status": "ok",
+            "payload": {
+                "run_id": "submitted-run-1",
+                "state": "queued",
+                "queue_position": 1,
+            },
+        }
+
     async def pause(self, run_id: str) -> dict:
         self.operations.append(("pause", run_id))
         return self._response(run_id, "paused", 0)
@@ -69,22 +84,55 @@ class FakeControlClient:
         self.closed = True
 
 
-class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
+class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
     async def test_controls_are_visible_in_a_compact_terminal(self) -> None:
-        app = SnakeLabViewer(
+        app = SnakeLabClient(
             telemetry_port=59999, control_client=FakeControlClient()
         )
         async with app.run_test(size=(100, 20)) as pilot:
             await pilot.pause()
 
-            for selector in ("#pause-resume", "#cancel-run", "#move-delay"):
+            for selector in (
+                "#submit-config",
+                "#pause-resume",
+                "#cancel-run",
+                "#move-delay",
+            ):
                 widget = app.query_one(selector)
                 self.assertGreater(widget.region.height, 0)
                 self.assertLessEqual(widget.region.bottom, app.size.height)
 
+    async def test_loads_and_submits_a_local_config_file(self) -> None:
+        control = FakeControlClient()
+        app = SnakeLabClient(
+            telemetry_port=59999, control_client=control
+        )
+        with TemporaryDirectory() as directory:
+            config_path = Path(directory) / "simulation.json"
+            config_path.write_text('{"epochs": 100}', encoding="utf-8")
+
+            async with app.run_test(size=(120, 40)) as pilot:
+                await pilot.pause()
+                self.assertTrue(await pilot.click("#submit-config"))
+                await pilot.pause()
+                app.screen.query_one("#config-path", Input).value = str(
+                    config_path
+                )
+                await pilot.click("#config-submit")
+                for _ in range(3):
+                    await pilot.pause()
+
+                self.assertIn(
+                    ("submit", {"epochs": 100}), control.operations
+                )
+                self.assertEqual(app._active_run, "submitted-run-1")
+                self.assertEqual(app._run_state, "queued")
+
+        self.assertTrue(control.closed)
+
     async def test_live_messages_update_board_and_status_panes(self) -> None:
         control = FakeControlClient()
-        app = SnakeLabViewer(
+        app = SnakeLabClient(
             telemetry_port=59999, control_client=control
         )
         async with app.run_test(size=(120, 40)) as pilot:
@@ -172,7 +220,7 @@ class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_runtime_controls_call_the_async_client(self) -> None:
         control = FakeControlClient()
-        app = SnakeLabViewer(
+        app = SnakeLabClient(
             telemetry_port=59999, control_client=control
         )
         async with app.run_test(size=(120, 45)) as pilot:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installed SnakeLab administrative client launcher.
+# Installed SnakeLab Textual client launcher.
 
 set -Eeuo pipefail
 
