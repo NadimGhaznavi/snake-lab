@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Run the SnakeLab Textual client from this checkout.
 
 set -Eeuo pipefail
 
