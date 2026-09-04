@@ -19,6 +19,10 @@ Start `lab-viewer` before submitting a simulation if you want to watch it live.
 Use `lab-client` in a second terminal to submit the configuration and query its
 authoritative run status.
 
+For non-interactive submission, run `lab-client -c <config-file.json>`. The
+client prints the server's JSON response and exits with a nonzero status when
+the server rejects the request.
+
 The viewer provides human-only pause, resume, cancellation, and move-delay
 controls. A zero move delay leaves the simulation at full speed and displays
 sampled telemetry. A nonzero delay enables diagnostic mode: the server slows

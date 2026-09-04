@@ -203,6 +203,69 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["error"]["code"], "invalid_config")
 
+    def test_non_interactive_config_submission(self) -> None:
+        config_file = Path(self.temp_dir.name) / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "epochs": 50,
+                    "game": {
+                        "board_width": 4,
+                        "board_height": 1,
+                        "initial_snake_length": 3,
+                        "max_moves_multiplier": 1,
+                    },
+                    "model": {
+                        "hidden_size": 8,
+                        "layers": 1,
+                        "dropout": 0,
+                    },
+                    "training": {
+                        "sequence_length": 1,
+                        "batch_size": 2,
+                        "replay_max_frames": 100,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "snake_lab.client",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(self.port),
+                "-c",
+                str(config_file),
+            ],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+
+        response = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["payload"]["state"], "queued")
+
+        run_id = response["payload"]["run_id"]
+        cancelled = self.client.cancel(run_id)
+        if cancelled["status"] == "ok":
+            deadline = time.monotonic() + 2
+            while self.client.status(run_id)["payload"]["state"] not in {
+                "cancelled",
+                "completed",
+            }:
+                if time.monotonic() >= deadline:
+                    self.fail("CLI-submitted run did not stop")
+                time.sleep(0.01)
+
     def test_human_runtime_controls(self) -> None:
         submitted = self.client.submit(
             {

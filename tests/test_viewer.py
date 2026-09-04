@@ -70,6 +70,18 @@ class FakeControlClient:
 
 
 class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_controls_are_visible_in_a_compact_terminal(self) -> None:
+        app = SnakeLabViewer(
+            telemetry_port=59999, control_client=FakeControlClient()
+        )
+        async with app.run_test(size=(100, 20)) as pilot:
+            await pilot.pause()
+
+            for selector in ("#pause-resume", "#cancel-run", "#move-delay"):
+                widget = app.query_one(selector)
+                self.assertGreater(widget.region.height, 0)
+                self.assertLessEqual(widget.region.bottom, app.size.height)
+
     async def test_live_messages_update_board_and_status_panes(self) -> None:
         control = FakeControlClient()
         app = SnakeLabViewer(

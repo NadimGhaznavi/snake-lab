@@ -1,5 +1,6 @@
 """Text-based administrative client for SnakeLab."""
 
+import argparse
 import asyncio
 import json
 import uuid
@@ -117,11 +118,12 @@ class LabClient:
                 print(json.dumps(self.health(), separators=(",", ":")))
             elif choice == "2":
                 config_path = Path(input("Config JSON file: ").strip())
-                with config_path.open(encoding="utf-8") as config_file:
-                    config = json.load(config_file)
-                if not isinstance(config, dict):
-                    raise TypeError("Simulation config must be a JSON object")
-                print(json.dumps(self.submit(config), separators=(",", ":")))
+                print(
+                    json.dumps(
+                        self.submit(_load_config(config_path)),
+                        separators=(",", ":"),
+                    )
+                )
             elif choice == "3":
                 run_id = input("Run ID: ").strip()
                 print(json.dumps(self.status(run_id), separators=(",", ":")))
@@ -197,13 +199,37 @@ class AsyncLabClient:
         self._context.term()
 
 
-def main() -> None:
-    client = LabClient()
+def _load_config(config_path: Path) -> dict[str, Any]:
+    with config_path.open(encoding="utf-8") as config_file:
+        config = json.load(config_file)
+    if not isinstance(config, dict):
+        raise TypeError("Simulation config must be a JSON object")
+    return config
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Operate SnakeLab")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        help="submit a JSON simulation config and exit",
+    )
+    args = parser.parse_args(argv)
+
+    client = LabClient(host=args.host, port=args.port)
     try:
+        if args.config is not None:
+            response = client.submit(_load_config(args.config))
+            print(json.dumps(response, separators=(",", ":")))
+            return 0 if response.get("status") == "ok" else 1
         client.menu()
+        return 0
     finally:
         client.close()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
