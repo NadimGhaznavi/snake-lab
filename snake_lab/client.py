@@ -204,9 +204,9 @@ class SnakeLabClient(App[None]):
     #main {
         height: 1fr;
     }
-    #game-column {
-        width: 44;
-        height: 100%;
+    #top-row {
+        width: 100%;
+        height: 22;
     }
     #board-panel {
         width: 44;
@@ -218,7 +218,7 @@ class SnakeLabClient(App[None]):
     }
     #sidebar {
         width: 1fr;
-        height: 100%;
+        height: 22;
     }
     #status-panel {
         height: 1fr;
@@ -293,53 +293,56 @@ class SnakeLabClient(App[None]):
             for delay in range(50, MAX_MOVE_DELAY_MS + 1, 50)
         ]
         yield Label("SnakeLab Live Telemetry", id="title")
-        with Horizontal(id="main"):
-            with Vertical(id="game-column"):
+        with Vertical(id="main"):
+            with Horizontal(id="top-row"):
                 with Vertical(id="board-panel"):
                     yield SnakeBoard(id="board")
-                yield RichLog(id="event-log", wrap=True, markup=True)
-            with Vertical(id="sidebar"):
-                with Vertical(id="controls-panel"):
-                    yield Button(
-                        "Submit config…",
-                        id="submit-config",
-                        compact=True,
-                    )
-                    with Horizontal(id="control-buttons"):
+                with Vertical(id="sidebar"):
+                    with Vertical(id="controls-panel"):
                         yield Button(
-                            "Pause", id="pause-resume", disabled=True, compact=True
+                            "Submit config…",
+                            id="submit-config",
+                            compact=True,
                         )
-                        yield Button(
-                            "Cancel",
-                            id="cancel-run",
-                            variant="error",
+                        with Horizontal(id="control-buttons"):
+                            yield Button(
+                                "Pause",
+                                id="pause-resume",
+                                disabled=True,
+                                compact=True,
+                            )
+                            yield Button(
+                                "Cancel",
+                                id="cancel-run",
+                                variant="error",
+                                disabled=True,
+                                compact=True,
+                            )
+                        yield Label("Move delay")
+                        yield Select[int](
+                            delay_options,
+                            value=0,
+                            allow_blank=False,
+                            id="move-delay",
                             disabled=True,
-                            compact=True
                         )
-                    yield Label("Move delay")
-                    yield Select[int](
-                        delay_options,
-                        value=0,
-                        allow_blank=False,
-                        id="move-delay",
-                        disabled=True,
-                    )
-                    yield Label(
-                        "Sampled telemetry", id="diagnostic-mode"
-                    )
-                with Vertical(id="status-panel"):
-                    yield Label(
-                        f"Server: {self._host} "
-                        f"({self._control_port}/{self._telemetry_port})",
-                        id="connection",
-                    )
-                    yield Label("Run: waiting", id="run")
-                    yield Label("State: idle", id="run-state")
-                    yield Label("Progress: 0/0", id="progress")
-                    yield Label("Episode: 0  Step: 0", id="episode")
-                    yield Label("Score: 0  High: 0", id="score")
-                    yield Label("Epsilon: --", id="epsilon")
-                    yield Label("Loss: --", id="loss")
+                        yield Label(
+                            "Sampled telemetry", id="diagnostic-mode"
+                        )
+                    with Vertical(id="status-panel"):
+                        yield Label(
+                            f"Server: {self._host} "
+                            f"({self._control_port}/{self._telemetry_port})",
+                            id="connection",
+                        )
+                        yield Label("Run: waiting", id="run")
+                        yield Label("State: idle", id="run-state")
+                        yield Label("Progress: 0/0", id="progress")
+                        yield Label("Episode: 0  Step: 0", id="episode")
+                        yield Label("Score: 0  High: 0", id="score")
+                        yield Label("Epsilon: --", id="epsilon")
+                        yield Label("Loss: --", id="loss")
+            yield RichLog(id="event-log", wrap=True, markup=True)
 
     async def on_mount(self) -> None:
         self.query_one("#board-panel").border_title = "Snake"
