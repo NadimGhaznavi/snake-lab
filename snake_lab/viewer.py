@@ -97,8 +97,8 @@ class CancelRunScreen(ModalScreen[bool]):
                 "Completed episode progress will remain available.",
                 id="cancel-question",
             )
-            yield Button("Keep running", id="keep-running")
-            yield Button("Cancel run", variant="error", id="confirm-cancel")
+            yield Button("Keep running", id="keep-running", compact=True)
+            yield Button("Cancel run", variant="error", id="confirm-cancel", compact=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "confirm-cancel")
@@ -152,7 +152,7 @@ class SnakeLabViewer(App[None]):
         padding: 0 1;
     }
     #control-buttons {
-        height: 3;
+        height: 1;
     }
     #control-buttons Button {
         width: 1fr;
@@ -214,13 +214,14 @@ class SnakeLabViewer(App[None]):
                 with Vertical(id="controls-panel"):
                     with Horizontal(id="control-buttons"):
                         yield Button(
-                            "Pause", id="pause-resume", disabled=True
+                            "Pause", id="pause-resume", disabled=True, compact=True
                         )
                         yield Button(
                             "Cancel",
                             id="cancel-run",
                             variant="error",
                             disabled=True,
+                            compact=True
                         )
                     yield Label("Move delay")
                     yield Select[int](
