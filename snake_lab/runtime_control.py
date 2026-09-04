@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 
 
-MAX_MOVE_DELAY_MS = 1000
-MOVE_DELAY_STEP_MS = 50
+MAX_MOVE_DELAY_MS = 100
+MOVE_DELAY_STEP_MS = 20
 
 
 class SimulationCancelled(Exception):

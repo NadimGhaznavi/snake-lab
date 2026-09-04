@@ -150,7 +150,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         delayed = self.server.handle_request(
             self._request(
                 "simulation.set_move_delay",
-                {"run_id": run.run_id, "move_delay_ms": 250},
+                {"run_id": run.run_id, "move_delay_ms": 80},
             )
         )
         active = self.server.handle_request(
@@ -161,7 +161,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(paused["payload"]["state"], "paused")
-        self.assertEqual(delayed["payload"]["move_delay_ms"], 250)
+        self.assertEqual(delayed["payload"]["move_delay_ms"], 80)
         self.assertEqual(active["payload"]["run"]["run_id"], run.run_id)
         self.assertEqual(resumed["payload"]["state"], "running")
         self.assertFalse(run.control.paused)
