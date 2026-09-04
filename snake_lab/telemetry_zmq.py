@@ -48,7 +48,6 @@ class TelemetryPublisher:
         self._latest_frame: tuple[str, FrameTelemetry] | None = None
         self._frame_ready = asyncio.Event()
         self._sequences: defaultdict[str, int] = defaultdict(int)
-        self._send_lock = asyncio.Lock()
         self._event_task: asyncio.Task[None] | None = None
         self._frame_task: asyncio.Task[None] | None = None
         self._started = False
@@ -65,10 +64,21 @@ class TelemetryPublisher:
         )
         self._started = True
 
-    def offer_frame(self, run_id: str, frame: FrameTelemetry) -> None:
-        """Replace the pending frame without blocking the simulation."""
+    def offer_frame(
+        self,
+        run_id: str,
+        frame: FrameTelemetry,
+        *,
+        preserve: bool = False,
+    ) -> None:
+        """Offer a sampled frame, or preserve it in diagnostic mode."""
         if not isinstance(frame, FrameTelemetry):
             raise TypeError("frame must be FrameTelemetry")
+        if preserve:
+            self._latest_frame = None
+            self._frame_ready.clear()
+            self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
+            return
         self._latest_frame = (run_id, frame)
         self._frame_ready.set()
 
@@ -98,10 +108,7 @@ class TelemetryPublisher:
         encoded = json.dumps(
             envelope.to_dict(), separators=(",", ":")
         ).encode("utf-8")
-        async with self._send_lock:
-            await self._socket.send_multipart(
-                [topic.encode("utf-8"), encoded]
-            )
+        await self._socket.send_multipart([topic.encode("utf-8"), encoded])
 
     async def _event_loop(self) -> None:
         while True:
@@ -126,7 +133,7 @@ class TelemetryPublisher:
             if pending is None:
                 continue
             run_id, frame = pending
-            await self._send(TOPIC_FRAME, run_id, frame.to_dict())
+            self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
             next_send = loop.time() + self._frame_interval
 
             if self._latest_frame is not None:

@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.2] - 2026-09-04 @ 05:10
+## [0.7.3] - 2026-09-04 @ 05:38
 
-## [0.7.1] - 2026-09-04 @ 05:05
+### Added
+
+- Human-only pause, resume, cancellation, and move-delay controls in
+  `lab-viewer`, including active-run discovery and cancellation confirmation.
+- Cooperative per-run runtime control that leaves reproducible experiment
+  configuration unchanged and allows the serial worker to continue after a
+  cancelled run.
+
+### Changed
+
+- Preserve every game frame when a nonzero diagnostic move delay is active;
+  full-speed simulations continue to use rate-limited latest-frame telemetry.
 
 ## [0.7.0] - 2026-09-04 @ 04:38
 
@@ -55,10 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of each sampled sequence while retaining earlier frames as temporal context.
 - Added live simulation progress and last-episode details to status responses,
   plus a simulation-status option in the administrative CLI.
-
-## [0.4.2] - 2026-09-03 @ 04:25
-
-## [0.4.1] - 2026-09-03 @ 04:23
 
 ## [0.4.0] - 2026-09-03 @ 04:09
 

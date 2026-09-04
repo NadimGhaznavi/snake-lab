@@ -21,6 +21,7 @@ from snake_lab.epsilon import EpsilonAlgo
 from snake_lab.game import Outcome, RewardConfig, SnakeGame
 from snake_lab.memory import ReplayMemory, Transition
 from snake_lab.model import RNNModel
+from snake_lab.runtime_control import SimulationControl
 from snake_lab.telemetry import FrameTelemetry
 from snake_lab.trainer import Trainer
 from utils.MyLog import MyLog
@@ -110,6 +111,7 @@ class Simulator:
         log: MyLog | None = None,
         on_episode: EpisodeCallback | None = None,
         on_frame: FrameCallback | None = None,
+        runtime_control: SimulationControl | None = None,
     ) -> None:
         self.config = simulation_config_template().resolve(deepcopy(config))
         self._torch = torch_module
@@ -117,6 +119,7 @@ class Simulator:
         self._provided_log = log
         self._on_episode = on_episode
         self._on_frame = on_frame
+        self.runtime_control = runtime_control or SimulationControl()
         self.log = log or MyLog(
             client_id=DModule.SIMULATOR,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -258,11 +261,12 @@ class Simulator:
                     )
                 )
 
-            await asyncio.sleep(0)
             if step.done:
+                await asyncio.sleep(0)
                 break
             observation = step.observation
             history.append(observation)
+            await self.runtime_control.checkpoint()
 
         loss = self.trainer.train()
         result = EpisodeResult(
@@ -290,6 +294,7 @@ class Simulator:
         await asyncio.sleep(0)
 
         for episode in range(1, self.config["epochs"] + 1):
+            await self.runtime_control.checkpoint(apply_delay=False)
             result = await self._run_episode(episode)
             self.state.record(result)
             if self._on_episode is not None:
@@ -299,5 +304,7 @@ class Simulator:
                     f"Completed epoch {episode}/{self.config['epochs']}: "
                     f"score={result.score}, high_score={self.state.high_score}"
                 )
+            if episode < self.config["epochs"]:
+                await self.runtime_control.checkpoint()
 
         return self.state

@@ -16,9 +16,14 @@ layout: single
 # Running a Simulation
 
 Start `lab-viewer` before submitting a simulation if you want to watch it live.
-The viewer is deliberately read-only and never controls the speed of the
-simulation. Use `lab-client` in a second terminal to submit the configuration
-and query its authoritative run status.
+Use `lab-client` in a second terminal to submit the configuration and query its
+authoritative run status.
+
+The viewer provides human-only pause, resume, cancellation, and move-delay
+controls. A zero move delay leaves the simulation at full speed and displays
+sampled telemetry. A nonzero delay enables diagnostic mode: the server slows
+between moves and preserves every frame for visual inspection. These runtime
+controls are deliberately separate from the reproducible experiment JSON.
 
 For development checkouts, use `client/lab-viewer.sh` instead of the installed
 launcher.
