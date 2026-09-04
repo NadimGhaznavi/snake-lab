@@ -204,26 +204,30 @@ class SnakeLabClient(App[None]):
     #main {
         height: 1fr;
     }
-    #board-panel {
-        width: 2fr;
+    #game-column {
+        width: 44;
         height: 100%;
+    }
+    #board-panel {
+        width: 44;
+        height: 22;
         border: round #2aa5ce;
         border-title-color: #42bbc4;
         border-subtitle-color: #42bbc4;
         padding: 0 1;
     }
     #sidebar {
-        width: 42;
+        width: 1fr;
         height: 100%;
     }
     #status-panel {
-        height: 10;
+        height: 1fr;
         border: round #2aa5ce;
         border-title-color: #42bbc4;
         padding: 0 1;
     }
     #controls-panel {
-        height: 10;
+        height: 1fr;
         border: round #2aa5ce;
         border-title-color: #42bbc4;
         padding: 0 1;
@@ -290,8 +294,10 @@ class SnakeLabClient(App[None]):
         ]
         yield Label("SnakeLab Live Telemetry", id="title")
         with Horizontal(id="main"):
-            with Vertical(id="board-panel"):
-                yield SnakeBoard(id="board")
+            with Vertical(id="game-column"):
+                with Vertical(id="board-panel"):
+                    yield SnakeBoard(id="board")
+                yield RichLog(id="event-log", wrap=True, markup=True)
             with Vertical(id="sidebar"):
                 with Vertical(id="controls-panel"):
                     yield Button(
@@ -334,7 +340,6 @@ class SnakeLabClient(App[None]):
                     yield Label("Score: 0  High: 0", id="score")
                     yield Label("Epsilon: --", id="epsilon")
                     yield Label("Loss: --", id="loss")
-                yield RichLog(id="event-log", wrap=True, markup=True)
 
     async def on_mount(self) -> None:
         self.query_one("#board-panel").border_title = "Snake"
