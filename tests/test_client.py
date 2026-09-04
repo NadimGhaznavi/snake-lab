@@ -104,7 +104,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 app.query_one("#board", SnakeBoard).region.size, (40, 20)
             )
             self.assertEqual(event_log.region.y, board_panel.region.bottom)
-            self.assertEqual(event_log.region.width, 44)
+            self.assertEqual(event_log.region.width, app.size.width)
             self.assertEqual(
                 status_panel.region.y, controls_panel.region.bottom
             )
@@ -115,9 +115,10 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(
                 controls_panel.region.width, initial_controls.width
             )
-            self.assertGreater(
+            self.assertEqual(
                 controls_panel.region.height, initial_controls.height
             )
+            self.assertEqual(event_log.region.width, app.size.width)
             self.assertGreater(event_log.region.height, initial_events.height)
 
     async def test_controls_are_visible_in_a_compact_terminal(self) -> None:
