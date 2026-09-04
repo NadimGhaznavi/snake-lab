@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-09-04 @ 18:46
+
 ### Changed
 
 - Limited the human diagnostic move-delay control to 0–100 milliseconds in
