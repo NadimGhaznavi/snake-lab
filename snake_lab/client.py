@@ -73,7 +73,8 @@ class LabClient:
             print("\nSnakeLab Client")
             print("1. Health check")
             print("2. Submit simulation config")
-            print("3. Quit")
+            print("3. Simulation status")
+            print("4. Quit")
 
             choice = input("Select an option: ").strip()
             if choice == "1":
@@ -86,9 +87,12 @@ class LabClient:
                     raise TypeError("Simulation config must be a JSON object")
                 print(json.dumps(self.submit(config), separators=(",", ":")))
             elif choice == "3":
+                run_id = input("Run ID: ").strip()
+                print(json.dumps(self.status(run_id), separators=(",", ":")))
+            elif choice == "4":
                 return
             else:
-                print("Invalid option. Please select 1, 2, or 3.")
+                print("Invalid option. Please select 1, 2, 3, or 4.")
 
 
 def main() -> None:

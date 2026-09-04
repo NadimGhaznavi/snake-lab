@@ -1,14 +1,14 @@
 """ZeroMQ request/reply server for SnakeLab."""
 
 import argparse
-import queue
+import asyncio
 import signal
-import threading
 import uuid
 from dataclasses import dataclass
 from typing import Any
 
 import zmq
+import zmq.asyncio
 
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
@@ -26,7 +26,7 @@ from snake_lab.protocol import (
     error_response,
     success_response,
 )
-from snake_lab.simulator import Simulator
+from snake_lab.simulator import EpisodeResult, SimulationState, Simulator
 from utils.MyLog import MyLog
 
 
@@ -36,6 +36,13 @@ class SimulationRun:
     config: dict[str, Any]
     state: str = "queued"
     completed_epochs: int = 0
+    total_steps: int = 0
+    high_score: int = 0
+    total_reward: float = 0.0
+    epsilon_injections: int = 0
+    last_loss: float | None = None
+    last_episode: EpisodeResult | None = None
+    error: str | None = None
 
 
 class SnakeLabServer:
@@ -49,17 +56,14 @@ class SnakeLabServer:
     ) -> None:
         self.endpoint = f"tcp://{address}:{port}"
         self._log_file = log_file
-        self._context = zmq.Context()
+        self._context = zmq.asyncio.Context()
         self._socket = self._context.socket(zmq.REP)
         self._socket.setsockopt(zmq.LINGER, 0)
-        self._stop_event = threading.Event()
-        self._run_queue: queue.Queue[SimulationRun | None] = queue.Queue()
+        self._stop_event = asyncio.Event()
+        self._run_queue: asyncio.Queue[SimulationRun] = asyncio.Queue()
         self._runs: dict[str, SimulationRun] = {}
         self._config_template = simulation_config_template()
-        self._worker = threading.Thread(
-            target=self._worker_loop,
-            name="simulation-worker",
-        )
+        self._worker_task: asyncio.Task[None] | None = None
         self.log = MyLog(
             client_id=DModule.SERVER,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -94,7 +98,7 @@ class SnakeLabServer:
                 "queue_position": queue_position,
             },
         )
-        self._run_queue.put(run)
+        self._run_queue.put_nowait(run)
         self.log.info(
             f"Queued simulation {run.run_id}: {config['epochs']} epochs"
         )
@@ -114,14 +118,27 @@ class SnakeLabServer:
             raise ProtocolError("run_not_found", f"Unknown run: {run_id}")
 
         run = self._runs[run_id]
+        result = {
+            "run_id": run.run_id,
+            "state": run.state,
+            "epochs": run.config["epochs"],
+            "completed_epochs": run.completed_epochs,
+            "total_steps": run.total_steps,
+            "high_score": run.high_score,
+            "total_reward": run.total_reward,
+            "epsilon_injections": run.epsilon_injections,
+            "last_loss": run.last_loss,
+            "last_episode": (
+                run.last_episode.to_dict()
+                if run.last_episode is not None
+                else None
+            ),
+        }
+        if run.error is not None:
+            result["error"] = run.error
         return success_response(
             request.request_id,
-            {
-                "run_id": run.run_id,
-                "state": run.state,
-                "epochs": run.config["epochs"],
-                "completed_epochs": run.completed_epochs,
-            },
+            result,
         )
 
     def handle_request(self, data: Any) -> dict[str, Any]:
@@ -146,10 +163,25 @@ class SnakeLabServer:
         except ProtocolError as error:
             return error_response(request_id, error.code, str(error))
 
-    def _execute_simulation(self, run: SimulationRun) -> None:
+    async def _execute_simulation(self, run: SimulationRun) -> None:
         """Execute the simulation workload."""
-        Simulator(run.config, log_file=self._log_file).run()
-        run.completed_epochs = run.config["epochs"]
+        def update_progress(
+            episode: EpisodeResult, state: SimulationState
+        ) -> None:
+            run.completed_epochs = state.completed_epochs
+            run.total_steps = state.total_steps
+            run.high_score = state.high_score
+            run.total_reward = state.total_reward
+            run.epsilon_injections = state.total_epsilon_injections
+            run.last_loss = state.last_loss
+            run.last_episode = episode
+
+        simulator = Simulator(
+            run.config,
+            log_file=self._log_file,
+            on_episode=update_progress,
+        )
+        await simulator.run()
 
     def _write_results(self, run: SimulationRun) -> None:
         """Stub result persistence until MariaDB integration is added."""
@@ -157,41 +189,65 @@ class SnakeLabServer:
             f"Simulation {run.run_id} completed {run.completed_epochs} epochs"
         )
 
-    def _worker_loop(self) -> None:
+    async def _worker_loop(self) -> None:
+        """Execute queued simulations serially in FIFO order."""
         while True:
-            run = self._run_queue.get()
-            if run is None:
-                return
-            if self._stop_event.is_set():
-                return
+            run = await self._run_queue.get()
+            try:
+                run.state = "running"
+                self.log.info(f"Running simulation {run.run_id}")
+                await self._execute_simulation(run)
+                self._write_results(run)
+                run.state = "completed"
+            except asyncio.CancelledError:
+                run.state = "cancelled"
+                raise
+            except Exception as error:
+                run.state = "failed"
+                run.error = str(error)
+                self.log.error(
+                    f"Simulation {run.run_id} failed: {error}"
+                )
+            finally:
+                self._run_queue.task_done()
 
-            run.state = "running"
-            self.log.info(f"Running simulation {run.run_id}")
-            self._execute_simulation(run)
-            self._write_results(run)
-            run.state = "completed"
+    async def _shutdown_worker(self) -> None:
+        """Cancel the owned worker and mark queued work as cancelled."""
+        worker_task = self._worker_task
+        self._worker_task = None
+        if worker_task is not None:
+            worker_task.cancel()
+            await asyncio.gather(worker_task, return_exceptions=True)
 
-    def run(self) -> None:
+        while not self._run_queue.empty():
+            run = self._run_queue.get_nowait()
+            run.state = "cancelled"
+            self._run_queue.task_done()
+
+    async def run(self) -> None:
+        """Serve requests and one serial simulation worker."""
         self._socket.bind(self.endpoint)
-        self._worker.start()
+        self._worker_task = asyncio.create_task(
+            self._worker_loop(), name="simulation-worker"
+        )
         self.log.info(f"SnakeLab server listening on {self.endpoint}")
 
         try:
             while not self._stop_event.is_set():
-                if self._socket.poll(timeout=500) == 0:
+                if await self._socket.poll(timeout=500) == 0:
                     continue
-                response = self.handle_request(self._socket.recv_json())
-                self._socket.send_json(response)
+                request = await self._socket.recv_json()
+                response = self.handle_request(request)
+                await self._socket.send_json(response)
         finally:
             self._stop_event.set()
-            self._run_queue.put(None)
-            self._worker.join()
+            await self._shutdown_worker()
             self._socket.close()
             self._context.term()
             self.log.shutdown()
 
 
-def main() -> None:
+async def amain() -> None:
     parser = argparse.ArgumentParser(description="Run the SnakeLab server")
     parser.add_argument("--address", default="*")
     parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
@@ -204,12 +260,17 @@ def main() -> None:
         log_file=args.log_file,
     )
 
-    def request_stop(_signum: int, _frame: Any) -> None:
-        server.stop()
+    loop = asyncio.get_running_loop()
+    for signal_number in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(signal_number, server.stop)
+        except (NotImplementedError, RuntimeError):
+            pass
+    await server.run()
 
-    signal.signal(signal.SIGINT, request_stop)
-    signal.signal(signal.SIGTERM, request_stop)
-    server.run()
+
+def main() -> None:
+    asyncio.run(amain())
 
 
 if __name__ == "__main__":
