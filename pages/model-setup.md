@@ -6,6 +6,9 @@ layout: single
 
 ![Fr3d]({{ '/pages/images/fr3d.png' | relative_url }})
 
+This page prepares Qwen3.5 for the future Fr3d integration. The model and
+llama.cpp are not required to install or run SnakeLab itself.
+
 ## Create a virtual environment
 
 ```sh

@@ -11,6 +11,10 @@ layout: single
 This page documents how to install the NVIDIA driver and CUDA toolkit on Debian
 Trixie, then build llama.cpp with CUDA support.
 
+SnakeLab requires the NVIDIA driver for GPU execution. Its Python environment
+uses the PyTorch CUDA 12.6 wheel and does not use the locally installed CUDA
+toolkit. The toolkit installed below is used to build llama.cpp for Fr3d.
+
 ## Check that the GPU is detected
 
 ```sh
