@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import signal
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import zmq
@@ -19,12 +19,21 @@ from snake_lab.configuration import (
 )
 from snake_lab.protocol import (
     METHOD_HEALTH,
+    METHOD_SIMULATION_ACTIVE,
+    METHOD_SIMULATION_CANCEL,
+    METHOD_SIMULATION_PAUSE,
+    METHOD_SIMULATION_RESUME,
+    METHOD_SIMULATION_SET_MOVE_DELAY,
     METHOD_SIMULATION_STATUS,
     METHOD_SIMULATION_SUBMIT,
     ProtocolError,
     Request,
     error_response,
     success_response,
+)
+from snake_lab.runtime_control import (
+    SimulationCancelled,
+    SimulationControl,
 )
 from snake_lab.simulator import EpisodeResult, SimulationState, Simulator
 from snake_lab.telemetry_zmq import TelemetryPublisher
@@ -44,6 +53,7 @@ class SimulationRun:
     last_loss: float | None = None
     last_episode: EpisodeResult | None = None
     error: str | None = None
+    control: SimulationControl = field(default_factory=SimulationControl)
 
 
 class SnakeLabServer:
@@ -108,19 +118,23 @@ class SnakeLabServer:
             },
         )
         self._run_queue.put_nowait(run)
-        self.telemetry.offer_run(
-            run.run_id,
-            {"state": "queued", "epochs": config["epochs"]},
-        )
+        self._publish_run(run)
         self.log.info(
             f"Queued simulation {run.run_id}: {config['epochs']} epochs"
         )
         return response
 
     def _status(self, request: Request) -> dict[str, Any]:
-        if set(request.payload) != {"run_id"}:
+        run = self._requested_run(request, {"run_id"})
+        return success_response(request.request_id, self._run_status(run))
+
+    def _requested_run(
+        self, request: Request, expected_fields: set[str]
+    ) -> SimulationRun:
+        if set(request.payload) != expected_fields:
             raise ProtocolError(
-                "invalid_request", "status payload must contain only run_id"
+                "invalid_request",
+                "request payload fields do not match the protocol",
             )
         run_id = request.payload["run_id"]
         if not isinstance(run_id, str) or not run_id:
@@ -129,18 +143,108 @@ class SnakeLabServer:
             )
         if run_id not in self._runs:
             raise ProtocolError("run_not_found", f"Unknown run: {run_id}")
+        return self._runs[run_id]
 
-        run = self._runs[run_id]
+    def _active(self, request: Request) -> dict[str, Any]:
+        if request.payload:
+            raise ProtocolError(
+                "invalid_request", "active payload must be empty"
+            )
+        active = next(
+            (
+                run
+                for run in self._runs.values()
+                if run.state in {"running", "paused", "cancelling"}
+            ),
+            None,
+        )
+        if active is None:
+            active = next(
+                (
+                    run
+                    for run in self._runs.values()
+                    if run.state == "queued"
+                ),
+                None,
+            )
+        return success_response(
+            request.request_id,
+            {"run": self._run_status(active) if active is not None else None},
+        )
+
+    def _pause(self, request: Request) -> dict[str, Any]:
+        run = self._requested_run(request, {"run_id"})
+        if run.state == "running":
+            run.control.pause()
+            run.state = "paused"
+            self.log.info(f"Paused simulation {run.run_id}")
+            self._publish_run(run)
+        elif run.state != "paused":
+            raise ProtocolError(
+                "invalid_run_state",
+                f"Cannot pause a simulation in state {run.state}",
+            )
+        return success_response(request.request_id, self._run_status(run))
+
+    def _resume(self, request: Request) -> dict[str, Any]:
+        run = self._requested_run(request, {"run_id"})
+        if run.state == "paused":
+            run.control.resume()
+            run.state = "running"
+            self.log.info(f"Resumed simulation {run.run_id}")
+            self._publish_run(run)
+        elif run.state != "running":
+            raise ProtocolError(
+                "invalid_run_state",
+                f"Cannot resume a simulation in state {run.state}",
+            )
+        return success_response(request.request_id, self._run_status(run))
+
+    def _cancel(self, request: Request) -> dict[str, Any]:
+        run = self._requested_run(request, {"run_id"})
+        if run.state == "queued":
+            run.control.cancel()
+            run.state = "cancelled"
+            self.log.info(f"Cancelled queued simulation {run.run_id}")
+            self._publish_run(run)
+        elif run.state in {"running", "paused"}:
+            run.control.cancel()
+            run.state = "cancelling"
+            self.log.info(f"Cancelling simulation {run.run_id}")
+            self._publish_run(run)
+        elif run.state not in {"cancelling", "cancelled"}:
+            raise ProtocolError(
+                "invalid_run_state",
+                f"Cannot cancel a simulation in state {run.state}",
+            )
+        return success_response(request.request_id, self._run_status(run))
+
+    def _set_move_delay(self, request: Request) -> dict[str, Any]:
+        run = self._requested_run(
+            request, {"run_id", "move_delay_ms"}
+        )
+        if run.state not in {"queued", "running", "paused"}:
+            raise ProtocolError(
+                "invalid_run_state",
+                "Move delay can only be changed for a queued or active run",
+            )
+        move_delay_ms = request.payload["move_delay_ms"]
+        try:
+            run.control.set_move_delay(move_delay_ms)
+        except ValueError as error:
+            raise ProtocolError("invalid_request", str(error)) from error
+        self.log.info(
+            f"Simulation {run.run_id} move delay set to "
+            f"{move_delay_ms} ms"
+        )
+        self._publish_run(run)
+        return success_response(request.request_id, self._run_status(run))
+
+    def _run_status(self, run: SimulationRun) -> dict[str, Any]:
         result = {
             "run_id": run.run_id,
             "state": run.state,
-            "epochs": run.config["epochs"],
-            "completed_epochs": run.completed_epochs,
-            "total_steps": run.total_steps,
-            "high_score": run.high_score,
-            "total_reward": run.total_reward,
-            "epsilon_injections": run.epsilon_injections,
-            "last_loss": run.last_loss,
+            **self._run_summary(run),
             "last_episode": (
                 run.last_episode.to_dict()
                 if run.last_episode is not None
@@ -149,9 +253,12 @@ class SnakeLabServer:
         }
         if run.error is not None:
             result["error"] = run.error
-        return success_response(
-            request.request_id,
-            result,
+        return result
+
+    def _publish_run(self, run: SimulationRun, **details: Any) -> None:
+        self.telemetry.offer_run(
+            run.run_id,
+            {"state": run.state, **self._run_summary(run), **details},
         )
 
     def handle_request(self, data: Any) -> dict[str, Any]:
@@ -168,8 +275,18 @@ class SnakeLabServer:
                 )
             if request.method == METHOD_SIMULATION_SUBMIT:
                 return self._submit(request)
+            if request.method == METHOD_SIMULATION_ACTIVE:
+                return self._active(request)
             if request.method == METHOD_SIMULATION_STATUS:
                 return self._status(request)
+            if request.method == METHOD_SIMULATION_PAUSE:
+                return self._pause(request)
+            if request.method == METHOD_SIMULATION_RESUME:
+                return self._resume(request)
+            if request.method == METHOD_SIMULATION_CANCEL:
+                return self._cancel(request)
+            if request.method == METHOD_SIMULATION_SET_MOVE_DELAY:
+                return self._set_move_delay(request)
             raise ProtocolError(
                 "unknown_method", f"Unknown method: {request.method}"
             )
@@ -201,17 +318,13 @@ class SnakeLabServer:
             log_file=self._log_file,
             on_episode=update_progress,
             on_frame=lambda frame: self.telemetry.offer_frame(
-                run.run_id, frame
+                run.run_id,
+                frame,
+                preserve=run.control.diagnostic_mode,
             ),
+            runtime_control=run.control,
         )
-        self.telemetry.offer_run(
-            run.run_id,
-            {
-                "state": "running",
-                "epochs": run.config["epochs"],
-                "runtime": simulator.runtime_description,
-            },
-        )
+        self._publish_run(run, runtime=simulator.runtime_description)
         await simulator.run()
 
     def _write_results(self, run: SimulationRun) -> None:
@@ -225,6 +338,8 @@ class SnakeLabServer:
         while True:
             run = await self._run_queue.get()
             try:
+                if run.state == "cancelled":
+                    continue
                 run.state = "running"
                 self.log.info(f"Running simulation {run.run_id}")
                 await self._execute_simulation(run)
@@ -234,6 +349,10 @@ class SnakeLabServer:
                     run.run_id,
                     {"state": "completed", **self._run_summary(run)},
                 )
+            except SimulationCancelled:
+                run.state = "cancelled"
+                self.log.info(f"Cancelled simulation {run.run_id}")
+                self._publish_run(run)
             except asyncio.CancelledError:
                 run.state = "cancelled"
                 self.telemetry.offer_run(
@@ -285,6 +404,7 @@ class SnakeLabServer:
             "total_reward": run.total_reward,
             "epsilon_injections": run.epsilon_injections,
             "last_loss": run.last_loss,
+            "move_delay_ms": run.control.move_delay_ms,
         }
 
     async def run(self) -> None:

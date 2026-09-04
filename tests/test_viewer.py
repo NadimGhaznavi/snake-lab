@@ -1,6 +1,6 @@
 import unittest
 
-from textual.widgets import Label
+from textual.widgets import Button, Label, Select
 
 from snake_lab.board import SnakeBoard
 from snake_lab.game import Outcome
@@ -15,9 +15,66 @@ from snake_lab.telemetry import (
 from snake_lab.viewer import SnakeLabViewer, TelemetryReceived
 
 
+class FakeControlClient:
+    def __init__(self) -> None:
+        self.operations = []
+        self.closed = False
+
+    @staticmethod
+    def _response(run_id: str, state: str, delay: int) -> dict:
+        return {
+            "protocol_version": 1,
+            "request_id": "test",
+            "status": "ok",
+            "payload": {
+                "run_id": run_id,
+                "state": state,
+                "epochs": 100,
+                "completed_epochs": 12,
+                "total_steps": 70,
+                "high_score": 5,
+                "total_reward": 1.0,
+                "epsilon_injections": 10,
+                "last_loss": 0.125,
+                "move_delay_ms": delay,
+                "last_episode": None,
+            },
+        }
+
+    async def active(self) -> dict:
+        return {
+            "protocol_version": 1,
+            "request_id": "test",
+            "status": "ok",
+            "payload": {"run": None},
+        }
+
+    async def pause(self, run_id: str) -> dict:
+        self.operations.append(("pause", run_id))
+        return self._response(run_id, "paused", 0)
+
+    async def resume(self, run_id: str) -> dict:
+        self.operations.append(("resume", run_id))
+        return self._response(run_id, "running", 0)
+
+    async def cancel(self, run_id: str) -> dict:
+        self.operations.append(("cancel", run_id))
+        return self._response(run_id, "cancelling", 100)
+
+    async def set_move_delay(self, run_id: str, delay: int) -> dict:
+        self.operations.append(("delay", run_id, delay))
+        return self._response(run_id, "running", delay)
+
+    def close(self) -> None:
+        self.closed = True
+
+
 class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
     async def test_live_messages_update_board_and_status_panes(self) -> None:
-        app = SnakeLabViewer(telemetry_port=59999)
+        control = FakeControlClient()
+        app = SnakeLabViewer(
+            telemetry_port=59999, control_client=control
+        )
         async with app.run_test(size=(120, 40)) as pilot:
             app.post_message(
                 TelemetryReceived(
@@ -28,6 +85,9 @@ class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
                         {
                             "state": "running",
                             "epochs": 100,
+                            "completed_epochs": 0,
+                            "high_score": 0,
+                            "move_delay_ms": 0,
                             "runtime": "Simulation running on GPU",
                         },
                     ),
@@ -92,6 +152,71 @@ class SnakeLabViewerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn(
                 "0.125000", str(app.query_one("#loss", Label).content)
             )
+            self.assertFalse(
+                app.query_one("#pause-resume", Button).disabled
+            )
+
+        self.assertTrue(control.closed)
+
+    async def test_runtime_controls_call_the_async_client(self) -> None:
+        control = FakeControlClient()
+        app = SnakeLabViewer(
+            telemetry_port=59999, control_client=control
+        )
+        async with app.run_test(size=(120, 45)) as pilot:
+            app.post_message(
+                TelemetryReceived(
+                    TOPIC_RUN,
+                    TelemetryEnvelope(
+                        0,
+                        "run-1234567890",
+                        {
+                            "state": "running",
+                            "epochs": 100,
+                            "completed_epochs": 12,
+                            "high_score": 5,
+                            "move_delay_ms": 0,
+                        },
+                    ),
+                )
+            )
+            await pilot.pause()
+
+            await pilot.click("#pause-resume")
+            await pilot.pause()
+            self.assertEqual(app._run_state, "paused")
+            self.assertEqual(
+                app.query_one("#pause-resume", Button).label.plain,
+                "Resume",
+            )
+
+            await pilot.click("#pause-resume")
+            await pilot.pause()
+            self.assertEqual(app._run_state, "running")
+
+            app.query_one("#move-delay", Select).value = 100
+            await pilot.pause()
+            self.assertEqual(app._move_delay_ms, 100)
+            self.assertIn(
+                "Every move",
+                str(app.query_one("#diagnostic-mode", Label).content),
+            )
+
+            await pilot.click("#cancel-run")
+            await pilot.pause()
+            await pilot.click("#confirm-cancel")
+            await pilot.pause()
+            self.assertEqual(app._run_state, "cancelling")
+
+        self.assertEqual(
+            control.operations,
+            [
+                ("pause", "run-1234567890"),
+                ("resume", "run-1234567890"),
+                ("delay", "run-1234567890", 100),
+                ("cancel", "run-1234567890"),
+            ],
+        )
 
 
 if __name__ == "__main__":

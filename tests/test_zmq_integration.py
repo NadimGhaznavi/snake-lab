@@ -1,5 +1,6 @@
-import signal
+import asyncio
 import json
+import signal
 import socket
 import subprocess
 import sys
@@ -10,7 +11,7 @@ from pathlib import Path
 
 import zmq
 
-from snake_lab.client import LabClient
+from snake_lab.client import AsyncLabClient, LabClient
 from snake_lab.telemetry import (
     TOPIC_EPISODE,
     TOPIC_FRAME,
@@ -195,12 +196,80 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         run_id = response["payload"]["run_id"]
 
         status = self.client.status(run_id)
-        self.assertEqual(status["payload"]["epochs"], 1500)
+        self.assertEqual(status["payload"]["epochs"], 100)
 
     def test_invalid_config_is_rejected(self) -> None:
-        response = self.client.submit({"epochs": 99})
+        response = self.client.submit({"epochs": 49})
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["error"]["code"], "invalid_config")
+
+    def test_human_runtime_controls(self) -> None:
+        submitted = self.client.submit(
+            {
+                "epochs": 100,
+                "seed": 17,
+                "game": {
+                    "board_width": 8,
+                    "board_height": 8,
+                    "initial_snake_length": 3,
+                    "max_moves_multiplier": 10,
+                },
+                "model": {
+                    "hidden_size": 8,
+                    "layers": 1,
+                    "dropout": 0,
+                },
+                "training": {
+                    "sequence_length": 1,
+                    "batch_size": 2,
+                    "replay_max_frames": 100,
+                },
+            }
+        )
+        run_id = submitted["payload"]["run_id"]
+
+        delayed = self.client.set_move_delay(run_id, 50)
+        deadline = time.monotonic() + 2
+        while self.client.status(run_id)["payload"]["state"] == "queued":
+            if time.monotonic() >= deadline:
+                self.fail("Delayed simulation did not start")
+            time.sleep(0.01)
+        paused = self.client.pause(run_id)
+        time.sleep(0.1)
+        before = self.client.status(run_id)["payload"]["completed_epochs"]
+        time.sleep(0.15)
+        after = self.client.status(run_id)["payload"]["completed_epochs"]
+        active = asyncio.run(self._active_from_async_client())
+
+        self.assertEqual(delayed["status"], "ok")
+        self.assertEqual(delayed["payload"]["move_delay_ms"], 50)
+        self.assertEqual(paused["payload"]["state"], "paused")
+        self.assertEqual(before, after)
+        self.assertEqual(active["payload"]["run"]["run_id"], run_id)
+        self.assertEqual(active["payload"]["run"]["state"], "paused")
+
+        resumed = self.client.resume(run_id)
+        cancelling = self.client.cancel(run_id)
+        self.assertEqual(resumed["payload"]["state"], "running")
+        self.assertIn(
+            cancelling["payload"]["state"], {"cancelling", "cancelled"}
+        )
+
+        deadline = time.monotonic() + 2
+        while True:
+            status = self.client.status(run_id)
+            if status["payload"]["state"] == "cancelled":
+                break
+            if time.monotonic() >= deadline:
+                self.fail("Runtime cancellation did not complete")
+            time.sleep(0.01)
+
+    async def _active_from_async_client(self) -> dict:
+        client = AsyncLabClient(port=self.port)
+        try:
+            return await client.active()
+        finally:
+            client.close()
 
 
 if __name__ == "__main__":
