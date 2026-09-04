@@ -1,64 +1,140 @@
 ---
-title: Standalone Snake Game Server
+title: SnakeLab
 author_profile: true
 layout: single
 ---
 
-# Snake Game Server
+SnakeLab runs serial, configurable AI Snake simulations with PyTorch. It uses
+the GPU when CUDA is available and otherwise runs on the CPU.
 
-- This project installs a systemd server that runs AI Snake Game simulations.
-- Job control uses ZeroMQ REQ/REP on TCP port 41970.
-- Live run, episode, and game-frame telemetry uses ZeroMQ PUB/SUB on TCP port
-  41971.
-- MariaDB stores the complete resolved configuration, project version, run
-  lifecycle, and per-episode score, step, epsilon, and loss results.
-- A configuration is run once per SnakeLab project version. Submitting the same
-  resolved configuration again returns its existing run instead of duplicating
-  a deterministic experiment. Cancelled and failed attempts may be explicitly
-  resubmitted and restart from the beginning.
+## Components
 
-# Running a Simulation
+- A systemd simulation server.
+- ZeroMQ job control on TCP port 41970.
+- ZeroMQ live telemetry on TCP port 41971.
+- A Textual client for submitting configurations, watching the game, and
+  controlling a run.
+- MariaDB storage for resolved configurations, run state, and episode results.
 
-Start `lab-client` to load and submit a local JSON configuration, then watch
-the simulation live. The client remembers the last configuration path for the
-next submission.
+The ZeroMQ interfaces do not provide authentication. Expose these ports only
+on a trusted network.
 
-The client provides human-only pause, resume, cancellation, and move-delay
-controls. Move delay ranges from 0 through 100 milliseconds in 20-millisecond
-steps. Zero leaves the simulation at full speed and displays sampled telemetry;
-a nonzero delay enables diagnostic mode, slowing the server between moves and
-preserving every frame for visual inspection. These runtime controls remain
-separate from the reproducible experiment JSON.
+## Install
 
-For development checkouts, use `client/lab-client.sh` instead of the installed
-launcher.
+On Debian Trixie, install the base requirements and run the installer from a
+release checkout:
 
-# Database Lifecycle
+```sh
+sudo apt install python3-venv mariadb-server openssl
+sudo scripts/install.sh
+```
 
-Fresh installations provision MariaDB and apply the current schema. Software
-upgrades deliberately do not access MariaDB. To initialize the schema on an
-installation created before result persistence was introduced, explicitly run
-`sudo scripts/apply-database-schema.sh` from the release checkout before
-upgrading the application.
+The installer creates `/opt/snake-lab`, provisions the database, builds the
+Python environment, and starts `snake-lab.service`. If `nvidia-smi` reports a
+working GPU, the environment uses the PyTorch CUDA 12.6 runtime.
 
-# Development Style
+```sh
+systemctl status snake-lab.service
+journalctl -u snake-lab.service -f
+tail -f /opt/snake-lab/logs/server.log
+```
 
-SnakeLab favors lean, clear code and fail-fast behavior. Invalid configuration,
-missing dependencies, broken module contracts, and unexpected protocol data
-should raise an immediate, visible error rather than trigger fallback or recovery
-logic that hides the underlying defect. Defensive coverage belongs primarily in
-tests and at genuine external boundaries, keeping production paths direct,
-predictable, and efficient.
+See [Driver Setup](/pages/driver-setup.html) for Wintermute's NVIDIA setup.
 
-# Links
+## Run a Simulation
 
-## Project
+Start the installed client on the server:
 
-- [Driver Setup](/pages/driver-setup.html)
-- [Model Setup](/pages/model-setup.html)
+```sh
+lab-client
+```
 
-## External
+To run the client from another trusted host:
 
-- [Qwen3.5 4B on HuggingFace](https://huggingface.co/Qwen/Qwen3.5-4B)
-- [Qwen on ReadTheDocs](https://qwen.readthedocs.io/en/latest/)
-- [Qwen Homepage](https://qwen.ai)
+```sh
+lab-client --host wintermute
+```
+
+Choose **Submit config**, select a JSON file, and submit it. The client displays
+the live game, run progress, score, epsilon, loss, and lifecycle events.
+
+See [Developer Integration](/pages/developer.html) to submit simulations from
+another project or service.
+
+Pause, resume, cancel, and move delay are human diagnostic controls. Move delay
+ranges from 0 to 100 milliseconds in 20-millisecond steps. These controls are
+not part of the experiment configuration.
+
+## Configuration and Results
+
+Use [sample-config.json](/examples/sample-config.json) as a starting point. The
+[JSON Schema](/snake_lab/schemas/simulation-config-v1.schema.json) defines all
+fields, defaults, and validation limits. Partial configurations are accepted;
+the server fills in defaults before validation and storage.
+
+SnakeLab treats the complete resolved configuration as a deterministic
+experiment. A completed configuration runs once per project version. Repeated
+submissions return the existing run, while cancelled or failed attempts restart
+from the beginning.
+
+MariaDB stores runs in `simulation_runs` and episode measurements in
+`simulation_episodes`.
+
+## Upgrade
+
+Do not upgrade while a simulation is running. From the new release checkout:
+
+```sh
+sudo scripts/upgrade.sh
+```
+
+The upgrade script replaces the software and rebuilds the virtual environment
+only when requirements change. It does not provision MariaDB or apply schema
+changes.
+
+For the one-time upgrade from a pre-0.9.0 installation, apply the initial schema
+before upgrading:
+
+```sh
+sudo scripts/apply-database-schema.sh
+sudo scripts/upgrade.sh
+```
+
+Database changes in future releases will include explicit release instructions.
+
+## Development
+
+```sh
+./scripts/rebuild-venv.sh
+venv/bin/python -m unittest discover -s tests
+```
+
+Run a development server without MariaDB in one terminal:
+
+```sh
+venv/bin/python -m snake_lab.server \
+    --address 127.0.0.1 \
+    --log-file /tmp/snake-lab.log \
+    --ephemeral
+```
+
+Start the development client in another terminal:
+
+```sh
+./client/lab-client.sh
+```
+
+## Uninstall
+
+```sh
+sudo scripts/uninstall.sh
+```
+
+The uninstaller removes the service and `/opt/snake-lab`. It leaves the
+MariaDB database and database user intact.
+
+## Related Setup
+
+- [Driver Setup](/pages/driver-setup.html): Wintermute GPU and llama.cpp build.
+- [Model Setup](/pages/model-setup.html): Qwen3.5 model conversion for Fr3d.
+- [Qwen3.5 4B on Hugging Face](https://huggingface.co/Qwen/Qwen3.5-4B)

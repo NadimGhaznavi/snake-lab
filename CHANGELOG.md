@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a cross-project developer guide with the ZeroMQ request contract, a
+  self-contained asynchronous submission client, response examples, and live
+  telemetry details.
+
+### Changed
+
+- Reworked the project documentation into a concise installation, operation,
+  configuration, upgrade, and development reference.
+- Distinguished SnakeLab's PyTorch CUDA runtime from the local CUDA toolkit and
+  Qwen/llama.cpp setup used by the future Fr3d integration.
+
 ## [0.9.0] - 2026-09-04 @ 19:27
 
 ### Added
