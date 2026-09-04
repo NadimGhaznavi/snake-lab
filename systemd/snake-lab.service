@@ -1,6 +1,7 @@
 [Unit]
 Description=SnakeLab AI simulation server
-After=network.target
+Requires=mariadb.service
+After=network.target mariadb.service
 
 [Service]
 Type=simple
