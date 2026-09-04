@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Promoted the Textual viewer to the single human-facing `lab-client`
   application.
+- Fixed the game panel at its natural 20-by-20 board size, moved Events below
+  it, and allowed the Control, Run, and Events panels to consume remaining
+  terminal space.
 
 ### Removed
 

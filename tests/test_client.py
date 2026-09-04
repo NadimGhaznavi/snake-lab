@@ -85,6 +85,41 @@ class FakeControlClient:
 
 
 class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
+    async def test_game_is_fixed_while_other_panels_stretch(self) -> None:
+        app = SnakeLabClient(
+            telemetry_port=59999, control_client=FakeControlClient()
+        )
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+
+            board_panel = app.query_one("#board-panel")
+            controls_panel = app.query_one("#controls-panel")
+            status_panel = app.query_one("#status-panel")
+            event_log = app.query_one("#event-log")
+            initial_controls = controls_panel.region
+            initial_events = event_log.region
+
+            self.assertEqual(board_panel.region.size, (44, 22))
+            self.assertEqual(
+                app.query_one("#board", SnakeBoard).region.size, (40, 20)
+            )
+            self.assertEqual(event_log.region.y, board_panel.region.bottom)
+            self.assertEqual(event_log.region.width, 44)
+            self.assertEqual(
+                status_panel.region.y, controls_panel.region.bottom
+            )
+
+            await pilot.resize_terminal(140, 50)
+
+            self.assertEqual(board_panel.region.size, (44, 22))
+            self.assertGreater(
+                controls_panel.region.width, initial_controls.width
+            )
+            self.assertGreater(
+                controls_panel.region.height, initial_controls.height
+            )
+            self.assertGreater(event_log.region.height, initial_events.height)
+
     async def test_controls_are_visible_in_a_compact_terminal(self) -> None:
         app = SnakeLabClient(
             telemetry_port=59999, control_client=FakeControlClient()
