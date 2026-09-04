@@ -7,11 +7,22 @@ import sys
 import tempfile
 import time
 import unittest
+import uuid
 from pathlib import Path
 
 import zmq
 
-from snake_lab.client import AsyncLabClient, LabClient
+from snake_lab.control_client import AsyncLabClient
+from snake_lab.protocol import (
+    METHOD_HEALTH,
+    METHOD_SIMULATION_CANCEL,
+    METHOD_SIMULATION_PAUSE,
+    METHOD_SIMULATION_RESUME,
+    METHOD_SIMULATION_SET_MOVE_DELAY,
+    METHOD_SIMULATION_STATUS,
+    METHOD_SIMULATION_SUBMIT,
+    PROTOCOL_VERSION,
+)
 from snake_lab.telemetry import (
     TOPIC_EPISODE,
     TOPIC_FRAME,
@@ -28,6 +39,63 @@ def available_tcp_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.bind(("127.0.0.1", 0))
         return int(probe.getsockname()[1])
+
+
+class SyncProtocolClient:
+    """Synchronous protocol driver scoped to process-level server tests."""
+
+    __test__ = False
+
+    def __init__(self, port: int, timeout_ms: int = 3000) -> None:
+        self._context = zmq.Context()
+        self._socket = self._context.socket(zmq.REQ)
+        self._socket.setsockopt(zmq.LINGER, 0)
+        self._socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
+        self._socket.setsockopt(zmq.SNDTIMEO, timeout_ms)
+        self._socket.connect(f"tcp://127.0.0.1:{port}")
+
+    def request(self, method: str, payload: dict) -> dict:
+        request_id = str(uuid.uuid4())
+        self._socket.send_json(
+            {
+                "protocol_version": PROTOCOL_VERSION,
+                "request_id": request_id,
+                "method": method,
+                "payload": payload,
+            }
+        )
+        response = self._socket.recv_json()
+        if response.get("request_id") != request_id:
+            raise ValueError("SnakeLab response request_id does not match")
+        return response
+
+    def health(self) -> dict:
+        return self.request(METHOD_HEALTH, {})
+
+    def submit(self, config: dict) -> dict:
+        return self.request(METHOD_SIMULATION_SUBMIT, {"config": config})
+
+    def status(self, run_id: str) -> dict:
+        return self.request(METHOD_SIMULATION_STATUS, {"run_id": run_id})
+
+    def pause(self, run_id: str) -> dict:
+        return self.request(METHOD_SIMULATION_PAUSE, {"run_id": run_id})
+
+    def resume(self, run_id: str) -> dict:
+        return self.request(METHOD_SIMULATION_RESUME, {"run_id": run_id})
+
+    def cancel(self, run_id: str) -> dict:
+        return self.request(METHOD_SIMULATION_CANCEL, {"run_id": run_id})
+
+    def set_move_delay(self, run_id: str, delay: int) -> dict:
+        return self.request(
+            METHOD_SIMULATION_SET_MOVE_DELAY,
+            {"run_id": run_id, "move_delay_ms": delay},
+        )
+
+    def close(self) -> None:
+        self._socket.close()
+        self._context.term()
 
 
 class ZeroMQIntegrationTests(unittest.TestCase):
@@ -76,7 +144,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 self.fail(f"Server startup timed out: {stdout}{stderr}")
             time.sleep(0.05)
 
-        self.client = LabClient(port=self.port, timeout_ms=3000)
+        self.client = SyncProtocolClient(port=self.port, timeout_ms=3000)
 
     def tearDown(self) -> None:
         self.client.close()
@@ -202,69 +270,6 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         response = self.client.submit({"epochs": 49})
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["error"]["code"], "invalid_config")
-
-    def test_non_interactive_config_submission(self) -> None:
-        config_file = Path(self.temp_dir.name) / "config.json"
-        config_file.write_text(
-            json.dumps(
-                {
-                    "epochs": 50,
-                    "game": {
-                        "board_width": 4,
-                        "board_height": 1,
-                        "initial_snake_length": 3,
-                        "max_moves_multiplier": 1,
-                    },
-                    "model": {
-                        "hidden_size": 8,
-                        "layers": 1,
-                        "dropout": 0,
-                    },
-                    "training": {
-                        "sequence_length": 1,
-                        "batch_size": 2,
-                        "replay_max_frames": 100,
-                    },
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        completed = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "snake_lab.client",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(self.port),
-                "-c",
-                str(config_file),
-            ],
-            cwd=PROJECT_DIR,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-
-        response = json.loads(completed.stdout)
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(response["status"], "ok")
-        self.assertEqual(response["payload"]["state"], "queued")
-
-        run_id = response["payload"]["run_id"]
-        cancelled = self.client.cancel(run_id)
-        if cancelled["status"] == "ok":
-            deadline = time.monotonic() + 2
-            while self.client.status(run_id)["payload"]["state"] not in {
-                "cancelled",
-                "completed",
-            }:
-                if time.monotonic() >= deadline:
-                    self.fail("CLI-submitted run did not stop")
-                time.sleep(0.01)
 
     def test_human_runtime_controls(self) -> None:
         submitted = self.client.submit(
