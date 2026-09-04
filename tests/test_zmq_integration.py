@@ -296,7 +296,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         )
         run_id = submitted["payload"]["run_id"]
 
-        delayed = self.client.set_move_delay(run_id, 50)
+        delayed = self.client.set_move_delay(run_id, 40)
         deadline = time.monotonic() + 2
         while self.client.status(run_id)["payload"]["state"] == "queued":
             if time.monotonic() >= deadline:
@@ -310,7 +310,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         active = asyncio.run(self._active_from_async_client())
 
         self.assertEqual(delayed["status"], "ok")
-        self.assertEqual(delayed["payload"]["move_delay_ms"], 50)
+        self.assertEqual(delayed["payload"]["move_delay_ms"], 40)
         self.assertEqual(paused["payload"]["state"], "paused")
         self.assertEqual(before, after)
         self.assertEqual(active["payload"]["run"]["run_id"], run_id)

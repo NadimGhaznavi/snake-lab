@@ -138,6 +138,12 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 self.assertGreater(widget.region.height, 0)
                 self.assertLessEqual(widget.region.bottom, app.size.height)
 
+            delay_select = app.query_one("#move-delay", Select)
+            self.assertEqual(
+                [value for _label, value in delay_select._options],
+                [0, 20, 40, 60, 80, 100],
+            )
+
     async def test_loads_and_submits_a_local_config_file(self) -> None:
         control = FakeControlClient()
         app = SnakeLabClient(
