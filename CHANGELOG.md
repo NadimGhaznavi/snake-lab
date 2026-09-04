@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-04 @ 19:27
+
+### Added
+
+- Transactional MariaDB persistence for resolved simulation configurations,
+  run lifecycle state, and per-episode results.
+- Deterministic duplicate detection keyed by project version and the SHA-256
+  hash of the complete resolved configuration, while allowing an incomplete
+  cancelled or failed attempt to be restarted in place.
+- A versioned initial database schema and an explicit
+  `scripts/apply-database-schema.sh` command for existing installations.
+
+### Changed
+
+- Store the SnakeLab project version with every simulation run so identical
+  configurations can be evaluated again after the simulation software changes.
+- Keep database provisioning and schema application in fresh installation and
+  explicit database-maintenance paths; `upgrade.sh` no longer accesses MariaDB.
+- Treat MariaDB as a required runtime dependency and terminate the service if
+  its single simulation worker fails, allowing systemd to restart it cleanly.
+
 ## [0.8.3] - 2026-09-04 @ 18:46
 
 ### Changed

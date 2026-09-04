@@ -10,8 +10,12 @@ layout: single
 - Job control uses ZeroMQ REQ/REP on TCP port 41970.
 - Live run, episode, and game-frame telemetry uses ZeroMQ PUB/SUB on TCP port
   41971.
-- MariaDB result persistence is planned; the current server keeps run state in
-  memory and logs completed simulations.
+- MariaDB stores the complete resolved configuration, project version, run
+  lifecycle, and per-episode score, step, epsilon, and loss results.
+- A configuration is run once per SnakeLab project version. Submitting the same
+  resolved configuration again returns its existing run instead of duplicating
+  a deterministic experiment. Cancelled and failed attempts may be explicitly
+  resubmitted and restart from the beginning.
 
 # Running a Simulation
 
@@ -28,6 +32,14 @@ separate from the reproducible experiment JSON.
 
 For development checkouts, use `client/lab-client.sh` instead of the installed
 launcher.
+
+# Database Lifecycle
+
+Fresh installations provision MariaDB and apply the current schema. Software
+upgrades deliberately do not access MariaDB. To initialize the schema on an
+installation created before result persistence was introduced, explicitly run
+`sudo scripts/apply-database-schema.sh` from the release checkout before
+upgrading the application.
 
 # Development Style
 

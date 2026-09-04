@@ -38,16 +38,19 @@ validate_release_checkout() {
         "requirements.txt"
         "requirements-torch-cpu.txt"
         "requirements-torch-cuda.txt"
+        "scripts/apply-database-schema.sh"
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
         "snake_lab/board.py"
         "snake_lab/client.py"
         "snake_lab/configuration.py"
         "snake_lab/control_client.py"
+        "snake_lab/database.py"
         "snake_lab/memory.py"
         "snake_lab/model.py"
         "snake_lab/protocol.py"
         "snake_lab/runtime_control.py"
+        "snake_lab/schemas/database-v1.sql"
         "snake_lab/schemas/simulation-config-v1.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"
@@ -63,6 +66,18 @@ validate_release_checkout() {
         [[ -f "${PROJECT_DIR}/${path}" ]] ||
             die "Release file is missing: ${path}"
     done
+}
+
+apply_database_schema() {
+    local db_name
+
+    db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
+        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
+    [[ "${db_name}" =~ ^[A-Za-z0-9_]+$ ]] ||
+        die "Invalid database name: ${db_name}"
+
+    mariadb --batch "${db_name}" \
+        <"${PROJECT_DIR}/snake_lab/schemas/database-v1.sql"
 }
 
 ensure_service_account() {
@@ -126,6 +141,8 @@ CREATE USER IF NOT EXISTS '${db_user}'@'${db_host}'
 ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}';
 GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}';
 SQL
+
+    apply_database_schema
 }
 
 deploy_application() {
@@ -143,7 +160,9 @@ deploy_application() {
         "${staging_dir}/constants/"
     install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
         "${staging_dir}/snake_lab/"
-    install -m 0644 "${PROJECT_DIR}/snake_lab/schemas/"*.json \
+    install -m 0644 \
+        "${PROJECT_DIR}/snake_lab/schemas/"*.json \
+        "${PROJECT_DIR}/snake_lab/schemas/"*.sql \
         "${staging_dir}/snake_lab/schemas/"
     install -m 0644 "${PROJECT_DIR}/utils/"*.py \
         "${staging_dir}/utils/"
