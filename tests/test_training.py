@@ -27,6 +27,7 @@ class ShapeRecordingLoss(nn.Module):
         self, predicted: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
         self.shapes = (predicted.shape, target.shape)
+        self.target = target.detach().clone()
         return torch.square(predicted - target).mean()
 
 class RNNModelTests(unittest.TestCase):
@@ -63,8 +64,9 @@ class TrainerTests(unittest.TestCase):
         replay = ReplayMemory(
             state_size=DNetDef.INPUT_SIZE,
             sequence_length=2,
-            batch_size=2,
+            batch_size=1,
             max_frames=10,
+            min_episodes=1,
             seed=7,
             log=FakeLog(),
         )
@@ -103,7 +105,8 @@ class TrainerTests(unittest.TestCase):
 
         self.assertIsNotNone(loss)
         self.assertTrue(math.isfinite(loss))
-        self.assertEqual(criterion.shapes, (torch.Size([2]), torch.Size([2])))
+        self.assertEqual(criterion.shapes, (torch.Size([1, 2]), torch.Size([1, 2])))
+        self.assertEqual(criterion.target[-1, -1].item(), 2.0)
         self.assertEqual(trainer.get_average_loss(), loss)
         self.assertIsNone(trainer.get_average_loss())
 
