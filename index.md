@@ -5,7 +5,10 @@ layout: single
 ---
 
 SnakeLab runs serial, configurable AI Snake simulations with PyTorch. It uses
-the GPU when CUDA is available and otherwise runs on the CPU.
+the GPU when CUDA is available and otherwise runs on the CPU. Game state,
+observations, action selection, replay storage, and training use tensors on
+that device. Episodes run serially; each completed episode is followed by a
+training attempt when enough replay windows are available.
 
 ## Components
 

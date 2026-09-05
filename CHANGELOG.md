@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-09-05 @ 06:24
+
+### Changed
+
+- Moved simulation game state, observations, rolling policy history, actions,
+  exploration draws, and replay storage to device tensors. CUDA hosts now run
+  the numerical game rules and replay sampling on the GPU; CPU hosts use the
+  same tensor implementation. Episodes remain serial with one training attempt
+  after each completed episode.
+- Preallocated replay buffers retain complete episodes and produce tensor
+  batches directly for training. Host synchronization remains for per-move
+  terminal/exploration control flags, episode results, and subscribed telemetry.
+- Tensor random generators replace Python random streams for food, exploration,
+  and replay sampling. Seeded trajectories differ from earlier releases;
+  cross-device bitwise reproducibility is not guaranteed.
+
 ## [0.10.1] - 2026-09-05 @ 05:37
 
 ### Added
