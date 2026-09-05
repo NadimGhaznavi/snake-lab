@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-09-04 @ 23:49
+
 ### Added
 
 - A dedicated ZeroMQ events publisher on port 41972, configurable with
