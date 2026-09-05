@@ -64,13 +64,14 @@ class Trainer:
         )
 
     def train(self) -> float | None:
-        """Train once from a fixed-shape replay batch."""
+        """Train once on every transition in the sampled complete games."""
         batch = self.replay.sample()
         if batch is None:
             return None
         if not self._has_logged_shape:
             self.log.debug(
-                f"Training with batch={batch.states.shape[0]}, "
+                f"Training with episodes={self.replay.batch_size}, "
+                f"chunks={batch.states.shape[0]}, "
                 f"sequence={batch.states.shape[1]}"
             )
             self._has_logged_shape = True
@@ -93,22 +94,22 @@ class Trainer:
 
         self.model.train()
         predicted_all = self.model.forward_sequence(states)
-        predicted = predicted_all[:, -1, :].gather(
-            1, actions[:, -1].unsqueeze(-1)
+        predicted = predicted_all.gather(
+            2, actions.unsqueeze(-1)
         ).squeeze(-1)
 
         with torch.no_grad():
             self.model.eval()
-            online_next = self.model.forward_sequence(next_states)[:, -1, :]
-            next_actions = online_next.argmax(dim=1, keepdim=True)
+            online_next = self.model.forward_sequence(next_states)
+            next_actions = online_next.argmax(dim=2, keepdim=True)
             self.model.train()
             target_all = self.target_model.forward_sequence(next_states)
-            target_next = target_all[:, -1, :].gather(
-                1, next_actions
+            target_next = target_all.gather(
+                2, next_actions
             ).squeeze(-1)
             target = (
-                rewards[:, -1]
-                + self.gamma * target_next * (~dones[:, -1])
+                rewards
+                + self.gamma * target_next * (~dones)
             )
 
         loss = self.criterion(predicted, target)

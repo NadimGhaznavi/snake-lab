@@ -1,9 +1,7 @@
-"""Fixed-shape, episode-aware replay memory for recurrent training."""
+"""Episode replay with terminal-aligned recurrent chunks."""
 
-from bisect import bisect_right
 from collections import deque
 from dataclasses import dataclass
-from itertools import accumulate
 from random import Random
 
 import numpy as np
@@ -27,7 +25,10 @@ class Transition:
 
 @dataclass(frozen=True, slots=True)
 class ReplayBatch:
-    """Dense, fixed-shape arrays ready for conversion to PyTorch tensors."""
+    """Retained chunks as [chunks, sequence, features] plus per-move targets.
+
+    The chunk count varies with the selected games; batch_size counts games.
+    """
 
     states: np.ndarray
     actions: np.ndarray
@@ -46,11 +47,11 @@ class _Episode:
 
     @property
     def size(self) -> int:
-        return int(self.actions.shape[0])
+        return int(self.actions.size)
 
 
 class ReplayMemory:
-    """Store complete episodes and sample dense recurrent sequences."""
+    """Sample complete games uniformly after a stored-episode warmup."""
 
     def __init__(
         self,
@@ -60,6 +61,7 @@ class ReplayMemory:
         batch_size: int,
         max_frames: int,
         seed: int,
+        min_episodes: int = 30,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         log: MyLog | None = None,
     ) -> None:
@@ -68,18 +70,21 @@ class ReplayMemory:
             ("sequence_length", sequence_length),
             ("batch_size", batch_size),
             ("max_frames", max_frames),
+            ("min_episodes", min_episodes),
         ):
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{name} must be a positive integer")
-        if max_frames < sequence_length * batch_size:
+        if max_frames < sequence_length * max(batch_size, min_episodes):
             raise ValueError(
-                "max_frames must hold at least one complete training batch"
+                "max_frames must hold sequence_length * "
+                "max(batch_size, min_episodes)"
             )
 
         self.state_size = state_size
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.max_frames = max_frames
+        self.min_episodes = min_episodes
         self._rng = Random(seed)
         self._episodes: deque[_Episode] = deque()
         self._current: list[Transition] = []
@@ -92,7 +97,8 @@ class ReplayMemory:
         )
         self.log.info(
             f"Initialized replay memory: batch={batch_size}, "
-            f"sequence={sequence_length}, max_frames={max_frames}"
+            f"sequence={sequence_length}, max_frames={max_frames}, "
+            f"min_episodes={min_episodes}"
         )
 
     @property
@@ -123,6 +129,13 @@ class ReplayMemory:
             self._finalize_episode()
 
     def _finalize_episode(self) -> None:
+        # Anchor full chunks at the terminal move. Never pad short games.
+        if len(self._current) < self.sequence_length:
+            self._current.clear()
+            return
+        prefix = len(self._current) % self.sequence_length
+        if prefix:
+            del self._current[:prefix]
         states = np.asarray(
             [transition.state for transition in self._current],
             dtype=np.float32,
@@ -144,11 +157,13 @@ class ReplayMemory:
             dtype=np.bool_,
         )
         episode = _Episode(
-            states=states,
-            actions=actions,
-            rewards=rewards,
-            next_states=next_states,
-            dones=dones,
+            states=states.reshape(-1, self.sequence_length, self.state_size),
+            actions=actions.reshape(-1, self.sequence_length),
+            rewards=rewards.reshape(-1, self.sequence_length),
+            next_states=next_states.reshape(
+                -1, self.sequence_length, self.state_size
+            ),
+            dones=dones.reshape(-1, self.sequence_length),
         )
         self._episodes.append(episode)
         self._frame_count += episode.size
@@ -159,54 +174,20 @@ class ReplayMemory:
             self._frame_count -= removed.size
 
     def sample(self) -> ReplayBatch | None:
-        """Sample uniformly from all in-episode sliding windows."""
-        eligible = [
-            episode
-            for episode in self._episodes
-            if episode.size >= self.sequence_length
-        ]
-        window_counts = [
-            episode.size - self.sequence_length + 1 for episode in eligible
-        ]
-        total_windows = sum(window_counts)
-        if total_windows < self.batch_size:
+        """Choose games uniformly and return all their terminal-aligned chunks."""
+        if self.episode_count < max(self.min_episodes, self.batch_size):
             return None
+        episodes = self._rng.sample(list(self._episodes), self.batch_size)
 
-        cumulative = list(accumulate(window_counts))
-        window_ids = self._rng.sample(range(total_windows), self.batch_size)
-        states = np.empty(
-            (self.batch_size, self.sequence_length, self.state_size),
-            dtype=np.float32,
-        )
-        actions = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.int64
-        )
-        rewards = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.float32
-        )
-        next_states = np.empty_like(states)
-        dones = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.bool_
-        )
-
-        for batch_index, window_id in enumerate(window_ids):
-            episode_index = bisect_right(cumulative, window_id)
-            previous_total = (
-                cumulative[episode_index - 1] if episode_index else 0
-            )
-            start = window_id - previous_total
-            end = start + self.sequence_length
-            episode = eligible[episode_index]
-            states[batch_index] = episode.states[start:end]
-            actions[batch_index] = episode.actions[start:end]
-            rewards[batch_index] = episode.rewards[start:end]
-            next_states[batch_index] = episode.next_states[start:end]
-            dones[batch_index] = episode.dones[start:end]
+        def chunks(field: str) -> np.ndarray:
+            # Batch size one reuses the stored chunks without copying or
+            # reshaping. Consumers must not mutate these replay-owned arrays.
+            if len(episodes) == 1:
+                return getattr(episodes[0], field)
+            return np.concatenate([getattr(episode, field) for episode in episodes])
 
         return ReplayBatch(
-            states=states,
-            actions=actions,
-            rewards=rewards,
-            next_states=next_states,
-            dones=dones,
+            states=chunks("states"), actions=chunks("actions"),
+            rewards=chunks("rewards"), next_states=chunks("next_states"),
+            dones=chunks("dones"),
         )
