@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Extended the TUI title widget across the full terminal width.
+
 ## [0.9.1] - 2026-09-04 @ 19:47
 
 ### Added

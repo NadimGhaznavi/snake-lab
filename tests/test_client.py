@@ -93,6 +93,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
 
             board_panel = app.query_one("#board-panel")
+            title = app.query_one("#title")
             controls_panel = app.query_one("#controls-panel")
             status_panel = app.query_one("#status-panel")
             event_log = app.query_one("#event-log")
@@ -104,6 +105,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 app.query_one("#board", SnakeBoard).region.size, (40, 20)
             )
             self.assertEqual(event_log.region.y, board_panel.region.bottom)
+            self.assertEqual(title.region.width, app.size.width)
             self.assertEqual(event_log.region.width, app.size.width)
             self.assertEqual(
                 status_panel.region.y, controls_panel.region.bottom
@@ -118,6 +120,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 controls_panel.region.height, initial_controls.height
             )
+            self.assertEqual(title.region.width, app.size.width)
             self.assertEqual(event_log.region.width, app.size.width)
             self.assertGreater(event_log.region.height, initial_events.height)
 
