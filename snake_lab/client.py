@@ -195,6 +195,7 @@ class SnakeLabClient(App[None]):
         color: #31b8e6;
     }
     #title {
+        width: 100%;
         height: 3;
         border: round #2aa5ce;
         color: #5fc442;
