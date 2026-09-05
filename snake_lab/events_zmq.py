@@ -9,10 +9,7 @@ from typing import Any
 import zmq
 import zmq.asyncio
 
-from snake_lab.protocol import PROTOCOL_VERSION
-
-
-TOPIC_SIMULATION_ENDED = "snake_lab.simulation.ended"
+from snake_lab.event_protocol import EVENT_TOPICS, event_message
 
 
 class EventsPublisher:
@@ -40,29 +37,20 @@ class EventsPublisher:
             self._publish_loop(), name="simulation-events"
         )
 
-    def offer_simulation_ended(
-        self, run_id: str, state: str, error: str | None = None
-    ) -> None:
-        """Queue a notification after the terminal state has been stored."""
-        if state not in {"completed", "failed", "cancelled"}:
-            raise ValueError("simulation ended requires a terminal state")
-        payload = {"state": state}
-        if error is not None:
-            payload["error"] = error
-        self._pending.put_nowait(
-            {
-                "protocol_version": PROTOCOL_VERSION,
-                "run_id": run_id,
-                "payload": payload,
-            }
-        )
+    def publish_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        """Validate and queue an event for asynchronous, best-effort delivery.
+
+        Returning confirms local enqueueing, not subscriber receipt. Invalid
+        events raise ProtocolError synchronously before entering the queue.
+        """
+        self._pending.put_nowait(event_message(event_type, payload))
 
     async def _publish_loop(self) -> None:
-        topic = TOPIC_SIMULATION_ENDED.encode("utf-8")
         while True:
             envelope = await self._pending.get()
             if envelope is None:
                 return
+            topic = EVENT_TOPICS[envelope["event_type"]].encode("utf-8")
             encoded = json.dumps(
                 envelope, separators=(",", ":")
             ).encode("utf-8")

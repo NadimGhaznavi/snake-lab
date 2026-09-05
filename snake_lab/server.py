@@ -22,6 +22,7 @@ from snake_lab.database import (
     MemorySimulationStore,
     SimulationStore,
 )
+from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
 from snake_lab.events_zmq import EventsPublisher
 from snake_lab.protocol import (
     METHOD_HEALTH,
@@ -361,9 +362,10 @@ class SnakeLabServer:
             run.high_score,
             run.error,
         )
-        self.events.offer_simulation_ended(
-            run.run_id, run.state, run.error
-        )
+        payload = {"run_id": run.run_id, "state": run.state}
+        if run.error is not None:
+            payload["error"] = run.error
+        self.events.publish_event(EVENT_SIMULATION_ENDED, payload)
 
     def _write_results(self, run: SimulationRun) -> None:
         """Finalize a successfully completed persistent run."""
