@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Default training batch size is now 1 game. Added configurable
+  `training.replay_min_episodes` (default 30); sampling waits until enough
+  eligible completed games are currently retained in replay.
+- Replay discards games shorter than `sequence_length` and drops incomplete
+  prefixes from longer games, retaining non-overlapping chunks aligned to the
+  terminal move. Chunks are built when append receives the terminal transition.
+- Training samples games uniformly without replacement and learns from every
+  move in every retained chunk in one optimizer update. A single-game batch
+  reuses stored NumPy arrays without batch-time reshaping or copying. Explicit
+  batch sizes now count games, so saved configurations should be reviewed.
+
 ## [0.10.3] - 2026-09-05 @ 06:40
 
 ### Changed

@@ -181,10 +181,19 @@
         },
         "batch_size": {
           "type": "integer",
-          "default": 64,
+          "default": 1,
           "minimum": 1,
           "maximum": 4096,
-          "x-snakelab-unit": "sequences",
+          "x-snakelab-unit": "episodes",
+          "x-snakelab-sweepable": true
+        },
+        "replay_min_episodes": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 10000000,
+          "description": "Minimum retained episodes with at least one full sequence before sampling.",
+          "x-snakelab-unit": "episodes",
           "x-snakelab-sweepable": true
         },
         "replay_max_frames": {
@@ -228,6 +237,7 @@
         "sequence_length",
         "batch_size",
         "replay_max_frames",
+        "replay_min_episodes",
         "learning_rate",
         "gamma",
         "tau",

@@ -207,6 +207,8 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.total_steps, 100)
         self.assertEqual(len(state.episodes), 100)
         self.assertEqual(len(completed), 100)
+        self.assertTrue(all(result.loss is None for result in completed[:29]))
+        self.assertIsNotNone(completed[29].loss)
         self.assertEqual(len(frames), 100)
         self.assertTrue(frames[-1].done)
         self.assertEqual(simulator.replay.episode_count, 100)

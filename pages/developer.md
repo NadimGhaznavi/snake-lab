@@ -68,3 +68,46 @@ training now forced to CPU. Seeded trajectories differ from the tensor-based
 0.10.2 release; identical results across hardware or library versions are not
 guaranteed. Subscription-driven telemetry and completion event semantics are
 unchanged.
+
+## Replay and Training
+
+The training configuration defaults to:
+
+```json
+{
+  "training": {
+    "batch_size": 1,
+    "replay_min_episodes": 30,
+    "sequence_length": 4,
+    "replay_max_frames": 150000
+  }
+}
+```
+
+`batch_size` counts randomly selected games, not sequences. Once replay holds
+at least `max(replay_min_episodes, batch_size)` eligible completed games, each
+episode-end training attempt selects `batch_size` games uniformly without
+replacement. Every move in all their retained
+chunks contributes to one optimizer update, including terminal rewards.
+
+A game shorter than `sequence_length` is discarded from replay and does not count toward
+the minimum. For longer games, replay aligns non-overlapping chunks to the
+terminal move and discards only an incomplete prefix. With 10 moves and a
+sequence length of 4, moves 1–2 are dropped and chunks 3–6 and 7–10 are stored.
+There is no padding or context crossing between games or chunks.
+
+`append()` buffers an unfinished game, then constructs the chunk arrays when
+its terminal transition arrives. With batch size 1, `sample()` returns those
+stored arrays directly; callers must not mutate them. Larger batches concatenate
+the selected games' chunks. Training remains on CPU.
+
+The frame budget counts retained frames after prefix trimming. Eviction removes
+whole games; if the eligible count falls below the minimum, sampling returns
+`None` again. The configured frame budget must be at least
+`sequence_length * max(batch_size, replay_min_episodes)`; longer games may need
+more space to reach the threshold. An episode-end training attempt may still
+sample existing replay when the just-finished game was too short to retain.
+
+Existing configurations with an explicit batch size keep that value, now
+interpreted as games. Set it to 1 to adopt the new default behavior. The new
+minimum is filled in automatically when omitted.

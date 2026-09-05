@@ -175,6 +175,7 @@ class Simulator:
             sequence_length=training["sequence_length"],
             batch_size=training["batch_size"],
             max_frames=training["replay_max_frames"],
+            min_episodes=training["replay_min_episodes"],
             seed=_derived_seed(master_seed, "replay"),
             **log_args,
         )
