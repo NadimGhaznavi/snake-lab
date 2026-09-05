@@ -5,10 +5,7 @@ layout: single
 ---
 
 SnakeLab runs serial, configurable AI Snake simulations with PyTorch. It uses
-the GPU when CUDA is available and otherwise runs on the CPU. Game state,
-observations, action selection, replay storage, and training use tensors on
-that device. Episodes run serially; each completed episode is followed by a
-training attempt when enough replay windows are available.
+the CPU for game logic, policy inference, and training, including on GPU hosts.
 
 ## Components
 
@@ -35,8 +32,8 @@ sudo scripts/install.sh
 ```
 
 The installer creates `/opt/snake-lab`, provisions the database, builds the
-Python environment, and starts `snake-lab.service`. If `nvidia-smi` reports a
-working GPU, the environment uses the PyTorch CUDA 12.6 runtime.
+Python environment, and starts `snake-lab.service`. The environment always
+uses the CPU PyTorch runtime.
 
 ```sh
 systemctl status snake-lab.service

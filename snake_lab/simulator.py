@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import random
+from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -17,9 +18,8 @@ from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.configuration import simulation_config_template
 from snake_lab.epsilon import EpsilonAlgo
-from snake_lab.game import Outcome, RewardConfig
-from snake_lab.tensor_game import OUTCOMES, TensorSnakeGame
-from snake_lab.tensor_memory import TensorReplayMemory
+from snake_lab.game import Outcome, RewardConfig, SnakeGame
+from snake_lab.memory import ReplayMemory, Transition
 from snake_lab.model import RNNModel
 from snake_lab.runtime_control import SimulationControl
 from snake_lab.telemetry import FrameTelemetry
@@ -129,17 +129,13 @@ class Simulator:
             log_file=log_file,
             to_console=True,
         )
-        if self._torch.cuda.is_available():
-            self.device = self._torch.device("cuda")
-            device_name = self._torch.cuda.get_device_name(self.device)
-            self._location = f"GPU ({device_name})"
-        else:
-            self.device = self._torch.device("cpu")
-            self._location = "CPU"
+        # Serial game steps and small policy calls run entirely on the CPU.
+        self.device = self._torch.device("cpu")
+        self._location = "CPU"
 
         self.state = SimulationState(total_epochs=self.config["epochs"])
         self.model: RNNModel | None = None
-        self.replay: TensorReplayMemory | None = None
+        self.replay: ReplayMemory | None = None
         self.trainer: Trainer | None = None
         self.epsilon: EpsilonAlgo | None = None
         self._started = False
@@ -152,8 +148,6 @@ class Simulator:
         """Exercise the selected device and report where work is running."""
         probe = self._torch.ones(1, device=self.device)
         (probe + 1).sum().item()
-        if self.device.type == "cuda":
-            self._torch.cuda.synchronize(self.device)
         self.log.info(self.runtime_description)
 
     def _component_log_args(self) -> dict[str, Any]:
@@ -176,13 +170,13 @@ class Simulator:
             layers=model_config["layers"],
             **log_args,
         )
-        self.replay = TensorReplayMemory(
+        self.replay = ReplayMemory(
             state_size=DGameDef.OBSERVATION_SIZE,
             sequence_length=training["sequence_length"],
             batch_size=training["batch_size"],
             max_frames=training["replay_max_frames"],
             seed=_derived_seed(master_seed, "replay"),
-            device=self.device,
+            **log_args,
         )
         self.trainer = Trainer(
             model=self.model,
@@ -194,9 +188,6 @@ class Simulator:
             max_gradient_norm=training["max_gradient_norm"],
             **log_args,
         )
-        self._exploration_generator = torch.Generator(device=self.device).manual_seed(
-            _derived_seed(master_seed, "epsilon")
-        )
         self.epsilon = EpsilonAlgo(
             rng=random.Random(_derived_seed(master_seed, "epsilon")),
             initial=epsilon["initial"],
@@ -205,39 +196,32 @@ class Simulator:
             **log_args,
         )
 
-    def _new_game(self, episode: int) -> TensorSnakeGame:
+    def _new_game(self, episode: int) -> SnakeGame:
         game = self.config["game"]
         reward_values = game["rewards"]
-        return TensorSnakeGame(
+        return SnakeGame(
             seed=_derived_seed(self.config["seed"], "episode", episode),
             episode_id=episode,
             grid_size=(game["board_width"], game["board_height"]),
             initial_snake_length=game["initial_snake_length"],
             max_moves_multiplier=game["max_moves_multiplier"],
             rewards=RewardConfig(**reward_values),
-            device=self.device,
         )
 
-    def _select_action(
-        self, history: torch.Tensor, random_action: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        """Keep policy input and selected action on the simulation device."""
-        if self.model is None:
+    def _select_action(self, history: deque[tuple[float, ...]]) -> int:
+        if self.epsilon is None or self.model is None:
             raise RuntimeError("simulator components have not been initialized")
+
+        random_action = self.epsilon.maybe_random_action()
         if random_action is not None:
             return random_action
-        with torch.no_grad():
-            return self.model(history).argmax(dim=1)
 
-    def _exploration_draw(self) -> tuple[torch.Tensor, torch.Tensor]:
-        explore = torch.rand(
-            (1,), device=self.device, generator=self._exploration_generator,
-        ) < self.epsilon.current
-        action = torch.randint(
-            DGameDef.ACTION_COUNT, (1,), device=self.device,
-            generator=self._exploration_generator,
+        states = self._torch.as_tensor(
+            tuple(history), dtype=self._torch.float32, device=self.device
         )
-        return explore, action
+        self.model.eval()
+        with self._torch.no_grad():
+            return int(self.model(states).argmax(dim=1).item())
 
     async def _run_episode(self, episode: int) -> EpisodeResult:
         if self.replay is None or self.trainer is None or self.epsilon is None:
@@ -245,27 +229,27 @@ class Simulator:
 
         game = self._new_game(episode)
         observation = game.observe()
-        history = observation[:, None, :].repeat(
-            1, self.config["training"]["sequence_length"], 1,
+        history: deque[tuple[float, ...]] = deque(
+            [observation] * self.config["training"]["sequence_length"],
+            maxlen=self.config["training"]["sequence_length"],
         )
+        episode_reward = 0.0
         episode_epsilon = self.epsilon.current
-        injections = torch.zeros(1, device=self.device, dtype=torch.long)
-        explore, random_action = self._exploration_draw()
-        exploring = bool(explore.item())
-        self.model.eval()
 
         while True:
-            action = self._select_action(history, random_action if exploring else None)
-            injections += explore.long()
-            next_observation = game.step(action)
+            action = self._select_action(history)
+            step = game.step(action)
             self.replay.append(
-                observation, action, game.reward, next_observation, game.done,
+                Transition(
+                    state=observation,
+                    action=action,
+                    reward=step.reward,
+                    next_state=step.observation,
+                    done=step.done,
+                )
             )
-            # A single scalar read schedules the episode boundary and the next
-            # exploration branch. Actions/observations/replay never leave device.
-            explore, random_action = self._exploration_draw()
-            control = int((game.done.long() + 2 * explore.long()).item())
-            done, exploring = bool(control & 1), bool(control & 2)
+            episode_reward += step.reward
+            # Check demand before constructing the frame and board snapshot.
             frame_active = self._on_frame is not None and (
                 self._frame_enabled is None or self._frame_enabled()
             )
@@ -276,26 +260,30 @@ class Simulator:
             if frame_active:
                 self._on_frame(
                     FrameTelemetry.from_step(
-                        episode=episode, action=int(action.item()),
-                        result=game.export_step(),
+                        episode=episode,
+                        action=action,
+                        result=step,
                     )
                 )
-            if done:
+
+            if step.done:
                 await asyncio.sleep(0)
                 break
-            observation = next_observation
-            history = torch.cat((history[:, 1:, :], observation[:, None, :]), dim=1)
+            observation = step.observation
+            history.append(observation)
             await self.runtime_control.checkpoint()
 
-        self.replay.finish_episode()
         loss = self.trainer.train()
-        injection_count = int(injections.item())
-        self.epsilon.record_injections(injection_count)
         result = EpisodeResult(
-            episode=episode, seed=game.seed, score=int(game.score.item()),
-            reward=float(game.total_reward.item()), steps=int(game.moves.item()),
-            outcome=OUTCOMES[int(game.outcome.item())], epsilon=episode_epsilon,
-            epsilon_injections=injection_count, loss=loss,
+            episode=episode,
+            seed=game.seed,
+            score=game.state.score,
+            reward=episode_reward,
+            steps=game.state.move_count,
+            outcome=step.outcome,
+            epsilon=episode_epsilon,
+            epsilon_injections=self.epsilon.episode_injections,
+            loss=loss,
         )
         self.epsilon.episode_completed()
         return result

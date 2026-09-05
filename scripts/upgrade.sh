@@ -23,7 +23,7 @@ validate_release_checkout
 
 requirements_changed=false
 for requirements_file in \
-    requirements.txt requirements-torch-cpu.txt requirements-torch-cuda.txt; do
+    requirements.txt requirements-torch-cpu.txt; do
     if ! cmp -s "${PROJECT_DIR}/${requirements_file}" \
         "${INSTALL_DIR}/${requirements_file}"; then
         requirements_changed=true
