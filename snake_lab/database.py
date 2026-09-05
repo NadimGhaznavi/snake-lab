@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, TYPE_CHECKING
 
@@ -16,15 +15,6 @@ if TYPE_CHECKING:
     from snake_lab.simulator import EpisodeResult
 
 
-@dataclass(frozen=True, slots=True)
-class RunRegistration:
-    """Result of registering a deterministic experiment."""
-
-    run_id: str
-    status: str
-    created: bool
-
-
 class SimulationStore(Protocol):
     """Persistence operations required by the serial simulation worker."""
 
@@ -33,7 +23,7 @@ class SimulationStore(Protocol):
         run_id: str,
         config: dict[str, Any],
         project_version: str,
-    ) -> RunRegistration: ...
+    ) -> None: ...
 
     def mark_started(self, run_id: str) -> None: ...
 
@@ -81,44 +71,26 @@ class MemorySimulationStore:
     def __init__(self) -> None:
         self.runs: dict[str, dict[str, Any]] = {}
         self.episodes: dict[str, list[EpisodeResult]] = {}
-        self._experiments: dict[tuple[str, str], str] = {}
 
     def create_run(
         self,
         run_id: str,
         config: dict[str, Any],
         project_version: str,
-    ) -> RunRegistration:
-        identity = (project_version, config_hash(config))
-        existing_id = self._experiments.get(identity)
-        if existing_id is not None:
-            existing = self.runs[existing_id]
-            if existing["status"] in {"cancelled", "failed"}:
-                existing.update(
-                    status="queued",
-                    episode_count=None,
-                    high_score=None,
-                    error_message=None,
-                )
-                self.episodes[existing_id].clear()
-                return RunRegistration(existing_id, "queued", True)
-            return RunRegistration(
-                existing_id, str(existing["status"]), False
-            )
-
-        self._experiments[identity] = run_id
+    ) -> None:
+        if run_id in self.runs:
+            raise ValueError(f"Run ID already exists: {run_id}")
         self.runs[run_id] = {
             "run_id": run_id,
             "project_version": project_version,
             "config": config,
-            "config_hash": identity[1],
+            "config_hash": config_hash(config),
             "status": "queued",
             "episode_count": None,
             "high_score": None,
             "error_message": None,
         }
         self.episodes[run_id] = []
-        return RunRegistration(run_id, "queued", True)
 
     def mark_started(self, run_id: str) -> None:
         self.set_status(run_id, "running")
@@ -208,7 +180,7 @@ class MariaDBSimulationStore:
         run_id: str,
         config: dict[str, Any],
         project_version: str,
-    ) -> RunRegistration:
+    ) -> None:
         digest = config_hash(config)
         try:
             with self._connection.cursor() as cursor:
@@ -226,52 +198,9 @@ class MariaDBSimulationStore:
                     ),
                 )
             self._connection.commit()
-            return RunRegistration(run_id, "queued", True)
-        except pymysql.err.IntegrityError:
+        except Exception:
             self._connection.rollback()
-
-        with self._connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT run_id, status
-                FROM simulation_runs
-                WHERE project_version = %s AND config_hash = %s
-                """,
-                (project_version, digest),
-            )
-            existing = cursor.fetchone()
-        if existing is None:
-            raise RuntimeError("duplicate run could not be resolved")
-        existing_id = str(existing["run_id"])
-        if existing["status"] in {"cancelled", "failed"}:
-            try:
-                with self._connection.cursor() as cursor:
-                    cursor.execute(
-                        "DELETE FROM simulation_episodes WHERE run_id = %s",
-                        (existing_id,),
-                    )
-                    cursor.execute(
-                        """
-                        UPDATE simulation_runs
-                        SET status = 'queued',
-                            episode_count = NULL,
-                            high_score = NULL,
-                            created_at = CURRENT_TIMESTAMP(6),
-                            started_at = NULL,
-                            completed_at = NULL,
-                            error_message = NULL
-                        WHERE run_id = %s
-                        """,
-                        (existing_id,),
-                    )
-                self._connection.commit()
-            except Exception:
-                self._connection.rollback()
-                raise
-            return RunRegistration(existing_id, "queued", True)
-        return RunRegistration(
-            existing_id, str(existing["status"]), False
-        )
+            raise
 
     def mark_started(self, run_id: str) -> None:
         with self._connection.cursor() as cursor:

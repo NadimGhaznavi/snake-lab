@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-09-04 @ 23:49
+
+### Added
+
+- A dedicated ZeroMQ events publisher on port 41972, configurable with
+  `--events-port`, broadcasting `snake_lab.simulation.ended` after a run's
+  completed, failed, or cancelled state is stored. Pending events are sent
+  before the publisher closes during orderly shutdown.
+
+### Changed
+
+- Every valid simulation submission now creates a new queued run, including
+  repeated configurations on the same project version. Prior runs and episode
+  results are preserved; callers control duplicate detection and result reuse.
+- Added database schema v2 to remove the unique configuration constraint.
+  Existing installations must stop `snake-lab.service`, run
+  `sudo scripts/apply-database-schema.sh`, and then run
+  `sudo scripts/upgrade.sh`. Fresh installations apply the migration
+  automatically.
+
 ## [0.9.2] - 2026-09-04 @ 23:16
 
 ### Changed

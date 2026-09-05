@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from unittest.mock import Mock, call
 
 from snake_lab.database import MemorySimulationStore
 from snake_lab.protocol import PROTOCOL_VERSION
@@ -37,9 +38,12 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             store=FakeStore(),
         )
         self.server.log = FakeLog()
+        self.ended = Mock()
+        self.server.events.offer_simulation_ended = self.ended
 
     async def asyncTearDown(self) -> None:
         await self.server._shutdown_worker()
+        await self.server.events.close()
         await self.server.telemetry.close()
         self.server._socket.close()
         self.server._context.term()
@@ -59,7 +63,6 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             active -= 1
 
         self.server._execute_simulation = execute
-        self.server._write_results = lambda _run: None
         first = SimulationRun("first", {"epochs": 100})
         second = SimulationRun("second", {"epochs": 100})
         self.server._run_queue.put_nowait(first)
@@ -82,6 +85,10 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(first.state, "completed")
         self.assertEqual(second.state, "completed")
+        self.assertEqual(
+            self.ended.call_args_list,
+            [call("first", "completed", None), call("second", "completed", None)],
+        )
 
     async def test_worker_failure_does_not_stop_later_runs(self) -> None:
         async def execute(run: SimulationRun) -> None:
@@ -89,7 +96,6 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
                 raise RuntimeError("test failure")
 
         self.server._execute_simulation = execute
-        self.server._write_results = lambda _run: None
         first = SimulationRun("first", {"epochs": 100})
         second = SimulationRun("second", {"epochs": 100})
         self.server._run_queue.put_nowait(first)
@@ -102,6 +108,13 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(first.state, "failed")
         self.assertEqual(second.state, "completed")
+        self.assertEqual(
+            self.ended.call_args_list,
+            [
+                call("first", "failed", "test failure"),
+                call("second", "completed", None),
+            ],
+        )
 
     async def test_fatal_worker_failure_is_reported_to_server(self) -> None:
         async def fail() -> None:
@@ -135,6 +148,10 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first.state, "cancelled")
         self.assertEqual(second.state, "cancelled")
         self.assertEqual(self.server._run_queue.qsize(), 0)
+        self.assertEqual(
+            self.ended.call_args_list,
+            [call("first", "cancelled", None), call("second", "cancelled", None)],
+        )
 
     async def test_runtime_cancel_continues_to_the_next_run(self) -> None:
         started = asyncio.Event()
@@ -146,7 +163,6 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
                     await run.control.checkpoint()
 
         self.server._execute_simulation = execute
-        self.server._write_results = lambda _run: None
         first = SimulationRun("first", {"epochs": 100})
         second = SimulationRun("second", {"epochs": 100})
         self.server._runs = {"first": first, "second": second}
@@ -160,11 +176,16 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         response = self.server.handle_request(
             self._request("simulation.cancel", {"run_id": "first"})
         )
+        self.ended.assert_not_called()
         await self.server._run_queue.join()
 
         self.assertEqual(response["status"], "ok")
         self.assertEqual(first.state, "cancelled")
         self.assertEqual(second.state, "completed")
+        self.assertEqual(
+            self.ended.call_args_list,
+            [call("first", "cancelled", None), call("second", "completed", None)],
+        )
 
     async def test_runtime_state_and_delay_requests(self) -> None:
         run = SimulationRun("active-run", {"epochs": 100}, state="running")
@@ -191,8 +212,82 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(active["payload"]["run"]["run_id"], run.run_id)
         self.assertEqual(resumed["payload"]["state"], "running")
         self.assertFalse(run.control.paused)
+        self.ended.assert_not_called()
 
-    async def test_duplicate_submission_returns_existing_run(self) -> None:
+    async def test_queued_cancel_emits_once_even_on_shutdown(self) -> None:
+        run = SimulationRun("queued-run", {"epochs": 100})
+        self.server._runs[run.run_id] = run
+        self.server._run_queue.put_nowait(run)
+
+        for _attempt in range(2):
+            response = self.server.handle_request(
+                self._request("simulation.cancel", {"run_id": run.run_id})
+            )
+            self.assertEqual(response["payload"]["state"], "cancelled")
+        await self.server._shutdown_worker()
+
+        self.ended.assert_called_once_with(run.run_id, "cancelled", None)
+
+    async def test_cancelled_queue_entry_does_not_emit_again_in_worker(self) -> None:
+        run = SimulationRun("queued-run", {"epochs": 100})
+        self.server._runs[run.run_id] = run
+        self.server._run_queue.put_nowait(run)
+        self.server.handle_request(
+            self._request("simulation.cancel", {"run_id": run.run_id})
+        )
+        self.server._worker_task = asyncio.create_task(
+            self.server._worker_loop()
+        )
+        await asyncio.wait_for(self.server._run_queue.join(), 1)
+
+        self.ended.assert_called_once_with(run.run_id, "cancelled", None)
+
+    async def test_repeated_completed_run_gets_its_own_persisted_ended_event(self) -> None:
+        self.server.store = MemorySimulationStore()
+
+        def check_persisted(run_id: str, state: str, error: str | None) -> None:
+            saved = self.server.store.runs[run_id]
+            self.assertEqual(saved["status"], state)
+            self.assertEqual(saved["episode_count"], 100)
+            self.assertEqual(saved["high_score"], 7)
+            self.assertEqual(saved["error_message"], error)
+
+        async def execute(run: SimulationRun) -> None:
+            run.completed_epochs = 100
+            run.high_score = 7
+
+        self.ended.side_effect = check_persisted
+        self.server._execute_simulation = execute
+        request = self._request("simulation.submit", {"config": {}})
+        response = self.server.handle_request(request)
+        self.server._worker_task = asyncio.create_task(
+            self.server._worker_loop()
+        )
+        await asyncio.wait_for(self.server._run_queue.join(), 1)
+        repeated = self.server.handle_request(request)
+
+        self.assertEqual(repeated["payload"]["state"], "queued")
+        first_id = response["payload"]["run_id"]
+        second_id = repeated["payload"]["run_id"]
+        self.assertNotEqual(first_id, second_id)
+        await asyncio.wait_for(self.server._run_queue.join(), 1)
+        self.assertEqual(
+            self.ended.call_args_list,
+            [call(first_id, "completed", None), call(second_id, "completed", None)],
+        )
+
+    async def test_storage_failure_does_not_emit_an_ended_event(self) -> None:
+        self.server.store.finish_run = Mock(
+            side_effect=RuntimeError("database unavailable")
+        )
+        run = SimulationRun("run-1", {"epochs": 100}, state="cancelled")
+
+        with self.assertRaisesRegex(RuntimeError, "database unavailable"):
+            self.server._finish_run(run)
+
+        self.ended.assert_not_called()
+
+    async def test_repeated_submission_queues_a_new_run(self) -> None:
         self.server.store = MemorySimulationStore()
         first = self.server.handle_request(
             self._request("simulation.submit", {"config": {}})
@@ -202,11 +297,14 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(first["status"], "ok")
-        self.assertEqual(
+        self.assertNotEqual(
             second["payload"]["run_id"], first["payload"]["run_id"]
         )
-        self.assertTrue(second["payload"]["duplicate"])
-        self.assertEqual(self.server._run_queue.qsize(), 1)
+        self.assertEqual(second["payload"]["state"], "queued")
+        self.assertEqual(second["payload"]["queue_position"], 2)
+        self.assertNotIn("duplicate", second["payload"])
+        self.assertEqual(self.server._run_queue.qsize(), 2)
+        self.ended.assert_not_called()
 
     @staticmethod
     def _request(method: str, payload: dict) -> dict:

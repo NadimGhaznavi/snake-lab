@@ -46,11 +46,13 @@ validate_release_checkout() {
         "snake_lab/configuration.py"
         "snake_lab/control_client.py"
         "snake_lab/database.py"
+        "snake_lab/events_zmq.py"
         "snake_lab/memory.py"
         "snake_lab/model.py"
         "snake_lab/protocol.py"
         "snake_lab/runtime_control.py"
         "snake_lab/schemas/database-v1.sql"
+        "snake_lab/schemas/database-v2.sql"
         "snake_lab/schemas/simulation-config-v1.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"
@@ -78,6 +80,8 @@ apply_database_schema() {
 
     mariadb --batch "${db_name}" \
         <"${PROJECT_DIR}/snake_lab/schemas/database-v1.sql"
+    mariadb --batch "${db_name}" \
+        <"${PROJECT_DIR}/snake_lab/schemas/database-v2.sql"
 }
 
 ensure_service_account() {
