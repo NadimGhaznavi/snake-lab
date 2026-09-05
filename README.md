@@ -13,8 +13,8 @@ sudo scripts/install.sh
 lab-client
 ```
 
-The installer selects the PyTorch CUDA 12.6 runtime when `nvidia-smi` reports a
-working GPU and otherwise installs the CPU runtime.
+The installer always installs the CPU PyTorch runtime. Simulation, policy
+inference, and training run on CPU, including on hosts with an NVIDIA GPU.
 
 See the [SnakeLab documentation](https://snake-lab.osoyalce.com) for operation,
 configuration, upgrades, development, and Wintermute setup.

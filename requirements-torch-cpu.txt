@@ -1,2 +1,3 @@
+# CPU-only runtime for all SnakeLab installations, including NVIDIA hosts.
 --index-url https://download.pytorch.org/whl/cpu
 torch==2.8.0
