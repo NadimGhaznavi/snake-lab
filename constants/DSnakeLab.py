@@ -8,6 +8,7 @@ class DSnakeLab:
     DB_NAME: Final[str] = "snakelab"
     DB_PORT: Final[int] = 3306
     DB_USER: Final[str] = "snakelab"
+    EVENTS_PORT: Final[int] = 41972
     PORT: Final[int] = 41970
     TELEMETRY_FRAME_RATE: Final[float] = 15.0
     TELEMETRY_PORT: Final[int] = 41971

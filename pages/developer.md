@@ -138,16 +138,11 @@ A new submission payload contains its run identifier and queue position:
 }
 ```
 
-Submitting an existing experiment returns the existing run without adding it to
-the queue:
-
-```json
-{
-  "run_id": "f6e72cb3-9bcf-4669-b368-a17c656bad79",
-  "state": "completed",
-  "duplicate": true
-}
-```
+Every valid submission returns `state: "queued"` and a new `run_id`, even when
+the same resolved configuration has already been submitted on this project
+version. Earlier runs and their results are preserved. Callers are responsible
+for duplicate detection or result reuse if needed. Repeating a request,
+including retrying after a timeout, submits another run.
 
 Protocol and configuration failures use this raw response shape:
 
@@ -193,3 +188,37 @@ The project's
 and
 [telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/telemetry_zmq.py)
 are the reference implementations.
+
+## Simulation Events
+
+Simulation events are published on `tcp://wintermute:41972`. The server's
+`--events-port` option changes this port; `--address` selects the bind address
+for all three ZeroMQ interfaces.
+
+Connect a ZeroMQ `SUB` socket and subscribe to `snake_lab.simulation.ended`.
+Each publication contains two frames: the UTF-8 topic followed by this JSON
+envelope:
+
+```json
+{
+  "protocol_version": 1,
+  "run_id": "f6e72cb3-9bcf-4669-b368-a17c656bad79",
+  "payload": {
+    "state": "completed"
+  }
+}
+```
+
+The state is `completed`, `failed`, or `cancelled`. Failed runs also include
+an `error` string inside `payload`. The server publishes the event after
+storing the final run state and results. Cancellation events include queued
+cancellations and runs cancelled during orderly server shutdown. A
+`cancelling` state is not terminal and does not emit this event.
+
+Messages are sent individually. Every submission has its own run identifier
+and emits its own ended event when it reaches a terminal state, including
+repeated configurations and new attempts after a failed or cancelled run.
+
+Establish the subscription before submitting work. This is a live PUB/SUB
+notification stream with no acknowledgement or replay. Pending events are
+sent before the publisher closes during orderly shutdown.
