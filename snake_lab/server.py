@@ -349,6 +349,7 @@ class SnakeLabServer:
                 preserve=run.control.diagnostic_mode,
             ),
             runtime_control=run.control,
+            frame_enabled=lambda: self.telemetry.has_frame_subscribers,
         )
         self._publish_run(run, runtime=simulator.runtime_description)
         await simulator.run()
@@ -481,6 +482,7 @@ class SnakeLabServer:
             while not self._stop_event.is_set():
                 self._check_worker()
                 self.events.check()
+                self.telemetry.check()
                 if await self._socket.poll(timeout=500) == 0:
                     continue
                 request = await self._socket.recv_json()

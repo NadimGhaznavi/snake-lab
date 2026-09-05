@@ -35,6 +35,16 @@ socket and subscribe to one or more topics:
 - `snake_lab.episode`
 - `snake_lab.frame`
 
+Per-move frames are built and published only while a subscription matches
+`snake_lab.frame`. Opening `lab-client` during a run enables streaming on
+subsequent moves; closing the last viewer disables it once ZeroMQ reports the
+disconnection. Prefix subscriptions such as `snake_lab.` and the empty filter
+(all topics) also enable frames. Subscribing only to run, episode, or completion
+events does not enable them. Subscription and disconnect detection are
+asynchronous; joining a paused run provides a fresh frame on its next move.
+Run/episode telemetry, stored results, and completion events continue independently.
+No client change or simulation configuration option is required.
+
 Each publication is a two-part message: the UTF-8 topic followed by a JSON
 envelope containing `protocol_version`, `sequence`, `run_id`, and `payload`.
 Subscribe before submitting a run when the initial lifecycle events are needed.

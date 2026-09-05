@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Demand-driven per-move telemetry: frame construction and publication stop
+  when no subscription matches `snake_lab.frame`, and resume when a viewer
+  subscribes during a run. Run/episode telemetry and completion events remain
+  independent. Existing clients, ports, and message formats are compatible.
+
 ### Changed
 
 - Event protocol v2 adds explicit `event_type` and moves `run_id` into
