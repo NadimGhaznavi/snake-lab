@@ -54,3 +54,32 @@ The project's
 and
 [telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/telemetry_zmq.py)
 are the reference implementations.
+
+## Simulation Execution
+
+The simulator keeps game state, observations, policy history, actions, and
+replay in device tensors. With CUDA these remain on the GPU; without CUDA the
+same implementation runs on CPU. Replay sampling produces training tensors
+directly, without intermediate NumPy batches. Tensor game/history layouts
+include a leading environment dimension of one; concurrent sweep execution is
+not implemented in this release.
+
+The Python service still schedules episodes, handles controls, writes results,
+and publishes messages. It reads a scalar terminal/exploration control flag
+per move to preserve serial episode boundaries and avoid policy inference on
+random exploration moves. Full game snapshots are copied to the host only
+when frame telemetry is enabled; episode summaries and training loss are
+read at episode boundaries. Replay window metadata is updated at episode
+boundaries. This removes observation/action round trips, but does not eliminate
+all CPU/GPU synchronization.
+
+Replay capacity is allocated on the selected device at run setup. Its main
+buffers use approximately `replay_max_frames * (2 * 51 * 4 + 8 + 4 + 1)` bytes,
+plus training batches and indexing storage. Allocation failure fails the run;
+there is no automatic switch of a CUDA run to CPU.
+
+Food selection, exploration, and replay sampling use separately seeded device
+random generators. Old releases' seeded trajectories are not preserved, and
+identical results across CPU, CUDA, hardware, or library versions are not
+promised. Game rules, observation ordering, terminal rewards, and serial
+training cadence are retained. Parameter sweep batching remains a later phase.

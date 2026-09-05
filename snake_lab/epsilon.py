@@ -99,6 +99,13 @@ class EpsilonAlgo:
         self._total_injections += 1
         return self._rng.randrange(self.action_count)
 
+    def record_injections(self, count: int) -> None:
+        """Record the device exploration count at an episode boundary."""
+        if type(count) is not int or count < 0:
+            raise ValueError("injection count must be a non-negative integer")
+        self._episode_injections += count
+        self._total_injections += count
+
     def episode_completed(self) -> float:
         """Advance the schedule once and return the new epsilon value."""
         self._episodes += 1
