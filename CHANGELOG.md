@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Demand-driven per-move telemetry: frame construction and publication stop
+  when no subscription matches `snake_lab.frame`, and resume when a viewer
+  subscribes during a run. Run/episode telemetry and completion events remain
+  independent. Existing clients, ports, and message formats are compatible.
+
+### Changed
+
+- Event protocol v2 adds explicit `event_type` and moves `run_id` into
+  `payload`. Event subscribers must update their version check and field access;
+  control and telemetry remain on protocol v1. Topics and ports are unchanged.
+- Replaced `offer_simulation_ended()` with validated
+  `publish_event(event_type, payload)` and added transport-independent event
+  definitions and parsing in `event_protocol.py`.
+- Split developer documentation into a concise integration overview and
+  dedicated control and event protocol references.
+
 ## [0.9.3] - 2026-09-04 @ 23:49
 
 ### Added

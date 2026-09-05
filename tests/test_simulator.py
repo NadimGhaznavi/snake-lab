@@ -1,5 +1,8 @@
 import unittest
 from collections import deque
+from unittest.mock import patch
+
+from snake_lab.telemetry import FrameTelemetry
 
 import torch
 
@@ -151,8 +154,9 @@ class SimulatorTests(unittest.TestCase):
 
 
 class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
-    async def test_run_executes_complete_episodes_and_training(self) -> None:
-        config = simulation_config_template().resolve(
+    @staticmethod
+    def small_config():
+        return simulation_config_template().resolve(
             {
                 "epochs": 100,
                 "seed": 7,
@@ -174,6 +178,9 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
                 },
             }
         )
+
+    async def test_run_executes_complete_episodes_and_training(self) -> None:
+        config = self.small_config()
         completed = []
         frames = []
         simulator = Simulator(
@@ -193,6 +200,41 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(frames[-1].done)
         self.assertEqual(simulator.replay.episode_count, 100)
         self.assertIsNotNone(state.last_loss)
+
+    async def test_frame_construction_tracks_demand_during_run(self) -> None:
+        frames = []
+        demand = False
+
+        def completed(result, _state):
+            nonlocal demand
+            # This fixture has one move per episode. Join after 20, leave at 40.
+            demand = 20 <= result.episode < 40
+
+        simulator = Simulator(
+            self.small_config(), log=FakeLog(), on_episode=completed,
+            on_frame=frames.append, frame_enabled=lambda: demand,
+        )
+        with patch.object(
+            FrameTelemetry, "from_step", wraps=FrameTelemetry.from_step
+        ) as construct:
+            state = await simulator.run()
+        self.assertEqual(state.completed_epochs, 100)
+        self.assertEqual(state.total_steps, 100)
+        self.assertEqual(construct.call_count, 20)
+        self.assertEqual([item.episode for item in frames], list(range(21, 41)))
+        self.assertEqual(simulator.replay.episode_count, 100)
+        self.assertIsNotNone(state.last_loss)
+
+    async def test_no_viewer_constructs_no_frames(self) -> None:
+        simulator = Simulator(
+            self.small_config(), log=FakeLog(), on_frame=lambda frame: None,
+            frame_enabled=lambda: False,
+        )
+        with patch.object(FrameTelemetry, "from_step") as construct:
+            state = await simulator.run()
+        construct.assert_not_called()
+        self.assertEqual(state.completed_epochs, 100)
+        self.assertEqual(simulator.replay.episode_count, 100)
 
 
 if __name__ == "__main__":

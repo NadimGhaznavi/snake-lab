@@ -13,7 +13,11 @@ from pathlib import Path
 import zmq
 
 from snake_lab.control_client import AsyncLabClient
-from snake_lab.events_zmq import TOPIC_SIMULATION_ENDED
+from snake_lab.event_protocol import (
+    EVENT_PROTOCOL_VERSION,
+    EVENT_SIMULATION_ENDED,
+    TOPIC_SIMULATION_ENDED,
+)
 from snake_lab.protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_CANCEL,
@@ -408,9 +412,9 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertEqual(
             json.loads(frames[1]),
             {
-                "protocol_version": PROTOCOL_VERSION,
-                "run_id": run_id,
-                "payload": {"state": state},
+                "protocol_version": EVENT_PROTOCOL_VERSION,
+                "event_type": EVENT_SIMULATION_ENDED,
+                "payload": {"run_id": run_id, "state": state},
             },
         )
 
