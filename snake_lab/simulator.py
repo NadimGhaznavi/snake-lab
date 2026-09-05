@@ -121,6 +121,7 @@ class Simulator:
         self._on_episode = on_episode
         self._on_frame = on_frame
         self._frame_enabled = frame_enabled
+        self._frame_telemetry_active: bool | None = None
         self.runtime_control = runtime_control or SimulationControl()
         self.log = log or MyLog(
             client_id=DModule.SIMULATOR,
@@ -255,9 +256,14 @@ class Simulator:
             )
             episode_reward += step.reward
             # Check demand before constructing the frame and board snapshot.
-            if self._on_frame is not None and (
+            frame_active = self._on_frame is not None and (
                 self._frame_enabled is None or self._frame_enabled()
-            ):
+            )
+            if frame_active != self._frame_telemetry_active:
+                self._frame_telemetry_active = frame_active
+                status = "enabled" if frame_active else "disabled"
+                self.log.info(f"Per-move telemetry {status}")
+            if frame_active:
                 self._on_frame(
                     FrameTelemetry.from_step(
                         episode=episode,
