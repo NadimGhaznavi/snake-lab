@@ -22,6 +22,7 @@ from snake_lab.database import (
     MemorySimulationStore,
     SimulationStore,
 )
+from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
 from snake_lab.events_zmq import EventsPublisher
 from snake_lab.protocol import (
     METHOD_HEALTH,
@@ -348,6 +349,7 @@ class SnakeLabServer:
                 preserve=run.control.diagnostic_mode,
             ),
             runtime_control=run.control,
+            frame_enabled=lambda: self.telemetry.has_frame_subscribers,
         )
         self._publish_run(run, runtime=simulator.runtime_description)
         await simulator.run()
@@ -361,9 +363,10 @@ class SnakeLabServer:
             run.high_score,
             run.error,
         )
-        self.events.offer_simulation_ended(
-            run.run_id, run.state, run.error
-        )
+        payload = {"run_id": run.run_id, "state": run.state}
+        if run.error is not None:
+            payload["error"] = run.error
+        self.events.publish_event(EVENT_SIMULATION_ENDED, payload)
 
     def _write_results(self, run: SimulationRun) -> None:
         """Finalize a successfully completed persistent run."""
@@ -479,6 +482,7 @@ class SnakeLabServer:
             while not self._stop_event.is_set():
                 self._check_worker()
                 self.events.check()
+                self.telemetry.check()
                 if await self._socket.poll(timeout=500) == 0:
                     continue
                 request = await self._socket.recv_json()

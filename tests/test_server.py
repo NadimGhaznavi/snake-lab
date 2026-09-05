@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import Mock, call
 
 from snake_lab.database import MemorySimulationStore
+from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
 from snake_lab.protocol import PROTOCOL_VERSION
 from snake_lab.server import SimulationRun, SnakeLabServer
 
@@ -39,7 +40,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.server.log = FakeLog()
         self.ended = Mock()
-        self.server.events.offer_simulation_ended = self.ended
+        self.server.events.publish_event = self.ended
 
     async def asyncTearDown(self) -> None:
         await self.server._shutdown_worker()
@@ -87,7 +88,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second.state, "completed")
         self.assertEqual(
             self.ended.call_args_list,
-            [call("first", "completed", None), call("second", "completed", None)],
+            [call(EVENT_SIMULATION_ENDED, {"run_id": "first", "state": "completed"}), call(EVENT_SIMULATION_ENDED, {"run_id": "second", "state": "completed"})],
         )
 
     async def test_worker_failure_does_not_stop_later_runs(self) -> None:
@@ -111,8 +112,8 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             self.ended.call_args_list,
             [
-                call("first", "failed", "test failure"),
-                call("second", "completed", None),
+                call(EVENT_SIMULATION_ENDED, {"run_id": "first", "state": "failed", "error": "test failure"}),
+                call(EVENT_SIMULATION_ENDED, {"run_id": "second", "state": "completed"}),
             ],
         )
 
@@ -150,7 +151,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.server._run_queue.qsize(), 0)
         self.assertEqual(
             self.ended.call_args_list,
-            [call("first", "cancelled", None), call("second", "cancelled", None)],
+            [call(EVENT_SIMULATION_ENDED, {"run_id": "first", "state": "cancelled"}), call(EVENT_SIMULATION_ENDED, {"run_id": "second", "state": "cancelled"})],
         )
 
     async def test_runtime_cancel_continues_to_the_next_run(self) -> None:
@@ -184,7 +185,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second.state, "completed")
         self.assertEqual(
             self.ended.call_args_list,
-            [call("first", "cancelled", None), call("second", "completed", None)],
+            [call(EVENT_SIMULATION_ENDED, {"run_id": "first", "state": "cancelled"}), call(EVENT_SIMULATION_ENDED, {"run_id": "second", "state": "completed"})],
         )
 
     async def test_runtime_state_and_delay_requests(self) -> None:
@@ -226,7 +227,9 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response["payload"]["state"], "cancelled")
         await self.server._shutdown_worker()
 
-        self.ended.assert_called_once_with(run.run_id, "cancelled", None)
+        self.ended.assert_called_once_with(
+            EVENT_SIMULATION_ENDED, {"run_id": run.run_id, "state": "cancelled"}
+        )
 
     async def test_cancelled_queue_entry_does_not_emit_again_in_worker(self) -> None:
         run = SimulationRun("queued-run", {"epochs": 100})
@@ -240,13 +243,18 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         )
         await asyncio.wait_for(self.server._run_queue.join(), 1)
 
-        self.ended.assert_called_once_with(run.run_id, "cancelled", None)
+        self.ended.assert_called_once_with(
+            EVENT_SIMULATION_ENDED, {"run_id": run.run_id, "state": "cancelled"}
+        )
 
     async def test_repeated_completed_run_gets_its_own_persisted_ended_event(self) -> None:
         self.server.store = MemorySimulationStore()
 
-        def check_persisted(run_id: str, state: str, error: str | None) -> None:
-            saved = self.server.store.runs[run_id]
+        def check_persisted(event_type: str, payload: dict) -> None:
+            self.assertEqual(event_type, EVENT_SIMULATION_ENDED)
+            state = payload["state"]
+            error = payload.get("error")
+            saved = self.server.store.runs[payload["run_id"]]
             self.assertEqual(saved["status"], state)
             self.assertEqual(saved["episode_count"], 100)
             self.assertEqual(saved["high_score"], 7)
@@ -273,7 +281,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(self.server._run_queue.join(), 1)
         self.assertEqual(
             self.ended.call_args_list,
-            [call(first_id, "completed", None), call(second_id, "completed", None)],
+            [call(EVENT_SIMULATION_ENDED, {"run_id": first_id, "state": "completed"}), call(EVENT_SIMULATION_ENDED, {"run_id": second_id, "state": "completed"})],
         )
 
     async def test_storage_failure_does_not_emit_an_ended_event(self) -> None:
