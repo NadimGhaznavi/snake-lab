@@ -13,4 +13,4 @@ class DSnakeLab:
     TELEMETRY_FRAME_RATE: Final[float] = 15.0
     TELEMETRY_PORT: Final[int] = 41971
     SERVER_LOG_FILE: Final[str] = "/opt/snake-lab/logs/server.log"
-    VERSION: Final[str] = "0.10.7"
+    VERSION: Final[str] = "0.10.8"
