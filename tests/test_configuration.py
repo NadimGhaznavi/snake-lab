@@ -33,10 +33,9 @@ class ConfigTemplateTests(unittest.TestCase):
                 "dropout": 0.1,
             },
             "training": {
-                "sequence_length": 4,
-                "batch_size": 1,
+                "sequence_length": 8,
+                "batch_size": 64,
                 "replay_max_frames": 150000,
-                "replay_min_episodes": 30,
                 "learning_rate": 0.002,
                 "gamma": 0.96,
                 "tau": 0.001,
@@ -48,14 +47,6 @@ class ConfigTemplateTests(unittest.TestCase):
                 "decay": 0.97,
             },
         }
-
-    def test_replay_minimum_is_configurable_and_validated(self) -> None:
-        self.assertEqual(self.template.resolve({"training": {"replay_min_episodes": 50}})["training"]["replay_min_episodes"], 50)
-        for value in (0, -1, True, 1.5):
-            with self.subTest(value=value), self.assertRaises(ConfigurationError):
-                self.template.resolve({"training": {"replay_min_episodes": value}})
-        with self.assertRaises(ConfigurationError):
-            self.template.resolve({"training": {"replay_min_episodes": 50, "replay_max_frames": 49}})
 
     def test_default_epochs_are_applied(self) -> None:
         self.assertEqual(self.template.resolve({}), self.defaults)
@@ -153,7 +144,7 @@ class ConfigTemplateTests(unittest.TestCase):
                     "training": {
                         "sequence_length": 4,
                         "batch_size": 64,
-                        "replay_max_frames": 63,
+                        "replay_max_frames": 255,
                     }
                 }
             )

@@ -9,24 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-09-05 @ 07:52
+
+### Fixed
+
+- Completed the replay/trainer rollback: sample fixed-length sliding windows
+  uniformly without replacement and train on the final move of each window.
+  Removed terminal-aligned chunk storage and whole-game, all-moves training.
+- Restored the default batch size of 64 sequences and removed
+  `replay_min_episodes`; sampling starts when enough complete windows exist.
+  Kept the sequence-length default of 8 and CPU-only execution.
+
 ## [0.10.7] - 2026-09-05 @ 07:44
 
-## [0.10.6] - 2026-09-05 @ 07:40
-
-## [0.10.4] - 2026-09-05 @ 07:21
-
-### Changed
-
-- Default training batch size is now 1 game. Added configurable
-  `training.replay_min_episodes` (default 30); sampling waits until enough
-  eligible completed games are currently retained in replay.
-- Replay discards games shorter than `sequence_length` and drops incomplete
-  prefixes from longer games, retaining non-overlapping chunks aligned to the
-  terminal move. Chunks are built when append receives the terminal transition.
-- Training samples games uniformly without replacement and learns from every
-  move in every retained chunk in one optimizer update. A single-game batch
-  reuses stored NumPy arrays without batch-time reshaping or copying. Explicit
-  batch sizes now count games, so saved configurations should be reviewed.
+- Increased RNN seq_length default from 4 to 8.
 
 ## [0.10.3] - 2026-09-05 @ 06:40
 

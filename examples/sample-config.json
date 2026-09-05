@@ -22,10 +22,9 @@
     "dropout": 0.1
   },
   "training": {
-    "sequence_length": 4,
-    "batch_size": 1,
+    "sequence_length": 8,
+    "batch_size": 64,
     "replay_max_frames": 150000,
-    "replay_min_episodes": 30,
     "learning_rate": 0.002,
     "gamma": 0.96,
     "tau": 0.001,
