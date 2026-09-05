@@ -58,6 +58,8 @@ validate_release_checkout() {
         "snake_lab/simulator.py"
         "snake_lab/telemetry.py"
         "snake_lab/telemetry_zmq.py"
+        "snake_lab/tensor_game.py"
+        "snake_lab/tensor_memory.py"
         "snake_lab/trainer.py"
         "systemd/snake-lab.service"
         "utils/__init__.py"
