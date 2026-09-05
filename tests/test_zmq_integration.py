@@ -13,6 +13,7 @@ from pathlib import Path
 import zmq
 
 from snake_lab.control_client import AsyncLabClient
+from snake_lab.events_zmq import TOPIC_SIMULATION_ENDED
 from snake_lab.protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_CANCEL,
@@ -104,6 +105,9 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.telemetry_port = available_tcp_port()
         while self.telemetry_port == self.port:
             self.telemetry_port = available_tcp_port()
+        self.events_port = available_tcp_port()
+        while self.events_port in {self.port, self.telemetry_port}:
+            self.events_port = available_tcp_port()
         self.temp_dir = tempfile.TemporaryDirectory()
         self.log_file = Path(self.temp_dir.name) / "server.log"
         self.server = subprocess.Popen(
@@ -117,6 +121,8 @@ class ZeroMQIntegrationTests(unittest.TestCase):
                 str(self.port),
                 "--telemetry-port",
                 str(self.telemetry_port),
+                "--events-port",
+                str(self.events_port),
                 "--log-file",
                 str(self.log_file),
                 "--ephemeral",
@@ -146,11 +152,21 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             time.sleep(0.05)
 
         self.client = SyncProtocolClient(port=self.port, timeout_ms=3000)
+        self.events_context = zmq.Context()
+        self.events_socket = self.events_context.socket(zmq.SUB)
+        self.events_socket.setsockopt(zmq.LINGER, 0)
+        self.events_socket.setsockopt(
+            zmq.SUBSCRIBE, TOPIC_SIMULATION_ENDED.encode("utf-8")
+        )
+        self.events_socket.connect(f"tcp://127.0.0.1:{self.events_port}")
+        time.sleep(0.1)
 
     def tearDown(self) -> None:
         self.client.close()
         self.server.send_signal(signal.SIGTERM)
         self.server.wait(timeout=10)
+        self.events_socket.close()
+        self.events_context.term()
         self.server.stdout.close()
         self.server.stderr.close()
         self.temp_dir.cleanup()
@@ -239,6 +255,8 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(status["payload"]["high_score"], 0)
         self.assertEqual(status["payload"]["last_episode"]["episode"], 100)
         self.assertIsInstance(status["payload"]["last_episode"]["seed"], int)
+        self.assert_ended_event(run_id, "completed")
+        self.assertFalse(self.events_socket.poll(timeout=100))
         topics = {topic for topic, _envelope in telemetry_messages}
         self.assertEqual(
             topics,
@@ -332,6 +350,69 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             if time.monotonic() >= deadline:
                 self.fail("Runtime cancellation did not complete")
             time.sleep(0.01)
+
+        self.assert_ended_event(run_id, "cancelled")
+
+    def test_shutdown_publishes_active_and_queued_cancellations(self) -> None:
+        first = self.client.submit({"seed": 19})["payload"]["run_id"]
+        self.client.set_move_delay(first, 100)
+        deadline = time.monotonic() + 3
+        while self.client.status(first)["payload"]["state"] == "queued":
+            if time.monotonic() >= deadline:
+                self.fail("Simulation did not start")
+            time.sleep(0.01)
+        self.assertEqual(self.client.pause(first)["payload"]["state"], "paused")
+        second = self.client.submit({"seed": 20})["payload"]["run_id"]
+
+        self.server.send_signal(signal.SIGTERM)
+        self.server.wait(timeout=10)
+
+        self.assert_ended_event(first, "cancelled")
+        self.assert_ended_event(second, "cancelled")
+        self.assertFalse(self.events_socket.poll(timeout=100))
+
+    def test_repeated_configuration_completes_as_two_distinct_runs(self) -> None:
+        config = {
+            "epochs": 50,
+            "seed": 7,
+            "game": {
+                "board_width": 4, "board_height": 1,
+                "initial_snake_length": 3, "max_moves_multiplier": 1,
+            },
+            "model": {"hidden_size": 8, "layers": 1, "dropout": 0},
+            "training": {
+                "sequence_length": 1, "batch_size": 2,
+                "replay_max_frames": 100,
+            },
+        }
+        run_ids = []
+        for _attempt in range(2):
+            response = self.client.submit(config)
+            self.assertEqual(response["status"], "ok")
+            self.assertEqual(response["payload"]["state"], "queued")
+            run_id = response["payload"]["run_id"]
+            run_ids.append(run_id)
+            self.assert_ended_event(run_id, "completed")
+
+        self.assertNotEqual(*run_ids)
+        for run_id in run_ids:
+            status = self.client.status(run_id)["payload"]
+            self.assertEqual(status["state"], "completed")
+            self.assertEqual(status["completed_epochs"], 50)
+
+    def assert_ended_event(self, run_id: str, state: str) -> None:
+        self.assertTrue(self.events_socket.poll(timeout=3000), "No ended event")
+        frames = self.events_socket.recv_multipart()
+        self.assertEqual(len(frames), 2)
+        self.assertEqual(frames[0].decode("utf-8"), TOPIC_SIMULATION_ENDED)
+        self.assertEqual(
+            json.loads(frames[1]),
+            {
+                "protocol_version": PROTOCOL_VERSION,
+                "run_id": run_id,
+                "payload": {"state": state},
+            },
+        )
 
     async def _active_from_async_client(self) -> dict:
         client = AsyncLabClient(port=self.port)

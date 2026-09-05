@@ -22,6 +22,7 @@ from snake_lab.database import (
     MemorySimulationStore,
     SimulationStore,
 )
+from snake_lab.events_zmq import EventsPublisher
 from snake_lab.protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_ACTIVE,
@@ -72,6 +73,7 @@ class SnakeLabServer:
         telemetry_frame_rate: float = DSnakeLab.TELEMETRY_FRAME_RATE,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         store: SimulationStore | None = None,
+        events_port: int = DSnakeLab.EVENTS_PORT,
     ) -> None:
         self.endpoint = f"tcp://{address}:{port}"
         self._log_file = log_file
@@ -89,6 +91,11 @@ class SnakeLabServer:
             address=address,
             port=telemetry_port,
             frame_rate=telemetry_frame_rate,
+        )
+        self.events = EventsPublisher(
+            context=self._context,
+            address=address,
+            port=events_port,
         )
         self.log = MyLog(
             client_id=DModule.SERVER,
@@ -113,20 +120,8 @@ class SnakeLabServer:
             )
 
         config = self.validate_config(request.payload["config"])
-        registration = self.store.create_run(
-            str(uuid.uuid4()), config, DSnakeLab.VERSION
-        )
-        if not registration.created:
-            return success_response(
-                request.request_id,
-                {
-                    "run_id": registration.run_id,
-                    "state": registration.status,
-                    "duplicate": True,
-                },
-            )
-
-        run = SimulationRun(run_id=registration.run_id, config=config)
+        run = SimulationRun(run_id=str(uuid.uuid4()), config=config)
+        self.store.create_run(run.run_id, config, DSnakeLab.VERSION)
         self._runs[run.run_id] = run
         queue_position = self._run_queue.qsize() + 1
         response = success_response(
@@ -227,12 +222,7 @@ class SnakeLabServer:
         if run.state == "queued":
             run.control.cancel()
             run.state = "cancelled"
-            self.store.finish_run(
-                run.run_id,
-                run.state,
-                run.completed_epochs,
-                run.high_score,
-            )
+            self._finish_run(run)
             self.log.info(f"Cancelled queued simulation {run.run_id}")
             self._publish_run(run)
         elif run.state in {"running", "paused"}:
@@ -362,14 +352,22 @@ class SnakeLabServer:
         self._publish_run(run, runtime=simulator.runtime_description)
         await simulator.run()
 
-    def _write_results(self, run: SimulationRun) -> None:
-        """Finalize a successfully completed persistent run."""
+    def _finish_run(self, run: SimulationRun) -> None:
+        """Persist a terminal result before offering its ended event."""
         self.store.finish_run(
             run.run_id,
             run.state,
             run.completed_epochs,
             run.high_score,
+            run.error,
         )
+        self.events.offer_simulation_ended(
+            run.run_id, run.state, run.error
+        )
+
+    def _write_results(self, run: SimulationRun) -> None:
+        """Finalize a successfully completed persistent run."""
+        self._finish_run(run)
         self.log.info(
             f"Simulation {run.run_id} completed {run.completed_epochs} epochs"
         )
@@ -393,22 +391,12 @@ class SnakeLabServer:
                 )
             except SimulationCancelled:
                 run.state = "cancelled"
-                self.store.finish_run(
-                    run.run_id,
-                    run.state,
-                    run.completed_epochs,
-                    run.high_score,
-                )
+                self._finish_run(run)
                 self.log.info(f"Cancelled simulation {run.run_id}")
                 self._publish_run(run)
             except asyncio.CancelledError:
                 run.state = "cancelled"
-                self.store.finish_run(
-                    run.run_id,
-                    run.state,
-                    run.completed_epochs,
-                    run.high_score,
-                )
+                self._finish_run(run)
                 self.telemetry.offer_run(
                     run.run_id,
                     {"state": "cancelled", **self._run_summary(run)},
@@ -417,13 +405,7 @@ class SnakeLabServer:
             except Exception as error:
                 run.state = "failed"
                 run.error = str(error)
-                self.store.finish_run(
-                    run.run_id,
-                    run.state,
-                    run.completed_epochs,
-                    run.high_score,
-                    run.error,
-                )
+                self._finish_run(run)
                 self.telemetry.offer_run(
                     run.run_id,
                     {
@@ -448,18 +430,14 @@ class SnakeLabServer:
 
         while not self._run_queue.empty():
             run = self._run_queue.get_nowait()
-            run.state = "cancelled"
-            self.store.finish_run(
-                run.run_id,
-                run.state,
-                run.completed_epochs,
-                run.high_score,
-            )
-            self.telemetry.offer_run(
-                run.run_id,
-                {"state": "cancelled", **self._run_summary(run)},
-            )
-            self._run_queue.task_done()
+            try:
+                if run.state == "cancelled":
+                    continue
+                run.state = "cancelled"
+                self._finish_run(run)
+                self._publish_run(run)
+            finally:
+                self._run_queue.task_done()
 
     def _check_worker(self) -> None:
         """Fail the service if its only simulation worker has stopped."""
@@ -483,19 +461,24 @@ class SnakeLabServer:
 
     async def run(self) -> None:
         """Serve requests and one serial simulation worker."""
-        self._socket.bind(self.endpoint)
-        self.telemetry.start()
-        self._worker_task = asyncio.create_task(
-            self._worker_loop(), name="simulation-worker"
-        )
-        self.log.info(f"SnakeLab server listening on {self.endpoint}")
-        self.log.info(
-            f"SnakeLab telemetry publishing on {self.telemetry.endpoint}"
-        )
-
         try:
+            self._socket.bind(self.endpoint)
+            self.telemetry.start()
+            self.events.start()
+            self._worker_task = asyncio.create_task(
+                self._worker_loop(), name="simulation-worker"
+            )
+            self.log.info(f"SnakeLab server listening on {self.endpoint}")
+            self.log.info(
+                f"SnakeLab telemetry publishing on {self.telemetry.endpoint}"
+            )
+            self.log.info(
+                f"SnakeLab events publishing on {self.events.endpoint}"
+            )
+
             while not self._stop_event.is_set():
                 self._check_worker()
+                self.events.check()
                 if await self._socket.poll(timeout=500) == 0:
                     continue
                 request = await self._socket.recv_json()
@@ -503,12 +486,17 @@ class SnakeLabServer:
                 await self._socket.send_json(response)
         finally:
             self._stop_event.set()
-            await self._shutdown_worker()
-            await self.telemetry.close()
-            self._socket.close()
-            self._context.term()
-            self.store.close()
-            self.log.shutdown()
+            try:
+                await self._shutdown_worker()
+            finally:
+                try:
+                    await self.events.close()
+                finally:
+                    await self.telemetry.close()
+                    self._socket.close()
+                    self._context.term()
+                    self.store.close()
+                    self.log.shutdown()
 
 
 async def amain() -> None:
@@ -517,6 +505,9 @@ async def amain() -> None:
     parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
     parser.add_argument(
         "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
+    )
+    parser.add_argument(
+        "--events-port", type=int, default=DSnakeLab.EVENTS_PORT
     )
     parser.add_argument(
         "--telemetry-frame-rate",
@@ -542,6 +533,7 @@ async def amain() -> None:
         port=args.port,
         telemetry_port=args.telemetry_port,
         telemetry_frame_rate=args.telemetry_frame_rate,
+        events_port=args.events_port,
         log_file=args.log_file,
         store=store,
     )

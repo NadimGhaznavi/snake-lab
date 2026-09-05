@@ -12,6 +12,7 @@ the GPU when CUDA is available and otherwise runs on the CPU.
 - A systemd simulation server.
 - ZeroMQ job control on TCP port 41970.
 - ZeroMQ live telemetry on TCP port 41971.
+- ZeroMQ simulation-ended events on TCP port 41972.
 - A Textual client for submitting configurations, watching the game, and
   controlling a run.
 - MariaDB storage for resolved configurations, run state, and episode results.
@@ -72,10 +73,10 @@ Use [sample-config.json](/examples/sample-config.json) as a starting point. The
 fields, defaults, and validation limits. Partial configurations are accepted;
 the server fills in defaults before validation and storage.
 
-SnakeLab treats the complete resolved configuration as a deterministic
-experiment. A completed configuration runs once per project version. Repeated
-submissions return the existing run, while cancelled or failed attempts restart
-from the beginning.
+Every valid submission creates a new run with a unique run ID, including
+repeated configurations on the same project version. Earlier runs and episode
+results are retained, including failed and cancelled attempts. Callers decide
+whether to reuse an existing result or submit another experiment.
 
 MariaDB stores runs in `simulation_runs` and episode measurements in
 `simulation_episodes`.
@@ -92,15 +93,20 @@ The upgrade script replaces the software and rebuilds the virtual environment
 only when requirements change. It does not provision MariaDB or apply schema
 changes.
 
-For the one-time upgrade from a pre-0.9.0 installation, apply the initial schema
-before upgrading:
+When upgrading from database schema v1 (including releases 0.9.0–0.9.2),
+stop the service and apply the schema update before upgrading. This removes
+the unique configuration constraint while preserving existing results. The
+same command also initializes the schema for pre-0.9.0 installations:
 
 ```sh
+sudo systemctl stop snake-lab.service
 sudo scripts/apply-database-schema.sh
 sudo scripts/upgrade.sh
 ```
 
-Database changes in future releases will include explicit release instructions.
+The schema command applies v1 followed by v2 and is safe to repeat. Fresh
+installations apply both automatically. Database changes in future releases
+will include explicit release instructions.
 
 ## Development
 
