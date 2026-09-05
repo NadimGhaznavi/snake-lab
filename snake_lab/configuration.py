@@ -112,16 +112,15 @@ class ConfigTemplate:
 
         training = resolved.get("training", {})
         sequence_length = training.get("sequence_length")
-        min_episodes = training.get("replay_min_episodes")
         batch_size = training.get("batch_size")
         replay_max_frames = training.get("replay_max_frames")
         if all(
             isinstance(value, int)
-            for value in (sequence_length, min_episodes, batch_size, replay_max_frames)
-        ) and replay_max_frames < sequence_length * max(min_episodes, batch_size):
+            for value in (sequence_length, batch_size, replay_max_frames)
+        ) and replay_max_frames < sequence_length * batch_size:
             raise ConfigurationError(
-                "$.training.replay_max_frames: must hold sequence_length * "
-                "max(batch_size, replay_min_episodes)"
+                "$.training.replay_max_frames: must hold at least one "
+                "complete training batch"
             )
         return resolved
 
