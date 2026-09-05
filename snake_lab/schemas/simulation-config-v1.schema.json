@@ -173,7 +173,7 @@
       "properties": {
         "sequence_length": {
           "type": "integer",
-          "default": 4,
+          "default": 8,
           "minimum": 1,
           "maximum": 256,
           "x-snakelab-unit": "frames",
