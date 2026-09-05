@@ -37,7 +37,6 @@ validate_release_checkout() {
         "constants/DTrainer.py"
         "requirements.txt"
         "requirements-torch-cpu.txt"
-        "requirements-torch-cuda.txt"
         "scripts/apply-database-schema.sh"
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
@@ -58,8 +57,6 @@ validate_release_checkout() {
         "snake_lab/simulator.py"
         "snake_lab/telemetry.py"
         "snake_lab/telemetry_zmq.py"
-        "snake_lab/tensor_game.py"
-        "snake_lab/tensor_memory.py"
         "snake_lab/trainer.py"
         "systemd/snake-lab.service"
         "utils/__init__.py"
@@ -182,7 +179,6 @@ deploy_runtime_files() {
         "${INSTALL_DIR}/requirements.txt"
     install -m 0644 \
         "${PROJECT_DIR}/requirements-torch-cpu.txt" \
-        "${PROJECT_DIR}/requirements-torch-cuda.txt" \
         "${INSTALL_DIR}/"
     install -m 0755 "${PROJECT_DIR}/scripts/rebuild-venv.sh" \
         "${INSTALL_DIR}/scripts/rebuild-venv.sh"

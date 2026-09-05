@@ -9,7 +9,6 @@ from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
 from constants.DTrainer import DTrainer
 from snake_lab.memory import ReplayMemory
-from snake_lab.tensor_memory import TensorReplayBatch, TensorReplayMemory
 from snake_lab.model import RNNModel
 from utils.MyLog import MyLog
 
@@ -21,7 +20,7 @@ class Trainer:
         self,
         *,
         model: RNNModel,
-        replay: ReplayMemory | TensorReplayMemory,
+        replay: ReplayMemory,
         device: torch.device,
         learning_rate: float,
         gamma: float,
@@ -76,25 +75,21 @@ class Trainer:
             )
             self._has_logged_shape = True
 
-        if isinstance(batch, TensorReplayBatch):
-            states, actions, rewards = batch.states, batch.actions, batch.rewards
-            next_states, dones = batch.next_states, batch.dones
-        else:
-            states = torch.as_tensor(
-                batch.states, dtype=torch.float32, device=self.device
-            )
-            actions = torch.as_tensor(
-                batch.actions, dtype=torch.long, device=self.device
-            )
-            rewards = torch.as_tensor(
-                batch.rewards, dtype=torch.float32, device=self.device
-            )
-            next_states = torch.as_tensor(
-                batch.next_states, dtype=torch.float32, device=self.device
-            )
-            dones = torch.as_tensor(
-                batch.dones, dtype=torch.bool, device=self.device
-            )
+        states = torch.as_tensor(
+            batch.states, dtype=torch.float32, device=self.device
+        )
+        actions = torch.as_tensor(
+            batch.actions, dtype=torch.long, device=self.device
+        )
+        rewards = torch.as_tensor(
+            batch.rewards, dtype=torch.float32, device=self.device
+        )
+        next_states = torch.as_tensor(
+            batch.next_states, dtype=torch.float32, device=self.device
+        )
+        dones = torch.as_tensor(
+            batch.dones, dtype=torch.bool, device=self.device
+        )
 
         self.model.train()
         predicted_all = self.model.forward_sequence(states)

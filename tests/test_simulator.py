@@ -1,4 +1,5 @@
 import unittest
+from collections import deque
 from unittest.mock import patch
 
 from snake_lab.telemetry import FrameTelemetry
@@ -101,7 +102,7 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
 
-    def test_gpu_runtime(self) -> None:
+    def test_cpu_runtime_even_when_cuda_is_available(self) -> None:
         torch_module = FakeTorch(cuda_available=True)
         log = FakeLog()
 
@@ -112,13 +113,24 @@ class SimulatorTests(unittest.TestCase):
 
         self.assertEqual(
             simulator.runtime_description,
-            "Simulation running on GPU (Test GPU)",
+            "Simulation running on CPU",
         )
         self.assertEqual(
-            log.messages, ["Simulation running on GPU (Test GPU)"]
+            log.messages, ["Simulation running on CPU"]
         )
-        self.assertEqual(torch_module.tensor_device.type, "cuda")
-        self.assertTrue(torch_module.cuda.synchronized)
+        self.assertEqual(torch_module.tensor_device.type, "cpu")
+        self.assertFalse(torch_module.cuda.synchronized)
+
+    def test_model_and_trainer_stay_on_cpu_when_cuda_is_available(self) -> None:
+        with patch("torch.cuda.is_available", return_value=True):
+            simulator = Simulator(
+                SimulationLoopTests.small_config(), log=FakeLog(),
+            )
+            simulator._setup()
+        self.assertEqual(simulator.device.type, "cpu")
+        self.assertEqual(simulator.trainer.device.type, "cpu")
+        for model in (simulator.model, simulator.trainer.target_model):
+            self.assertTrue(all(p.device.type == "cpu" for p in model.parameters()))
 
     def test_episode_seeds_are_independent_and_reproducible(self) -> None:
         first = Simulator({"epochs": 100}, log=FakeLog())
@@ -135,14 +147,21 @@ class SimulatorTests(unittest.TestCase):
         model = CapturingModel()
         simulator.model = model
         simulator.epsilon = GreedyEpsilon()
-        history = torch.arange(4, dtype=torch.float32).reshape(1, 4, 1).repeat(
-            1, 1, DGameDef.OBSERVATION_SIZE,
+        history = deque(
+            [
+                tuple([float(index)] * DGameDef.OBSERVATION_SIZE)
+                for index in range(4)
+            ],
+            maxlen=4,
         )
-        action = simulator._select_action(history)
-        self.assertEqual(action.item(), 1)
-        self.assertEqual(action.device, history.device)
-        self.assertEqual(model.input_shape, torch.Size([1, 4, DGameDef.OBSERVATION_SIZE]))
 
+        action = simulator._select_action(history)
+
+        self.assertEqual(action, 1)
+        self.assertEqual(
+            model.input_shape,
+            torch.Size([4, DGameDef.OBSERVATION_SIZE]),
+        )
 
 
 class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
@@ -227,29 +246,6 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         construct.assert_not_called()
         self.assertEqual(state.completed_epochs, 100)
         self.assertEqual(simulator.replay.episode_count, 100)
-
-    async def test_tensor_training_avoids_numpy_batch_conversion(self) -> None:
-        simulator = Simulator(self.small_config(), log=FakeLog())
-        simulator._setup()
-        before = [parameter.detach().clone() for parameter in simulator.model.parameters()]
-        with patch("snake_lab.trainer.torch.as_tensor", side_effect=AssertionError("unexpected batch conversion")):
-            first = await simulator._run_episode(1)
-            second = await simulator._run_episode(2)
-        self.assertIsNone(first.loss)
-        self.assertIsNotNone(second.loss)
-        self.assertTrue(any(
-            not torch.equal(old, new) for old, new in zip(before, simulator.model.parameters())
-        ))
-        batch = simulator.replay.sample()
-        self.assertEqual(batch.states.device.type, simulator.device.type)
-        self.assertEqual(batch.actions.device.type, simulator.device.type)
-        self.assertEqual(simulator.epsilon.total_injections, first.epsilon_injections + second.epsilon_injections)
-
-
-@unittest.skipUnless(torch.cuda.is_available(), "CUDA device required")
-class CudaSimulationTests(SimulationLoopTests):
-    """Run the complete serial training and telemetry pipeline on CUDA."""
-
 
 
 if __name__ == "__main__":

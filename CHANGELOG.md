@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reverted the 0.10.2 tensor game and replay rewrite after observed simulation
+  slowdowns. Restored the Python game rules, exploration, and NumPy replay path.
+- Forced policy inference and training to CPU even on CUDA-capable hosts.
+  Subscription-driven telemetry, telemetry state logging, and completion
+  events are retained.
+- Installation and environment rebuilds now always use CPU PyTorch. The changed
+  CPU requirements file triggers an environment rebuild during upgrade from
+  earlier releases. Seeded trajectories differ from the 0.10.2 tensor backend.
+
 ## [0.10.2] - 2026-09-05 @ 06:24
 
 ### Changed
