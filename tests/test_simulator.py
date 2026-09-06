@@ -47,6 +47,9 @@ class FakeTorch:
         self.cuda = FakeCuda(cuda_available)
         self.tensor_device: FakeDevice | None = None
 
+    def set_num_threads(self, count: int) -> None:
+        self.num_threads = count
+
     @staticmethod
     def device(device_type: str) -> FakeDevice:
         return FakeDevice(device_type)
