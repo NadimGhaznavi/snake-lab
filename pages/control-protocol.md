@@ -172,7 +172,7 @@ Payload fields must match the selected method exactly.
 
 | Method | Payload | Successful response payload |
 | --- | --- | --- |
-| `health` | `{}` | `{"service": "snake-lab"}` |
+| `health` | `{}` | `{"service": "snake-lab", "project_version": "0.10.10"}` |
 | `simulation.submit` | `{"config": {...}}` | `run_id`, `state: "queued"`, `queue_position` |
 | `simulation.active` | `{}` | `{"run": <run status or null>}`; active run, otherwise first queued run |
 | `simulation.status` | `{"run_id": "<run ID>"}` | Run status |
@@ -204,7 +204,7 @@ A successful raw response wraps its payload:
   "protocol_version": 1,
   "request_id": "request-123",
   "status": "ok",
-  "payload": {"service": "snake-lab"}
+  "payload": {"service": "snake-lab", "project_version": "0.10.10"}
 }
 ```
 
@@ -220,4 +220,3 @@ A successful raw response wraps its payload:
 For invalid requests, `request_id` may be null if it was unavailable.
 
 Use the same `request()` method from the example for each operation.
-
