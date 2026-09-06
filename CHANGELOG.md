@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Explicitly configure PyTorch to use 10 CPU threads for simulations instead of
+  relying on its default thread count.
+
 ## [0.10.8] - 2026-09-05 @ 07:52
 
 ### Fixed
