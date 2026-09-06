@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-09-06 @ 11:26
+
 ### Added
 
 - Include the running project version in the health response so Fr3d can
