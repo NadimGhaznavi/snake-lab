@@ -82,6 +82,19 @@ whether to reuse an existing result or submit another experiment.
 MariaDB stores runs in `simulation_runs` and episode measurements in
 `simulation_episodes`.
 
+To delete the newest simulation (the highest database ID) and all its episode
+results, run from a release checkout:
+
+```sh
+sudo systemctl stop snake-lab.service
+sudo scripts/del-last-run
+sudo systemctl start snake-lab.service
+```
+
+The deletion is transactional and also works for interrupted runs. If there
+are no runs, the script reports that there is nothing to delete. Keep the
+server stopped until the script finishes.
+
 ## Upgrade
 
 Do not upgrade while a simulation is running. From the new release checkout:
