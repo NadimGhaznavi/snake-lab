@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-09-06 @ 11:26
+
+### Added
+
+- Include the running project version in the health response so Fr3d can
+  initialize learning-rate experiments after a SnakeLab release change.
+
 ## [0.10.10] - 2026-09-06 @ 10:50
 
 ## [0.10.9] - 2026-09-06 @ 10:19

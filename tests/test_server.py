@@ -2,6 +2,7 @@ import asyncio
 import unittest
 from unittest.mock import Mock, call
 
+from constants.DSnakeLab import DSnakeLab
 from snake_lab.database import MemorySimulationStore
 from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
 from snake_lab.protocol import PROTOCOL_VERSION
@@ -48,6 +49,12 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         await self.server.telemetry.close()
         self.server._socket.close()
         self.server._context.term()
+
+    async def test_health_reports_running_project_version(self) -> None:
+        response = self.server.handle_request(self._request("health", {}))
+        self.assertEqual(response["payload"], {
+            "service": "snake-lab", "project_version": DSnakeLab.VERSION,
+        })
 
     async def test_worker_executes_runs_serially_in_fifo_order(self) -> None:
         order: list[str] = []

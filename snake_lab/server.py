@@ -291,7 +291,8 @@ class SnakeLabServer:
                         "invalid_request", "health payload must be empty"
                     )
                 return success_response(
-                    request.request_id, {"service": "snake-lab"}
+                    request.request_id,
+                    {"service": "snake-lab", "project_version": DSnakeLab.VERSION},
                 )
             if request.method == METHOD_SIMULATION_SUBMIT:
                 return self._submit(request)
