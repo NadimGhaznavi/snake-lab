@@ -12,6 +12,7 @@ from pathlib import Path
 
 import zmq
 
+from constants.DSnakeLab import DSnakeLab
 from snake_lab.control_client import AsyncLabClient
 from snake_lab.event_protocol import (
     EVENT_PROTOCOL_VERSION,
@@ -179,7 +180,10 @@ class ZeroMQIntegrationTests(unittest.TestCase):
     def test_health_request(self) -> None:
         response = self.client.health()
         self.assertEqual(response["status"], "ok")
-        self.assertEqual(response["payload"], {"service": "snake-lab"})
+        self.assertEqual(
+            response["payload"],
+            {"service": "snake-lab", "project_version": DSnakeLab.VERSION},
+        )
 
     def test_submit_and_complete_simulation(self) -> None:
         telemetry_context = zmq.Context()

@@ -9,13 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Architecture diagram on the website homepage.
+- Queryable `configurations` table with all 26 runtime configuration values,
+  linked to each run and written atomically with run creation.
+- Database schema v3 creates the configurations table; install and upgrade
+  apply it before starting the service. Release 0.13.0 uses a clean database
+  reinstall instead of migrating historical configurations.
+
+### Removed
+
+- Unused `x-snakelab-sweepable` annotations from the configuration schema.
+
+
+### One-time v0.13.0 setup
+
+Run from the release checkout to start with an empty database. Uninstall
+preserves MariaDB data; the explicit drop deletes all existing simulation history.
+
+```bash
+sudo scripts/uninstall.sh
+sudo mariadb -e 'DROP DATABASE IF EXISTS snakelab;'
+sudo scripts/install.sh
+```
+
 ## [0.12.0] - 2026-09-07 @ 14:10
+
+### Changed
+
+- Increased the default training learning rate from 0.002 to 0.0021.
+- Updated the README documentation link to `snakelabserver.osoyalce.com`
+  and described the setup guide as simulation server setup.
 
 ## [0.11.2] - 2026-09-07 @ 07:13
 
+### Changed
+
+- Website formatting only: added a trailing blank line to the home page.
+
 ## [0.11.1] - 2026-09-07 @ 07:09
 
+### Changed
+
+- Rewrote the website introduction to describe the simulation service,
+  MariaDB persistence, and its relationship to the Fr3d project.
+- Changed the documentation site's custom domain to
+  `snakelabserver.osoyalce.com`.
+
 ## [0.11.0] - 2026-09-06 @ 12:38
+
+### Changed
+
+- Updated release metadata to 0.11.0. This tag contains no application changes.
 
 ## [0.10.11] - 2026-09-06 @ 11:26
 
@@ -25,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   initialize learning-rate experiments after a SnakeLab release change.
 
 ## [0.10.10] - 2026-09-06 @ 10:50
+
+### Added
+
+- Added `scripts/del-last-run.sh` to transactionally delete the newest
+  simulation run and its episode results, including interrupted runs.
+  Documented stopping the service before deletion and restarting it afterward.
 
 ## [0.10.9] - 2026-09-06 @ 10:19
 
@@ -46,7 +98,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.7] - 2026-09-05 @ 07:44
 
-- Increased RNN seq_length default from 4 to 8.
+### Changed
+
+- Updated release metadata to 0.10.7. This tag contains no application changes.
+
+## [0.10.6] - 2026-09-05 @ 07:40
+
+### Changed
+
+- Increased the default recurrent sequence length from 4 to 8 frames.
+
+## [0.10.4] - 2026-09-05 @ 07:21
+
+### Changed
+
+- Default training batch size is now 1 game. Added configurable
+  `training.replay_min_episodes` (default 30); sampling waits until enough
+  eligible completed games are currently retained in replay.
+- Replay discards games shorter than `sequence_length` and drops incomplete
+  prefixes from longer games, retaining non-overlapping chunks aligned to the
+  terminal move. Chunks are built when append receives the terminal transition.
+- Training samples games uniformly without replacement and learns from every
+  move in every retained chunk in one optimizer update. A single-game batch
+  reuses stored NumPy arrays without batch-time reshaping or copying. Explicit
+  batch sizes now count games, so saved configurations should be reviewed.
 
 ## [0.10.3] - 2026-09-05 @ 06:40
 
@@ -175,7 +250,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.2] - 2026-09-04 @ 18:41
 
+### Changed
+
+- Moved Events into a full-width panel beneath the game and sidebar.
+  Aligned Control and Run within the board's 22-row height.
+
 ## [0.8.1] - 2026-09-04 @ 18:31
+
+### Changed
+
+- Fixed the game panel at its natural 20-by-20 board size, placed Events
+  beneath it, and let the Control and Run sidebar fill the remaining width.
 
 ## [0.8.0] - 2026-09-04 @ 18:24
 
@@ -188,20 +273,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Promoted the Textual viewer to the single human-facing `lab-client`
   application.
-- Fixed the game panel at its natural 20-by-20 board size, placed Control and
-  Run beside it, and moved Events into a full-width panel beneath them.
 
 ### Removed
 
 - The menu-driven administrative client, non-interactive `-c` mode, and the
   separate `lab-viewer` command.
 
-## [0.7.3] - 2026-09-04 @ 05:38
+## [0.7.5] - 2026-09-04 @ 17:23
+
+### Changed
+
+- Made pause, cancel, and cancellation-confirmation buttons compact and
+  reduced the viewer's control-button row to one terminal line.
+
+## [0.7.4] - 2026-09-04 @ 05:48
 
 ### Added
 
 - Non-interactive `lab-client -c <config.json>` submission with JSON output
   and process status suitable for shell automation.
+
+### Changed
+
+- Moved and compacted the viewer controls so they remain visible in standard
+  24-row terminals.
+
+## [0.7.3] - 2026-09-04 @ 05:38
+
+### Added
+
 - Human-only pause, resume, cancellation, and move-delay controls in
   `lab-viewer`, including active-run discovery and cancellation confirmation.
 - Cooperative per-run runtime control that leaves reproducible experiment
@@ -210,10 +310,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Moved and compacted the viewer controls so they remain visible in standard
-  24-row terminals.
 - Preserve every game frame when a nonzero diagnostic move delay is active;
   full-speed simulations continue to use rate-limited latest-frame telemetry.
+
+## [0.7.2] - 2026-09-04 @ 05:10
+
+### Changed
+
+- Reduced the sample configuration from 1,500 to 100 episodes for faster runs.
+
+## [0.7.1] - 2026-09-04 @ 05:05
+
+### Changed
+
+- Added Fr3d artwork as the website logo and replaced the images in the
+  driver and model setup guides.
 
 ## [0.7.0] - 2026-09-04 @ 04:38
 
@@ -258,11 +369,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added live simulation progress and last-episode details to status responses,
   plus a simulation-status option in the administrative CLI.
 
-## [0.4.0] - 2026-09-03 @ 04:09
+## [0.4.2] - 2026-09-03 @ 04:25
+
+### Fixed
+
+- Enabled simulator console logging so runtime messages also appear in the
+  systemd journal.
+
+## [0.4.1] - 2026-09-03 @ 04:23
 
 ### Added
 
 - Simulator logging to the shared server log with a distinct component name.
+
+### Changed
+
+- Passed the server's configured log destination to the simulator and removed
+  the duplicate startup message printed outside the logger.
+
+## [0.4.0] - 2026-09-03 @ 04:09
+
+### Added
+
 - Versioned JSON Schema simulation configuration template with external
   defaults, validation constraints, and descriptive metadata.
 - Configuration management that resolves submitted overrides into complete,
@@ -318,6 +446,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set service-readable permissions on staged application directories before
   promotion, preventing systemd `status=200/CHDIR` startup failures.
 
+## [0.1.3] - 2026-09-02 @ 17:22
+
+### Removed
+
+- Removed the post-restart ZeroMQ health check from installation and upgrade
+  scripts.
+
+## [0.1.2] - 2026-09-02 @ 17:20
+
+### Added
+
+- In-place upgrade tooling with a post-restart ZeroMQ health check.
+
+### Changed
+
+- Separate replaceable application files under `/opt/snake-lab/app` from the
+  persistent `venv/` and `logs/` directories.
+- Rebuild the production virtual environment during an upgrade only when
+  `requirements.txt` changes.
+
 ## [0.1.1] - 2026-09-02 @ 17:13
 
 ### Added
@@ -348,8 +496,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified runtime error handling to fail immediately on dependency,
   transport, and protocol errors.
 
-### Removed
-
 ## [0.0.1] - 2026-09-02 @ 15:51
 
 ### Added
@@ -363,7 +509,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive `lab-client` with health-check and quit menu options.
 - Installation, uninstallation, virtual-environment rebuild, and systemd service
   tooling for deployments under `/opt/snake-lab`.
-
-### Changed
-
-### Removed

@@ -36,7 +36,7 @@ class ConfigTemplateTests(unittest.TestCase):
                 "sequence_length": 8,
                 "batch_size": 64,
                 "replay_max_frames": 150000,
-                "learning_rate": 0.002,
+                "learning_rate": 0.0021,
                 "gamma": 0.96,
                 "tau": 0.001,
                 "max_gradient_norm": 1.0,

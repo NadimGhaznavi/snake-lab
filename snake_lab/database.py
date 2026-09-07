@@ -15,6 +15,48 @@ if TYPE_CHECKING:
     from snake_lab.simulator import EpisodeResult
 
 
+# Stable SQL column order, matching database-v3.sql.
+CONFIGURATION_PATHS = (
+    "epochs",
+    "seed",
+    "game.board_width",
+    "game.board_height",
+    "game.initial_snake_length",
+    "game.max_moves_multiplier",
+    "game.rewards.food",
+    "game.rewards.wall",
+    "game.rewards.snake",
+    "game.rewards.max_moves",
+    "game.rewards.empty",
+    "game.rewards.closer_to_food",
+    "game.rewards.further_from_food",
+    "model.hidden_size",
+    "model.layers",
+    "model.dropout",
+    "training.sequence_length",
+    "training.batch_size",
+    "training.replay_max_frames",
+    "training.learning_rate",
+    "training.gamma",
+    "training.tau",
+    "training.max_gradient_norm",
+    "epsilon.initial",
+    "epsilon.minimum",
+    "epsilon.decay",
+)
+
+
+def configuration_values(config: dict[str, Any]) -> tuple[Any, ...]:
+    """Flatten a resolved runtime configuration without changing its values."""
+    values = []
+    for path in CONFIGURATION_PATHS:
+        value: Any = config
+        for key in path.split("."):
+            value = value[key]
+        values.append(value)
+    return tuple(values)
+
+
 class SimulationStore(Protocol):
     """Persistence operations required by the serial simulation worker."""
 
@@ -196,6 +238,15 @@ class MariaDBSimulationStore:
                         canonical_config(config),
                         digest,
                     ),
+                )
+                columns = ", ".join(
+                    path.replace(".", "_") for path in CONFIGURATION_PATHS
+                )
+                placeholders = ", ".join(["%s"] * (len(CONFIGURATION_PATHS) + 1))
+                cursor.execute(
+                    f"INSERT INTO configurations (run_id, {columns}) "
+                    f"VALUES ({placeholders})",
+                    (run_id, *configuration_values(config)),
                 )
             self._connection.commit()
         except Exception:
