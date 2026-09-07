@@ -161,3 +161,4 @@ MariaDB database and database user intact.
 - [Driver Setup](/pages/driver-setup.html): Wintermute GPU and llama.cpp build.
 - [Model Setup](/pages/model-setup.html): Qwen3.5 model conversion for Fr3d.
 - [Qwen3.5 4B on Hugging Face](https://huggingface.co/Qwen/Qwen3.5-4B)
+
