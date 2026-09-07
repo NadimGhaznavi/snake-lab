@@ -1,4 +1,4 @@
-# Pre-Release v0.13.0 Spec
+# Release v0.13.0 Spec
 
 ## Overview
 
