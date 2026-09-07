@@ -86,3 +86,46 @@ The whole-game sampling and terminal-aligned chunking introduced in 0.10.4
 have been rolled back. Remove `training.replay_min_episodes` from saved
 configurations created with that feature. Explicit `batch_size` values remain
 supported and now count windows again; use 64 to match the restored default.
+
+## Configuration Queries
+
+The `configurations` table stores one row per accepted run, linked to
+`simulation_runs.run_id`. Its 26 numeric columns follow the configuration
+schema, replacing dots with underscores: `training.learning_rate` becomes
+`training_learning_rate`, and `game.rewards.food` becomes `game_rewards_food`.
+`seed` uses `BIGINT UNSIGNED`; other integers use `INT UNSIGNED` and numbers
+use `DOUBLE`. Configuration and run creation commit together. The original
+`simulation_runs.config` JSON remains available.
+
+Repeated configurations have separate rows for each run. Join to run status
+when searching completed experiments:
+
+```sql
+SELECT c.training_learning_rate, c.model_hidden_size,
+       COUNT(*) AS completed_runs, MAX(r.high_score) AS best_score
+FROM configurations AS c
+JOIN simulation_runs AS r ON r.run_id = c.run_id
+WHERE r.status = 'completed'
+GROUP BY c.training_learning_rate, c.model_hidden_size;
+```
+
+See the changelog for the one-time v0.13.0 clean database setup.
+
+Schema `snake_lab/schemas/database-v3.sql` only creates the new table. It can
+be reapplied safely and does not backfill historical runs or delete data.
+New accepted runs receive configuration rows immediately, regardless of their
+eventual status. Deleting a run cascades to its configuration row.
+
+`scripts/upgrade.sh` applies the migration while the service is stopped,
+before deploying and starting the application. To apply the schema separately:
+
+```bash
+sudo systemctl stop snake-lab.service
+sudo scripts/apply-database-schema.sh
+# Restart after the schema command succeeds.
+sudo systemctl start snake-lab.service
+```
+
+To run the optional MariaDB integration test, set `SNAKELAB_TEST_DB_SOCKET` to
+an isolated test server's Unix socket. The test uses passwordless root access
+and creates and drops a randomly named test database.

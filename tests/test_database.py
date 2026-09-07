@@ -4,7 +4,10 @@ from unittest.mock import MagicMock
 import pymysql
 
 from constants.DSnakeLab import DSnakeLab
+from snake_lab.configuration import simulation_config_template
 from snake_lab.database import (
+    CONFIGURATION_PATHS,
+    configuration_values,
     MariaDBSimulationStore,
     MemorySimulationStore,
     canonical_config,
@@ -132,14 +135,14 @@ class SimulationDatabaseTests(unittest.TestCase):
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
         store = MariaDBSimulationStore(connection)
-        config = {"epochs": 100}
+        config = simulation_config_template().resolve({})
 
         store.create_run("first", config, DSnakeLab.VERSION)
         store.create_run("second", config, DSnakeLab.VERSION)
 
-        self.assertEqual(cursor.execute.call_count, 2)
+        self.assertEqual(cursor.execute.call_count, 4)
         for invocation, run_id in zip(
-            cursor.execute.call_args_list, ("first", "second")
+            cursor.execute.call_args_list[::2], ("first", "second")
         ):
             self.assertIn("INSERT INTO simulation_runs", invocation.args[0])
             self.assertEqual(
@@ -148,6 +151,55 @@ class SimulationDatabaseTests(unittest.TestCase):
             )
         self.assertEqual(connection.commit.call_count, 2)
         connection.rollback.assert_not_called()
+
+    def test_configuration_fields_match_schema_leaves(self) -> None:
+        config = simulation_config_template().resolve({"seed": 9223372036854775807})
+        leaves = {}
+
+        def flatten(value, prefix=""):
+            for key, item in value.items():
+                path = f"{prefix}.{key}" if prefix else key
+                if isinstance(item, dict):
+                    flatten(item, path)
+                else:
+                    leaves[path] = item
+
+        flatten(config)
+        self.assertEqual(set(CONFIGURATION_PATHS), set(leaves))
+        self.assertEqual(len(CONFIGURATION_PATHS), 26)
+        self.assertEqual(configuration_values(config), tuple(leaves[p] for p in CONFIGURATION_PATHS))
+
+    def test_configuration_write_preserves_resolved_values(self) -> None:
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        config = simulation_config_template().resolve({
+            "seed": 9223372036854775807,
+            "game": {"rewards": {"food": -2.5}},
+            "training": {"learning_rate": 0.000123},
+        })
+        MariaDBSimulationStore(connection).create_run("run-1", config, DSnakeLab.VERSION)
+        sql, values = cursor.execute.call_args_list[1].args
+        self.assertIn("INSERT INTO configurations", sql)
+        columns = sql.split("(", 1)[1].split(")", 1)[0].split(", ")
+        row = dict(zip(columns, values))
+        self.assertEqual(row["run_id"], "run-1")
+        self.assertEqual(row["seed"], 9223372036854775807)
+        self.assertEqual(row["game_rewards_food"], -2.5)
+        self.assertEqual(row["training_learning_rate"], 0.000123)
+        self.assertEqual(len(row), 27)
+        connection.commit.assert_called_once_with()
+        connection.rollback.assert_not_called()
+
+    def test_configuration_insert_failure_rolls_back_run(self) -> None:
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        cursor.execute.side_effect = [None, pymysql.err.OperationalError("write failed")]
+        config = simulation_config_template().resolve({})
+        with self.assertRaises(pymysql.err.OperationalError):
+            MariaDBSimulationStore(connection).create_run("run-1", config, DSnakeLab.VERSION)
+        self.assertEqual(cursor.execute.call_count, 2)
+        connection.rollback.assert_called_once_with()
+        connection.commit.assert_not_called()
 
     def test_mariadb_insert_failure_rolls_back_and_propagates(self) -> None:
         connection = MagicMock()
