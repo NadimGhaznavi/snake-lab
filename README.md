@@ -16,5 +16,5 @@ lab-client
 The installer always installs the CPU PyTorch runtime. Simulation, policy
 inference, and training run on CPU, including on hosts with an NVIDIA GPU.
 
-See the [SnakeLab documentation](https://snakelabserver.osoyalce.com) for operation,
+See the [SnakeLab Homepage](https://snakelabserver.osoyalce.com) for operations,
 configuration, upgrades, development, and simulation server setup.

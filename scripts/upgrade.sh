@@ -11,7 +11,7 @@ source "${SCRIPT_DIR}/deploy-common.sh"
 
 require_root
 require_commands \
-    python3 systemctl install cmp getent useradd mktemp chmod chown mv rm
+    python3 mariadb systemctl install cmp getent useradd mktemp chmod chown mv rm
 validate_release_checkout
 
 [[ -d "${INSTALL_DIR}" ]] ||
@@ -31,6 +31,7 @@ for requirements_file in \
 done
 
 systemctl stop snake-lab.service
+apply_database_schema
 ensure_service_account
 prepare_installation_directories
 deploy_application
