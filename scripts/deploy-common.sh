@@ -53,7 +53,7 @@ validate_release_checkout() {
         "snake_lab/schemas/database-v1.sql"
         "snake_lab/schemas/database-v2.sql"
         "snake_lab/schemas/database-v3.sql"
-        "snake_lab/schemas/simulation-config-v1.schema.json"
+        "snake_lab/schemas/simulation-config-v2.schema.json"
         "snake_lab/server.py"
         "snake_lab/simulator.py"
         "snake_lab/telemetry.py"
