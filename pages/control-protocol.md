@@ -26,7 +26,7 @@ The submission payload contains the configuration object itself, not a filename:
   "method": "simulation.submit",
   "payload": {
     "config": {
-      "epochs": 100,
+      "epochs": 1500,
       "seed": 1970
     }
   }
@@ -34,7 +34,7 @@ The submission payload contains the configuration object itself, not a filename:
 ```
 
 Partial configurations are accepted. SnakeLab applies the defaults and validates
-the result against the [JSON Schema](/snake_lab/schemas/simulation-config-v1.schema.json).
+the result against the [JSON Schema](/snake_lab/schemas/simulation-config-v2.schema.json).
 
 ## Python Client Stub
 

@@ -10,7 +10,7 @@ class ConfigTemplateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.template = simulation_config_template()
         self.defaults = {
-            "epochs": 100,
+            "epochs": 1500,
             "seed": 1970,
             "game": {
                 "board_width": 20,
@@ -23,19 +23,19 @@ class ConfigTemplateTests(unittest.TestCase):
                     "snake": -10.0,
                     "max_moves": -10.0,
                     "empty": 0.0,
-                    "closer_to_food": 0.1,
-                    "further_from_food": -0.1,
+                    "closer_to_food": 2,
+                    "further_from_food": -2,
                 },
             },
             "model": {
-                "hidden_size": 192,
-                "layers": 3,
+                "hidden_size": 224,
+                "layers": 4,
                 "dropout": 0.1,
             },
             "training": {
                 "sequence_length": 8,
-                "batch_size": 64,
-                "replay_max_frames": 150000,
+                "batch_size": 24,
+                "replay_max_frames": 100000,
                 "learning_rate": 0.0021,
                 "gamma": 0.96,
                 "tau": 0.001,
@@ -51,17 +51,13 @@ class ConfigTemplateTests(unittest.TestCase):
     def test_default_epochs_are_applied(self) -> None:
         self.assertEqual(self.template.resolve({}), self.defaults)
 
-    def test_submitted_epochs_override_the_default(self) -> None:
-        expected = {**self.defaults, "epochs": 2500}
-        self.assertEqual(self.template.resolve({"epochs": 2500}), expected)
+    def test_submitted_fixed_epochs_are_accepted(self) -> None:
+        self.assertEqual(self.template.resolve({"epochs": 1500}), self.defaults)
 
-    def test_epoch_boundaries_are_accepted(self) -> None:
-        for epochs in (50, 5000):
-            with self.subTest(epochs=epochs):
-                expected = {**self.defaults, "epochs": epochs}
-                self.assertEqual(
-                    self.template.resolve({"epochs": epochs}), expected
-                )
+    def test_other_epoch_counts_are_rejected(self) -> None:
+        for epochs in (50, 2500, 5000):
+            with self.subTest(epochs=epochs), self.assertRaises(ConfigurationError):
+                self.template.resolve({"epochs": epochs})
 
     def test_epochs_outside_range_are_rejected(self) -> None:
         for epochs in (49, 5001):
@@ -114,16 +110,16 @@ class ConfigTemplateTests(unittest.TestCase):
     def test_nested_runtime_defaults_can_be_partially_overridden(self) -> None:
         resolved = self.template.resolve(
             {
-                "game": {"rewards": {"food": 20}},
+                "game": {"rewards": {"closer_to_food": 3}},
                 "model": {"hidden_size": 64},
                 "training": {"batch_size": 32},
             }
         )
 
-        self.assertEqual(resolved["game"]["rewards"]["food"], 20)
+        self.assertEqual(resolved["game"]["rewards"]["closer_to_food"], 3)
         self.assertEqual(resolved["game"]["rewards"]["wall"], -10.0)
         self.assertEqual(resolved["model"]["hidden_size"], 64)
-        self.assertEqual(resolved["model"]["layers"], 3)
+        self.assertEqual(resolved["model"]["layers"], 4)
         self.assertEqual(resolved["training"]["batch_size"], 32)
 
     def test_initial_snake_must_fit_on_board(self) -> None:
@@ -143,7 +139,7 @@ class ConfigTemplateTests(unittest.TestCase):
                 {
                     "training": {
                         "sequence_length": 4,
-                        "batch_size": 64,
+                        "batch_size": 24,
                         "replay_max_frames": 255,
                     }
                 }

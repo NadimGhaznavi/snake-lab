@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-08 @ 19:23
+
+### Changed
+
+- Use simulation configuration schema v2 for server validation and fresh installs,
+  with 1500 epochs, updated runtime defaults, and bounded parameter ranges.
+- Update schema links and database test configurations for v2. PROD deployment
+  uses a clean uninstall, database drop, and reinstall; no data migration is needed.
+
 ## [0.13.1] - 2026-09-07 @ 21:31
 
 - The simulation configuration schema now defines a finite, bounded experimental 
