@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-09-07 @ 21:31
+
+- The simulation configuration schema now defines a finite, bounded experimental 
+  search space using fixed values, enums, and constrained parameter ranges.
+- Updated sample config based on the new schema
+
 ## [0.13.0] - 2026-09-07 @ 17:10
 
 ### Added
