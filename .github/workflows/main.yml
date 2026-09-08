@@ -2,7 +2,7 @@
 name: Rebuild GitHub Pages Site
 
 on:
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:  manual trigger
 
 jobs:
   rebuild:
