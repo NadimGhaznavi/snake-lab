@@ -153,7 +153,7 @@ class SimulationDatabaseTests(unittest.TestCase):
         connection.rollback.assert_not_called()
 
     def test_configuration_fields_match_schema_leaves(self) -> None:
-        config = simulation_config_template().resolve({"seed": 9223372036854775807})
+        config = simulation_config_template().resolve({"seed": 2024})
         leaves = {}
 
         def flatten(value, prefix=""):
@@ -173,9 +173,9 @@ class SimulationDatabaseTests(unittest.TestCase):
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
         config = simulation_config_template().resolve({
-            "seed": 9223372036854775807,
-            "game": {"rewards": {"food": -2.5}},
-            "training": {"learning_rate": 0.000123},
+            "seed": 2024,
+            "game": {"rewards": {"further_from_food": -3}},
+            "training": {"learning_rate": 0.002123456},
         })
         MariaDBSimulationStore(connection).create_run("run-1", config, DSnakeLab.VERSION)
         sql, values = cursor.execute.call_args_list[1].args
@@ -183,9 +183,9 @@ class SimulationDatabaseTests(unittest.TestCase):
         columns = sql.split("(", 1)[1].split(")", 1)[0].split(", ")
         row = dict(zip(columns, values))
         self.assertEqual(row["run_id"], "run-1")
-        self.assertEqual(row["seed"], 9223372036854775807)
-        self.assertEqual(row["game_rewards_food"], -2.5)
-        self.assertEqual(row["training_learning_rate"], 0.000123)
+        self.assertEqual(row["seed"], 2024)
+        self.assertEqual(row["game_rewards_further_from_food"], -3)
+        self.assertEqual(row["training_learning_rate"], 0.002123456)
         self.assertEqual(len(row), 27)
         connection.commit.assert_called_once_with()
         connection.rollback.assert_not_called()

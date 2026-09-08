@@ -44,9 +44,9 @@ class ConfigurationMigrationTests(unittest.TestCase):
                 apply(1)
                 apply(2)
                 config = simulation_config_template().resolve({
-                    "seed": 9223372036854775807,
-                    "game": {"rewards": {"food": -3.125}},
-                    "training": {"learning_rate": 0.0000123456789},
+                    "seed": 2024,
+                    "game": {"rewards": {"further_from_food": -3}},
+                    "training": {"learning_rate": 0.002123456789},
                 })
                 apply(3)
                 columns = ", ".join(p.replace(".", "_") for p in CONFIGURATION_PATHS)

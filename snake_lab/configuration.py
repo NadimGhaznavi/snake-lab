@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 DEFAULT_SCHEMA_PATH = (
     Path(__file__).resolve().parent
     / "schemas"
-    / "simulation-config-v1.schema.json"
+    / "simulation-config-v2.schema.json"
 )
 
 
