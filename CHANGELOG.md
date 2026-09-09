@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Made the granularity of the allowed model hidden size from 32 to 16
+
 ## [0.14.0] - 2026-09-08 @ 19:23
 
 ### Changed
