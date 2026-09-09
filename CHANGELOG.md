@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-09-09 @ 06:09
+
+### Changed
+
+- Allow any nonnegative integer seed in simulation configuration schema v2,
+  replacing the fixed seed list while retaining the default of 1970. This allows
+  Fr3d's seed rotation to submit consecutive seeds such as 1971 and 1972.
+
 ## [0.14.1] - 2026-09-08 @ 21:48
 
 ### Changed
