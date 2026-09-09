@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reduced training batch_size and sequence_length
+
 ## [0.14.4] - 2026-09-09 @ 17:36
 
 - Reduced max model.hidden_size
