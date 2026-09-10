@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.6] - 2026-09-09 @ 21:37
+
+### Added
+
+- `scripts/del-below-10.sh` deletes runs with high scores below 10 and their
+  configurations and episode results in one transaction.
+
 ## [0.14.5] - 2026-09-09 @ 18:27
 
 - Reduced training batch_size and sequence_length

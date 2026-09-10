@@ -98,6 +98,18 @@ The deletion is transactional and also works for interrupted runs. If there
 are no runs, the script reports that there is nothing to delete. Keep the
 server stopped until the script finishes.
 
+To delete all runs whose high score is below 10, including their configurations
+and episode results:
+
+```sh
+sudo systemctl stop snake-lab.service
+sudo scripts/del-below-10.sh
+sudo systemctl start snake-lab.service
+```
+
+This deletion is transactional. Runs scoring exactly 10 or higher and runs with
+no recorded high score are kept.
+
 ## Upgrade
 
 Do not upgrade while a simulation is running. From the new release checkout:
@@ -161,4 +173,3 @@ MariaDB database and database user intact.
 - [Driver Setup](/pages/driver-setup.html): Wintermute GPU and llama.cpp build.
 - [Model Setup](/pages/model-setup.html): Qwen3.5 model conversion for Fr3d.
 - [Qwen3.5 4B on Hugging Face](https://huggingface.co/Qwen/Qwen3.5-4B)
-
