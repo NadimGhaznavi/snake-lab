@@ -176,7 +176,7 @@
           "default": 24,
           "minimum": 8,
           "maximum": 64,
-          "multipleOf": 8,
+          "multipleOf": 2,
           "x-snakelab-unit": "sequences",
           "description": "Number of sequences sampled for each training update."
         },
