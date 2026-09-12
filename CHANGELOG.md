@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-12 @ 04:05
+
+### Changed
+
+- Moved the PyTorch CPU thread count to `DSnakeLab.PYTORCH_NUM_THREADS` in
+  `constants/DSnakeLab.py`, retaining the default of 10 threads.
+- Batch size is now divisible by 2 not 8.
+
 ## [0.14.7] - 2026-09-09 @ 21:40
 
 ## [0.14.6] - 2026-09-09 @ 21:37

@@ -116,7 +116,7 @@ class Simulator:
     ) -> None:
         self.config = simulation_config_template().resolve(deepcopy(config))
         self._torch = torch_module
-        self._torch.set_num_threads(10)
+        self._torch.set_num_threads(DSnakeLab.PYTORCH_NUM_THREADS)
         self._log_file = log_file
         self._provided_log = log
         self._on_episode = on_episode
