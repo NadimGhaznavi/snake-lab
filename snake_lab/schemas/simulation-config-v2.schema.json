@@ -10,8 +10,8 @@
       "title": "Number of epochs",
       "description": "Number of complete Snake episodes to execute.",
       "type": "integer",
-      "const": 500,
-      "default": 500,
+      "const": 1500,
+      "default": 1500,
       "x-snakelab-unit": "episodes"
     },
     "seed": {
