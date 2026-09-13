@@ -1,4 +1,5 @@
 import unittest
+import json
 from unittest.mock import MagicMock
 
 import pymysql
@@ -18,6 +19,25 @@ from snake_lab.simulator import EpisodeResult
 
 
 class SimulationDatabaseTests(unittest.TestCase):
+    def test_completion_writes_snapshot_with_final_score(self) -> None:
+        snapshot = {"version": 1, "episode": 2, "step": 5, "board": {"score": 4}}
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        MariaDBSimulationStore(connection).finish_run(
+            "run-1", "completed", 3, 4, high_score_snapshot=snapshot,
+        )
+        sql, values = cursor.execute.call_args.args
+        self.assertIn("high_score_snapshot = %s", sql)
+        self.assertEqual(values[:3], ("completed", 3, 4))
+        self.assertEqual(json.loads(values[3]), snapshot)
+        connection.commit.assert_called_once_with()
+        store = MemorySimulationStore()
+        store.create_run("run-1", {}, DSnakeLab.VERSION)
+        store.finish_run("run-1", "completed", 3, 4, high_score_snapshot=snapshot)
+        self.assertEqual(store.runs["run-1"]["high_score_snapshot"], snapshot)
+        snapshot["board"]["score"] = 9
+        self.assertEqual(store.runs["run-1"]["high_score_snapshot"]["board"]["score"], 4)
+
     def test_canonical_config_and_hash_ignore_key_order(self) -> None:
         first = {"seed": 7, "epochs": 100}
         second = {"epochs": 100, "seed": 7}

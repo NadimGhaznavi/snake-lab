@@ -86,7 +86,10 @@ class SimulationStore(Protocol):
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None: ...
+
+    def get_high_score_snapshot(self, run_id: str) -> dict[str, Any] | None: ...
 
     def close(self) -> None: ...
 
@@ -130,6 +133,7 @@ class MemorySimulationStore:
             "status": "queued",
             "episode_count": None,
             "high_score": None,
+            "high_score_snapshot": None,
             "error_message": None,
         }
         self.episodes[run_id] = []
@@ -158,12 +162,26 @@ class MemorySimulationStore:
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None:
         run = self.runs[run_id]
         run["status"] = status
         run["episode_count"] = episode_count
         run["high_score"] = high_score
         run["error_message"] = error_message
+        run["high_score_snapshot"] = (
+            json.loads(json.dumps(high_score_snapshot, allow_nan=False))
+            if high_score_snapshot is not None else None
+        )
+
+    def get_high_score_snapshot(self, run_id: str) -> dict[str, Any] | None:
+        run = self.runs.get(run_id)
+        if run is None:
+            return None
+        return {
+            "run_id": run_id,
+            "high_score_snapshot": json.loads(json.dumps(run["high_score_snapshot"])),
+        }
 
     def close(self) -> None:
         pass
@@ -317,6 +335,7 @@ class MariaDBSimulationStore:
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None:
         with self._connection.cursor() as cursor:
             cursor.execute(
@@ -325,6 +344,7 @@ class MariaDBSimulationStore:
                 SET status = %s,
                     episode_count = %s,
                     high_score = %s,
+                    high_score_snapshot = %s,
                     completed_at = CURRENT_TIMESTAMP(6),
                     error_message = %s
                 WHERE run_id = %s
@@ -333,11 +353,31 @@ class MariaDBSimulationStore:
                     status,
                     episode_count,
                     high_score,
+                    json.dumps(high_score_snapshot, separators=(",", ":"), allow_nan=False)
+                    if high_score_snapshot is not None else None,
                     error_message,
                     run_id,
                 ),
             )
         self._connection.commit()
+
+    def get_high_score_snapshot(self, run_id: str) -> dict[str, Any] | None:
+        """Read persisted captures, including runs from earlier server processes."""
+        try:
+            with self._connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT run_id, high_score_snapshot FROM simulation_runs WHERE run_id = %s",
+                    (run_id,),
+                )
+                row = cursor.fetchone()
+            # End the read transaction so subsequent requests see fresh results.
+            self._connection.commit()
+        except Exception:
+            self._connection.rollback()
+            raise
+        if row is not None and row["high_score_snapshot"] is not None:
+            row["high_score_snapshot"] = json.loads(row["high_score_snapshot"])
+        return row
 
     def close(self) -> None:
         self._connection.close()

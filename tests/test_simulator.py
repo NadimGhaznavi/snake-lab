@@ -1,6 +1,8 @@
 import unittest
 from collections import deque
-from unittest.mock import patch
+from dataclasses import replace
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from snake_lab.telemetry import FrameTelemetry
 
@@ -9,6 +11,7 @@ import torch
 from constants.DGame import DGameDef
 from snake_lab.configuration import simulation_config_template
 from snake_lab.simulator import Simulator
+from snake_lab.game import Action, Outcome
 
 
 class FakeDevice:
@@ -168,6 +171,77 @@ class SimulatorTests(unittest.TestCase):
 
 
 class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def capture_simulator():
+        simulator = Simulator({}, log=FakeLog())
+        # Exercise tiny game mechanics without relaxing the public config schema.
+        simulator.config["game"].update(
+            board_width=4, board_height=1, initial_snake_length=3,
+            max_moves_multiplier=1,
+        )
+        return simulator
+
+    async def test_capture_keeps_first_peak_of_best_completed_episode(self) -> None:
+        simulator = self.capture_simulator()
+        simulator._setup()
+        simulator.trainer.train = Mock(return_value=None)
+        simulator._select_action = Mock(return_value=0)
+        initial_game = simulator._new_game(1)
+        initial = initial_game.state
+        observation = initial_game.observe()
+
+        async def episode(number, score):
+            peak = replace(initial, score=score, move_count=1)
+            terminal = replace(peak, move_count=4)
+            game = Mock(state=initial, seed=initial.seed)
+            game.observe.return_value = observation
+            states = iter((peak, terminal))
+
+            def step(_action):
+                game.state = next(states)
+                return SimpleNamespace(
+                    new_state=game.state, observation=observation, reward=0.0,
+                    done=game.state is terminal, outcome=Outcome.WALL,
+                )
+
+            game.step.side_effect = step
+            with patch.object(simulator, "_new_game", return_value=game):
+                result = await simulator._run_episode(number)
+            simulator.state.record(result)
+            return peak
+
+        first = await episode(1, 1)
+        self.assertIs(simulator.state.high_score_snapshot.board, first)
+        await episode(2, 1)
+        self.assertIs(simulator.state.high_score_snapshot.board, first)
+        best = await episode(3, 2)
+        snapshot = simulator.state.high_score_snapshot
+        self.assertIs(snapshot.board, best)
+        self.assertEqual(snapshot.episode, 3)
+        self.assertEqual(snapshot.to_dict()["step"], 1)
+        self.assertEqual(snapshot.to_dict()["board"]["score"], 2)
+        simulator.trainer.train.side_effect = RuntimeError("training failed")
+        with self.assertRaisesRegex(RuntimeError, "training failed"):
+            await episode(4, 3)
+        self.assertIs(simulator.state.high_score_snapshot, snapshot)
+
+    async def test_zero_score_and_board_filling_capture_without_telemetry(self) -> None:
+        for action, expected_score in ((Action.LEFT, 0), (Action.STRAIGHT, 1)):
+            with self.subTest(action=action):
+                simulator = self.capture_simulator()
+                simulator._setup()
+                simulator._select_action = Mock(return_value=int(action))
+                initial = simulator._new_game(1).state
+                result = await simulator._run_episode(1)
+                snapshot = simulator.state.high_score_snapshot
+                self.assertEqual(result.score, expected_score)
+                self.assertEqual(snapshot.board.score, expected_score)
+                self.assertEqual(snapshot.board.move_count, expected_score)
+                if expected_score == 0:
+                    self.assertEqual(snapshot.board, initial)
+                else:
+                    self.assertIsNone(snapshot.to_dict()["board"]["food"])
+
     @staticmethod
     def small_config():
         return simulation_config_template().resolve(

@@ -1,6 +1,6 @@
 import asyncio
 import unittest
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.database import MemorySimulationStore
@@ -32,6 +32,26 @@ class FakeStore:
 
 
 class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_completed_simulation_saves_capture_before_ended_event(self) -> None:
+        self.server.store = MemorySimulationStore()
+        run = SimulationRun("capture-run", {"epochs": 1})
+        self.server.store.create_run(run.run_id, run.config, DSnakeLab.VERSION)
+        with patch("snake_lab.simulator.Simulator._select_action", return_value=0):
+            await self.server._execute_simulation(run)
+        run.state = "completed"
+
+        def check_saved(*_args):
+            saved = self.server.store.runs[run.run_id]
+            self.assertEqual(saved["status"], "completed")
+            snapshot = saved["high_score_snapshot"]
+            self.assertEqual(snapshot["board"]["score"], saved["high_score"])
+            self.assertEqual(snapshot["episode"], 1)
+            self.assertEqual(snapshot["version"], 1)
+
+        self.ended.side_effect = check_saved
+        self.server._finish_run(run)
+        self.ended.assert_called_once()
+
     async def asyncSetUp(self) -> None:
         self.server = SnakeLabServer(
             address="127.0.0.1",
