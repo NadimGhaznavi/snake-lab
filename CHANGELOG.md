@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-13 @ 19:19
+
 - Document high-score snapshot capture, ZMQ requests, response fields, Python client usage, and missing-snapshot handling for older runs in the developer integration guide.
 
 - Add `simulation.highscore_snapshot` over ZMQ and an async client helper to retrieve persisted boards by run ID, including historical runs. Return explicit errors for unknown runs and unavailable snapshots; clients handle rendering and export.
