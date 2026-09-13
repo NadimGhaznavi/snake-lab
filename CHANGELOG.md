@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-09-13 @ 15:57
+
 - Remove the redundant `simulation_runs.config` JSON column and write configuration values only to `configurations`. Requires a clean database reinstall and the matching AX3L reader update.
 
 ## [1.0.4] - 2026-09-13 @ 11:13
