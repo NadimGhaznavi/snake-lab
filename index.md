@@ -165,8 +165,8 @@ Start the development client in another terminal:
 sudo scripts/uninstall.sh
 ```
 
-The uninstaller removes the service and `/opt/snake-lab`. It leaves the
-MariaDB database and database user intact.
+The uninstaller removes the service, `/opt/snake-lab`, and the configured
+MariaDB database, including all simulation history. The MariaDB user remains.
 
 ## Related Setup
 

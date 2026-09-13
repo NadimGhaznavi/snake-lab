@@ -29,7 +29,6 @@ die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 usage() {
     local current_version=""
     local likely_version="0.1.0"
-    local likely_feature_version="0.1.1"
 
     if [[ -f "${CONSTANTS_FILE}" ]]; then
         current_version=$(sed -nE 's/^    VERSION: Final\[str\] = "([^"]+)"$/\1/p' "${CONSTANTS_FILE}")
@@ -39,20 +38,21 @@ usage() {
         local minor=${BASH_REMATCH[2]}
         local release_patch=$((10#${BASH_REMATCH[3]} + 1))
         likely_version="${major}.${minor}.${release_patch}"
-        likely_feature_version="${major}.${minor}.$((release_patch + 1))"
     fi
 
     cat <<EOF
-Usage: $(basename -- "$0") <version> <message> <next-feature-branch>
+Usage: $(basename -- "$0") <version> <message>
 
 Likely next version: ${likely_version}
 
 Example:
-  $(basename -- "$0") ${likely_version} "Maintenance release" feat/maint-${likely_feature_version}
+  $(basename -- "$0") ${likely_version} "Maintenance release"
 
 Run this from a clean feat/* or feature/* branch. The script updates the
 changelog, merges the feature through dev to main, creates an annotated vX.Y.Z
 tag, pushes the release atomically, and creates the next local feature branch.
+The next branch is feat/maint-X.Y.Z, using the release version with its patch
+number incremented by one (for example, 1.2.3 creates feat/maint-1.2.4).
 EOF
 }
 
@@ -61,16 +61,16 @@ ref_exists() {
 }
 
 validate_arguments() {
-    [[ $# -eq 3 ]] || { usage >&2; exit 2; }
+    [[ $# -eq 2 ]] || { usage >&2; exit 2; }
 
     NEW_VERSION=$1
     RELEASE_DESCRIPTION=$2
     RELEASE_MESSAGE="Release ${NEW_VERSION}: ${RELEASE_DESCRIPTION}"
-    NEXT_FEATURE_BRANCH=$3
     TAG_NAME="v${NEW_VERSION}"
 
     [[ "${NEW_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] ||
         die "Version must be a semantic version without a leading v."
+    NEXT_FEATURE_BRANCH="feat/maint-${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((10#${BASH_REMATCH[3]} + 1))"
     [[ -n "${RELEASE_DESCRIPTION}" ]] || die "Release message must not be empty."
     [[ "${NEXT_FEATURE_BRANCH}" == feat/* || "${NEXT_FEATURE_BRANCH}" == feature/* ]] ||
         die "Next feature branch must start with feat/ or feature/."
