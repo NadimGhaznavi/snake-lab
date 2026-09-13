@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-09-13 @ 16:35
+
 - `scripts/new-release.sh` now takes only a version and message, automatically creating the next `feat/maint-x.y.z` branch with the release patch number incremented by one.
 - Uninstall now drops the configured SnakeLab database, including all simulation history, before removing installation files.
 
