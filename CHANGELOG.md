@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the `const` restriction on the number of epochs
+- Changed default number of epochs to 500
+
 ## [1.0.3] - 2026-09-12 @ 16:33
 
 - Increaed epochs back to 1500
