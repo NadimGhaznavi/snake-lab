@@ -55,6 +55,81 @@ and
 [telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/telemetry_zmq.py)
 are the reference implementations.
 
+## High-score Board Snapshots
+
+Every successfully completed simulation saves one board: the first position
+where it achieved its final high score. Each episode retains its highest-scoring
+immutable board by reference, then replaces the simulation's best board only
+if its completed score is higher. Ties keep the earlier board. A simulation
+that never scores saves the first completed episode's starting board.
+
+Capture works without a viewer or telemetry subscription. There are no board
+copies or database writes in the capture hot loop. The server saves the winning
+snapshot with the final score and completed status before publishing
+`simulation_ended`. Failed and cancelled simulations do not save snapshots.
+
+Request a saved board on the control endpoint using a `REQ` socket:
+
+```json
+{
+  "protocol_version": 1,
+  "request_id": "snapshot-1",
+  "method": "simulation.highscore_snapshot",
+  "payload": {"run_id": "<run ID>"}
+}
+```
+
+The successful response has `status: "ok"` and a payload containing `run_id`
+and `snapshot`. The snapshot fields are:
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Snapshot format version, currently 1; separate from the control protocol version |
+| `episode` | Episode number, starting at 1 |
+| `step` | Move number within the episode; 0 for a starting-board capture |
+| `board.grid_size` | `[width, height]` |
+| `board.snake_head` | Head coordinate `[x, y]` |
+| `board.snake_body` | Coordinates ordered from neck to tail, excluding the head |
+| `board.food` | Food coordinate, or `null` when the board is full |
+| `board.direction` | Direction vector `[dx, dy]` |
+| `board.score` | The simulation's final high score |
+
+Coordinates are zero-based, with x increasing rightward and y downward.
+The board object can be passed directly to `BoardSnapshot.from_dict()`.
+Clients own rendering and image export; the server returns raw JSON, not SVG
+or PNG. See the [control protocol](/pages/control-protocol.html#high-score-board-snapshots)
+for an example response payload.
+
+Python clients using the project's `AsyncLabClient` can request the full
+response envelope with:
+
+```python
+response = await client.highscore_snapshot(run_id)
+if response["status"] == "ok":
+    snapshot = response["payload"]["snapshot"]
+    board = snapshot["board"]
+    # Render or export the board in your client.
+else:
+    code = response["error"]["code"]
+    # Handle unavailable snapshots separately from unknown run IDs.
+```
+
+Lookup reads the database, so saved snapshots remain accessible after server
+restarts. Existing runs retain their scores and configurations but have no
+snapshot if they completed before capture was implemented. The server does
+not replay simulations or reconstruct missing boards.
+
+| Error code | Meaning |
+| --- | --- |
+| `run_not_found` | The run ID does not exist in the database |
+| `snapshot_unavailable` | The run exists but has no saved snapshot, including old, unfinished, failed, or cancelled runs |
+| `invalid_request` | The payload must contain only a non-empty string `run_id` |
+
+Existing clients can continue using the control and event protocols without
+requesting snapshots. An optimizer such as AX3L can request a snapshot using
+the run ID it selects as its golden configuration; SnakeLab does not select
+the golden configuration itself.
+
 ## Simulation Execution
 
 Game logic, policy inference, replay storage, and training run on CPU. The
@@ -114,6 +189,12 @@ Schema `snake_lab/schemas/database-v3.sql` only creates the new table. It can
 be reapplied safely and does not backfill historical runs or delete data.
 New accepted runs receive configuration rows immediately, regardless of their
 eventual status. Deleting a run cascades to its configuration row.
+
+Schema `snake_lab/schemas/database-v4.sql` adds nullable JSON column
+`simulation_runs.high_score_snapshot` for one saved board per run. It can be
+reapplied safely without deleting existing data or backfilling old snapshots.
+NULL means no snapshot is available. See [High-score Board Snapshots](#high-score-board-snapshots)
+for capture behavior and the retrieval API.
 
 `scripts/upgrade.sh` applies the migration while the service is stopped,
 before deploying and starting the application. To apply the schema separately:

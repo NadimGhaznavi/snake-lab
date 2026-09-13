@@ -18,11 +18,11 @@ from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.configuration import simulation_config_template
 from snake_lab.epsilon import EpsilonAlgo
-from snake_lab.game import Outcome, RewardConfig, SnakeGame
+from snake_lab.game import GameState, Outcome, RewardConfig, SnakeGame
 from snake_lab.memory import ReplayMemory, Transition
 from snake_lab.model import RNNModel
 from snake_lab.runtime_control import SimulationControl
-from snake_lab.telemetry import FrameTelemetry
+from snake_lab.telemetry import BoardSnapshot, FrameTelemetry
 from snake_lab.trainer import Trainer
 from utils.MyLog import MyLog
 
@@ -55,6 +55,22 @@ class EpisodeResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class HighScoreSnapshot:
+    """First board to achieve the best score of a completed episode."""
+
+    episode: int
+    board: GameState
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": 1,
+            "episode": self.episode,
+            "step": self.board.move_count,
+            "board": BoardSnapshot.from_game_state(self.board).to_dict(),
+        }
+
+
 @dataclass(slots=True)
 class SimulationState:
     """Mutable run-level progress and completed episode results."""
@@ -67,6 +83,7 @@ class SimulationState:
     total_epsilon_injections: int = 0
     last_loss: float | None = None
     episodes: list[EpisodeResult] = field(default_factory=list)
+    high_score_snapshot: HighScoreSnapshot | None = None
 
     def record(self, result: EpisodeResult) -> None:
         self.episodes.append(result)
@@ -229,6 +246,7 @@ class Simulator:
             raise RuntimeError("simulator components have not been initialized")
 
         game = self._new_game(episode)
+        current_board = game.state
         observation = game.observe()
         history: deque[tuple[float, ...]] = deque(
             [observation] * self.config["training"]["sequence_length"],
@@ -240,6 +258,8 @@ class Simulator:
         while True:
             action = self._select_action(history)
             step = game.step(action)
+            if step.new_state.score > current_board.score:
+                current_board = step.new_state
             self.replay.append(
                 Transition(
                     state=observation,
@@ -287,6 +307,11 @@ class Simulator:
             loss=loss,
         )
         self.epsilon.episode_completed()
+        if (
+            self.state.high_score_snapshot is None
+            or result.score > self.state.high_score
+        ):
+            self.state.high_score_snapshot = HighScoreSnapshot(episode, current_board)
         return result
 
     async def run(self) -> SimulationState:

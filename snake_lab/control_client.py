@@ -14,6 +14,7 @@ import zmq.asyncio
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.protocol import (
     METHOD_SIMULATION_ACTIVE,
+    METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
     METHOD_SIMULATION_CANCEL,
     METHOD_SIMULATION_PAUSE,
     METHOD_SIMULATION_RESUME,
@@ -84,6 +85,11 @@ class AsyncLabClient:
 
     async def active(self) -> dict[str, Any]:
         return await self.request(METHOD_SIMULATION_ACTIVE, {})
+
+    async def highscore_snapshot(self, run_id: str) -> dict[str, Any]:
+        return await self.request(
+            METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, {"run_id": run_id}
+        )
 
     async def submit(self, config: dict[str, Any]) -> dict[str, Any]:
         return await self.request(
