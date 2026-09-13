@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Uninstall now drops the configured SnakeLab database, including all simulation history, before removing installation files.
+
 ## [1.0.5] - 2026-09-13 @ 15:57
 
 - Remove the redundant `simulation_runs.config` JSON column and write configuration values only to `configurations`. Requires a clean database reinstall and the matching AX3L reader update.
@@ -106,11 +108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### One-time v0.13.0 setup
 
 Run from the release checkout to start with an empty database. Uninstall
-preserves MariaDB data; the explicit drop deletes all existing simulation history.
+deletes the database and all existing simulation history.
 
 ```bash
 sudo scripts/uninstall.sh
-sudo mariadb -e 'DROP DATABASE IF EXISTS snakelab;'
 sudo scripts/install.sh
 ```
 
