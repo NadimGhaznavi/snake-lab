@@ -115,6 +115,20 @@ be reapplied safely and does not backfill historical runs or delete data.
 New accepted runs receive configuration rows immediately, regardless of their
 eventual status. Deleting a run cascades to its configuration row.
 
+Schema `snake_lab/schemas/database-v4.sql` adds nullable JSON column
+`simulation_runs.high_score_snapshot` for one saved board per run. It can be
+reapplied safely. NULL means no snapshot is available. The payload
+contains a format version, episode and move numbers, and the serialized
+`BoardSnapshot` (dimensions, head, ordered body, food, direction, and score).
+Each episode retains its first highest-scoring immutable board. On episode
+completion, a strictly higher score replaces the simulation snapshot; the first
+completed episode also supplies a zero-score fallback. Successful simulation
+completion saves the snapshot with the final score and status, before the ended
+event. Failed and cancelled runs have no saved snapshot. Capture is independent
+of live telemetry and performs no board copies or database writes per move.
+SVG export is not implemented yet; the database stores board data rather than
+rendered images.
+
 `scripts/upgrade.sh` applies the migration while the service is stopped,
 before deploying and starting the application. To apply the schema separately:
 

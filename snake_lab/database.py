@@ -86,6 +86,7 @@ class SimulationStore(Protocol):
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None: ...
 
     def close(self) -> None: ...
@@ -130,6 +131,7 @@ class MemorySimulationStore:
             "status": "queued",
             "episode_count": None,
             "high_score": None,
+            "high_score_snapshot": None,
             "error_message": None,
         }
         self.episodes[run_id] = []
@@ -158,12 +160,17 @@ class MemorySimulationStore:
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None:
         run = self.runs[run_id]
         run["status"] = status
         run["episode_count"] = episode_count
         run["high_score"] = high_score
         run["error_message"] = error_message
+        run["high_score_snapshot"] = (
+            json.loads(json.dumps(high_score_snapshot, allow_nan=False))
+            if high_score_snapshot is not None else None
+        )
 
     def close(self) -> None:
         pass
@@ -317,6 +324,7 @@ class MariaDBSimulationStore:
         episode_count: int,
         high_score: int,
         error_message: str | None = None,
+        high_score_snapshot: dict[str, Any] | None = None,
     ) -> None:
         with self._connection.cursor() as cursor:
             cursor.execute(
@@ -325,6 +333,7 @@ class MariaDBSimulationStore:
                 SET status = %s,
                     episode_count = %s,
                     high_score = %s,
+                    high_score_snapshot = %s,
                     completed_at = CURRENT_TIMESTAMP(6),
                     error_message = %s
                 WHERE run_id = %s
@@ -333,6 +342,8 @@ class MariaDBSimulationStore:
                     status,
                     episode_count,
                     high_score,
+                    json.dumps(high_score_snapshot, separators=(",", ":"), allow_nan=False)
+                    if high_score_snapshot is not None else None,
                     error_message,
                     run_id,
                 ),

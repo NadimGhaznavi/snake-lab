@@ -55,6 +55,7 @@ class SimulationRun:
     completed_epochs: int = 0
     total_steps: int = 0
     high_score: int = 0
+    high_score_snapshot: dict[str, Any] | None = None
     total_reward: float = 0.0
     epsilon_injections: int = 0
     last_loss: float | None = None
@@ -353,7 +354,9 @@ class SnakeLabServer:
             frame_enabled=lambda: self.telemetry.has_frame_subscribers,
         )
         self._publish_run(run, runtime=simulator.runtime_description)
-        await simulator.run()
+        state = await simulator.run()
+        if state.high_score_snapshot is not None:
+            run.high_score_snapshot = state.high_score_snapshot.to_dict()
 
     def _finish_run(self, run: SimulationRun) -> None:
         """Persist a terminal result before offering its ended event."""
@@ -363,6 +366,9 @@ class SnakeLabServer:
             run.completed_epochs,
             run.high_score,
             run.error,
+            high_score_snapshot=(
+                run.high_score_snapshot if run.state == "completed" else None
+            ),
         )
         payload = {"run_id": run.run_id, "state": run.state}
         if run.error is not None:
