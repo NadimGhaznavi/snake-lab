@@ -26,8 +26,8 @@ db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
 [[ "${db_name}" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid database name: ${db_name}"
 
 # Keep the server stopped so workers cannot write to runs being removed.
-# The run's config JSON is deleted with the run; ON DELETE CASCADE removes
-# configurations and simulation_episodes. A failed batch rolls back on disconnect.
+# ON DELETE CASCADE removes configurations and simulation_episodes for each run.
+# A failed batch rolls back on disconnect.
 mariadb --batch --skip-column-names "${db_name}" <<'SQL'
 START TRANSACTION;
 DELETE FROM simulation_runs WHERE high_score < 10;

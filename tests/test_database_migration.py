@@ -43,6 +43,8 @@ class ConfigurationMigrationTests(unittest.TestCase):
                 connection.select_db(database)
                 apply(1)
                 apply(2)
+                cursor.execute("SHOW COLUMNS FROM simulation_runs LIKE 'config'")
+                self.assertEqual(cursor.fetchall(), ())
                 config = simulation_config_template().resolve({
                     "seed": 2024,
                     "game": {"rewards": {"further_from_food": -3}},
