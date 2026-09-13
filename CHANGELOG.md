@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document high-score snapshot capture, ZMQ requests, response fields, Python client usage, and missing-snapshot handling for older runs in the developer integration guide.
+
+- Add `simulation.highscore_snapshot` over ZMQ and an async client helper to retrieve persisted boards by run ID, including historical runs. Return explicit errors for unknown runs and unavailable snapshots; clients handle rendering and export.
+
 - Capture the first board achieving each completed simulation’s high score, retaining immutable state references during episodes and saving the winner with final results. Capture works without telemetry subscribers and includes zero-score runs.
 
-- Add nullable `simulation_runs.high_score_snapshot` JSON storage for one high-score board per simulation. Include the schema change in installation; SVG export is not implemented yet.
+- Add nullable `simulation_runs.high_score_snapshot` JSON storage for one high-score board per simulation. Include the schema change in installation.
 
 ## [1.0.6] - 2026-09-13 @ 16:35
 

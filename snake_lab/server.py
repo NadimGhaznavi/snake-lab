@@ -25,6 +25,7 @@ from snake_lab.database import (
 from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
 from snake_lab.events_zmq import EventsPublisher
 from snake_lab.protocol import (
+    METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
     METHOD_HEALTH,
     METHOD_SIMULATION_ACTIVE,
     METHOD_SIMULATION_CANCEL,
@@ -144,6 +145,22 @@ class SnakeLabServer:
     def _status(self, request: Request) -> dict[str, Any]:
         run = self._requested_run(request, {"run_id"})
         return success_response(request.request_id, self._run_status(run))
+
+    def _highscore_snapshot(self, request: Request) -> dict[str, Any]:
+        if set(request.payload) != {"run_id"}:
+            raise ProtocolError("invalid_request", "payload must contain only run_id")
+        run_id = request.payload["run_id"]
+        if not isinstance(run_id, str) or not run_id:
+            raise ProtocolError("invalid_request", "run_id must be a non-empty string")
+        saved = self.store.get_high_score_snapshot(run_id)
+        if saved is None:
+            raise ProtocolError("run_not_found", f"Unknown run: {run_id}")
+        snapshot = saved["high_score_snapshot"]
+        if snapshot is None:
+            raise ProtocolError(
+                "snapshot_unavailable", f"No saved high-score snapshot for run: {run_id}"
+            )
+        return success_response(request.request_id, {"run_id": run_id, "snapshot": snapshot})
 
     def _requested_run(
         self, request: Request, expected_fields: set[str]
@@ -301,6 +318,8 @@ class SnakeLabServer:
                 return self._active(request)
             if request.method == METHOD_SIMULATION_STATUS:
                 return self._status(request)
+            if request.method == METHOD_SIMULATION_HIGHSCORE_SNAPSHOT:
+                return self._highscore_snapshot(request)
             if request.method == METHOD_SIMULATION_PAUSE:
                 return self._pause(request)
             if request.method == METHOD_SIMULATION_RESUME:

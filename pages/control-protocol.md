@@ -176,6 +176,7 @@ Payload fields must match the selected method exactly.
 | `simulation.submit` | `{"config": {...}}` | `run_id`, `state: "queued"`, `queue_position` |
 | `simulation.active` | `{}` | `{"run": <run status or null>}`; active run, otherwise first queued run |
 | `simulation.status` | `{"run_id": "<run ID>"}` | Run status |
+| `simulation.highscore_snapshot` | `{"run_id": "<run ID>"}` | `run_id` and saved `snapshot`; includes historical runs in the database |
 | `simulation.pause` | `{"run_id": "<run ID>"}` | Run status; accepts running or already paused runs |
 | `simulation.resume` | `{"run_id": "<run ID>"}` | Run status; accepts paused or already running runs |
 | `simulation.cancel` | `{"run_id": "<run ID>"}` | Run status; accepts queued, running, paused, cancelling, or cancelled runs |
@@ -214,9 +215,48 @@ A successful raw response wraps its payload:
 | `unsupported_protocol` | Unsupported control protocol version |
 | `unknown_method` | Method is not supported |
 | `invalid_config` | Configuration failed validation |
-| `run_not_found` | Run is unknown to this server process |
+| `run_not_found` | Run is unknown to this server process, or absent from the database for snapshot lookup |
+| `snapshot_unavailable` | Run exists but has no saved snapshot (unfinished, failed, cancelled, or completed before capture was implemented) |
 | `invalid_run_state` | Operation is unavailable in the run's current state |
 
 For invalid requests, `request_id` may be null if it was unavailable.
 
 Use the same `request()` method from the example for each operation.
+
+## High-score board snapshots
+
+Send `simulation.highscore_snapshot` with only `run_id` in the payload.
+The server reads the persisted board; no viewer or telemetry subscription is
+required. The response uses the normal version-1 envelope. Example payload:
+
+```json
+{
+  "run_id": "example-run-id",
+  "snapshot": {
+    "version": 1,
+    "episode": 3,
+    "step": 7,
+    "board": {
+      "grid_size": [4, 1],
+      "snake_head": [3, 0],
+      "snake_body": [[2, 0], [1, 0], [0, 0]],
+      "food": null,
+      "direction": [1, 0],
+      "score": 1
+    }
+  }
+}
+```
+
+This illustrative board is smaller than the current simulation configuration.
+`version` identifies the snapshot format, independently of the envelope's
+`protocol_version`. Episodes are numbered from 1; `step` is the episode's move
+count (0 for the initial-board fallback). Coordinates are zero-based `[x, y]`,
+with x increasing rightward and y downward. Body positions are ordered from
+neck to tail and exclude the head. `direction` is `[dx, dy]`; `food` is null
+when the board is full. Equal high scores retain the first occurrence.
+
+Clients can call `await client.highscore_snapshot(run_id)` on `AsyncLabClient`
+to receive the full response envelope. The `board` object is compatible with
+`BoardSnapshot.from_dict()`. Clients own display and image export; the server
+returns raw JSON only. A missing snapshot is not reconstructed or replayed.
