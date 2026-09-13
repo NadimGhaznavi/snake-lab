@@ -94,8 +94,7 @@ The `configurations` table stores one row per accepted run, linked to
 schema, replacing dots with underscores: `training.learning_rate` becomes
 `training_learning_rate`, and `game.rewards.food` becomes `game_rewards_food`.
 `seed` uses `BIGINT UNSIGNED`; other integers use `INT UNSIGNED` and numbers
-use `DOUBLE`. Configuration and run creation commit together. The original
-`simulation_runs.config` JSON remains available.
+use `DOUBLE`. Configuration and run creation commit together. Configuration values are stored only in `configurations`.
 
 Repeated configurations have separate rows for each run. Join to run status
 when searching completed experiments:

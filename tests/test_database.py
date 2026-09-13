@@ -147,7 +147,7 @@ class SimulationDatabaseTests(unittest.TestCase):
             self.assertIn("INSERT INTO simulation_runs", invocation.args[0])
             self.assertEqual(
                 invocation.args[1],
-                (run_id, DSnakeLab.VERSION, canonical_config(config), config_hash(config)),
+                (run_id, DSnakeLab.VERSION, config_hash(config)),
             )
         self.assertEqual(connection.commit.call_count, 2)
         connection.rollback.assert_not_called()

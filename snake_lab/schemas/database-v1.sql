@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS simulation_runs (
     run_id CHAR(36) NOT NULL UNIQUE,
 
     project_version VARCHAR(32) NOT NULL,
-    config JSON NOT NULL,
     config_hash CHAR(64) NOT NULL,
 
     status VARCHAR(16) NOT NULL,

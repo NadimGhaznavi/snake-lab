@@ -229,13 +229,12 @@ class MariaDBSimulationStore:
                 cursor.execute(
                     """
                     INSERT INTO simulation_runs (
-                        run_id, project_version, config, config_hash, status
-                    ) VALUES (%s, %s, %s, %s, 'queued')
+                        run_id, project_version, config_hash, status
+                    ) VALUES (%s, %s, %s, 'queued')
                     """,
                     (
                         run_id,
                         project_version,
-                        canonical_config(config),
                         digest,
                     ),
                 )
