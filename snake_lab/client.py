@@ -12,6 +12,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
 from textual.screen import ModalScreen
+from textual.validation import Integer
 from textual.widgets import Button, Input, Label, RichLog, Select
 
 from constants.DSnakeLab import DSnakeLab
@@ -251,6 +252,18 @@ class SnakeLabClient(App[None]):
         height: 1;
         color: #9a9a9a;
     }
+    #frame-display {
+        height: 1;
+    }
+    #frame-display Label {
+        width: auto;
+    }
+    #display-every {
+        width: 8;
+        height: 1;
+        border: none;
+        padding: 0 1;
+    }
     #event-log {
         height: 1fr;
         border: round #2aa5ce;
@@ -284,6 +297,8 @@ class SnakeLabClient(App[None]):
         self._active_run: str | None = None
         self._run_state = "idle"
         self._move_delay_ms = 0
+        self._display_every = 1
+        self._frames_until_display = 0
         self._control_busy = False
         self._high_score = 0
         self._last_config_path = "examples/sample-config.json"
@@ -334,6 +349,17 @@ class SnakeLabClient(App[None]):
                         yield Label(
                             "Sampled telemetry", id="diagnostic-mode"
                         )
+                        with Horizontal(id="frame-display"):
+                            yield Label("Display every ")
+                            yield Input(
+                                value="1",
+                                type="integer",
+                                validators=[Integer(minimum=1)],
+                                valid_empty=False,
+                                id="display-every",
+                                tooltip="Show every X received frames (1 = all). Enter a positive whole number.",
+                            )
+                            yield Label(" frames")
                     with Vertical(id="status-panel"):
                         yield Label(
                             f"Server: {self._host} "
@@ -451,6 +477,8 @@ class SnakeLabClient(App[None]):
                 self._show_run(envelope.payload)
 
     def _activate_run(self, run_id: str) -> None:
+        if run_id != self._active_run:
+            self._frames_until_display = 0
         self._active_run = run_id
         self.query_one("#run", Label).update(f"Run: {run_id[:12]}")
 
@@ -458,6 +486,10 @@ class SnakeLabClient(App[None]):
         self._write_event(f"[red]Telemetry error: {message.error}[/red]")
 
     def _show_frame(self, frame: FrameTelemetry) -> None:
+        if self._frames_until_display:
+            self._frames_until_display -= 1
+            return
+        self._frames_until_display = self._display_every - 1
         self.query_one("#board", SnakeBoard).apply_snapshot(frame.board)
         self.query_one("#episode", Label).update(
             f"Episode: {frame.episode}  Step: {frame.step}"
@@ -612,6 +644,16 @@ class SnakeLabClient(App[None]):
     def _cancel_confirmed(self, confirmed: bool | None) -> None:
         if confirmed:
             self._begin_control("cancel")
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id != "display-every":
+            return
+        if not event.value.isdecimal():
+            return
+        interval = int(event.value)
+        if interval > 0 and interval != self._display_every:
+            self._display_every = interval
+            self._frames_until_display = 0
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.control.id != "move-delay":
