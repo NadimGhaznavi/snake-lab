@@ -63,6 +63,11 @@ lab-client --host wintermute
 Choose **Submit config**, select a JSON file, and submit it. The client displays
 the live game, run progress, score, epsilon, loss, and lifecycle events.
 
+Use **Display every X frames** to hold snapshots between board updates. Enter a
+positive whole number, such as `10`, to show one in every ten received frames;
+`1` displays all received frames. This client-only setting applies immediately
+and does not slow the simulation. Frames are already sampled by the server.
+
 See [Developer Integration](/pages/developer.html) to submit simulations from
 another project or service.
 
