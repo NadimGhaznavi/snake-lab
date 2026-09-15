@@ -136,6 +136,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 "#pause-resume",
                 "#cancel-run",
                 "#move-delay",
+                "#display-every",
             ):
                 widget = app.query_one(selector)
                 self.assertGreater(widget.region.height, 0)
@@ -146,6 +147,57 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 [value for _label, value in delay_select._options],
                 [0, 20, 40, 60, 80, 100],
             )
+
+    async def test_frame_interval_holds_snapshots_and_can_change_live(self) -> None:
+        control = FakeControlClient()
+        app = SnakeLabClient(telemetry_port=59999, control_client=control)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            interval = app.query_one("#display-every", Input)
+            board = app.query_one("#board", SnakeBoard)
+            interval.value = "3"
+            await pilot.pause()
+
+            def receive(sequence: int, run_id: str = "snapshot-run") -> None:
+                frame = FrameTelemetry(
+                    episode=sequence + 1, step=sequence, action=1,
+                    reward=0.0, done=True, outcome=Outcome.EMPTY,
+                    board=BoardSnapshot(
+                        width=20, height=20, snake_head=(sequence, 1),
+                        snake_body=(), food=(19, 19), direction=(1, 0),
+                        score=sequence,
+                    ),
+                )
+                app.on_telemetry_received(TelemetryReceived(
+                    TOPIC_FRAME,
+                    TelemetryEnvelope(sequence, run_id, frame.to_dict()),
+                ))
+
+            receive(0)
+            first = board.snapshot
+            receive(1)
+            receive(2)
+            self.assertEqual(board.snapshot, first)
+            receive(3)
+            self.assertEqual(board.snapshot.score, 3)
+            self.assertEqual(app._sequences[TOPIC_FRAME], 3)
+
+            for invalid in ("0", "-2", "", "1.5"):
+                interval.value = invalid
+                await pilot.pause()
+                self.assertEqual(app._display_every, 3)
+
+            receive(4, "next-run")
+            self.assertEqual(board.snapshot.score, 4)
+            receive(5, "next-run")
+            self.assertEqual(board.snapshot.score, 4)
+            interval.value = "1"
+            await pilot.pause()
+            receive(6, "next-run")
+            self.assertEqual(board.snapshot.score, 6)
+            receive(7, "next-run")
+            self.assertEqual(board.snapshot.score, 7)
+            self.assertEqual(control.operations, [])
 
     async def test_loads_and_submits_a_local_config_file(self) -> None:
         control = FakeControlClient()
