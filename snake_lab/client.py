@@ -310,8 +310,7 @@ class SnakeLabClient(App[None]):
         self._display_every = 1
         self._frames_until_display = 0
         self._show_only_highscores = False
-        self._display_episode: int | None = None
-        self._episode_high_score = 0
+        self._frame_high_score = 0
         self._control_busy = False
         self._high_score = 0
         self._last_config_path = "examples/sample-config.json"
@@ -496,8 +495,7 @@ class SnakeLabClient(App[None]):
         if run_id != self._active_run:
             self._frames_until_display = 0
             self._high_score = 0
-            self._display_episode = None
-            self._episode_high_score = 0
+            self._frame_high_score = 0
             if self._show_only_highscores:
                 self._clear_board()
         self._active_run = run_id
@@ -512,16 +510,10 @@ class SnakeLabClient(App[None]):
         self.query_one("#board-panel").border_subtitle = "Waiting for a new highscore"
 
     def _show_frame(self, frame: FrameTelemetry) -> None:
+        previous_high = max(self._high_score, self._frame_high_score)
+        self._frame_high_score = max(self._frame_high_score, frame.board.score)
         if self._show_only_highscores:
-            if frame.episode != self._display_episode:
-                self._display_episode = frame.episode
-                self._episode_high_score = 0
-                self._clear_board()
-                self.query_one("#board-panel").border_title = (
-                    f"Snake — Episode {frame.episode}"
-                )
-            if frame.board.score > self._episode_high_score:
-                self._episode_high_score = frame.board.score
+            if frame.board.score > previous_high:
                 self._render_frame(frame)
             return
         if self._frames_until_display:
@@ -691,8 +683,6 @@ class SnakeLabClient(App[None]):
             return
         self._show_only_highscores = event.value
         self._frames_until_display = 0
-        self._display_episode = None
-        self._episode_high_score = 0
         self.query_one("#frame-display").disabled = event.value
         self.query_one("#display-every", Input).disabled = event.value
         if event.value:
