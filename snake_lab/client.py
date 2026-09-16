@@ -310,7 +310,8 @@ class SnakeLabClient(App[None]):
         self._display_every = 1
         self._frames_until_display = 0
         self._show_only_highscores = False
-        self._frame_high_score = 0
+        self._best_frame: FrameTelemetry | None = None
+        self._reported_missing_high_score = 0
         self._control_busy = False
         self._high_score = 0
         self._last_config_path = "examples/sample-config.json"
@@ -495,7 +496,8 @@ class SnakeLabClient(App[None]):
         if run_id != self._active_run:
             self._frames_until_display = 0
             self._high_score = 0
-            self._frame_high_score = 0
+            self._best_frame = None
+            self._reported_missing_high_score = 0
             if self._show_only_highscores:
                 self._clear_board()
         self._active_run = run_id
@@ -510,17 +512,43 @@ class SnakeLabClient(App[None]):
         self.query_one("#board-panel").border_subtitle = "Waiting for a new highscore"
 
     def _show_frame(self, frame: FrameTelemetry) -> None:
-        previous_high = max(self._high_score, self._frame_high_score)
-        self._frame_high_score = max(self._frame_high_score, frame.board.score)
+        if self._best_frame is None or frame.board.score > self._best_frame.board.score:
+            self._best_frame = frame
         if self._show_only_highscores:
-            if frame.board.score > previous_high:
-                self._render_frame(frame)
+            self._refresh_highscore_board()
             return
         if self._frames_until_display:
             self._frames_until_display -= 1
             return
         self._frames_until_display = self._display_every - 1
         self._render_frame(frame)
+
+    def _refresh_highscore_board(self) -> None:
+        if not self._show_only_highscores:
+            return
+        frame = self._best_frame
+        board = self.query_one("#board", SnakeBoard)
+        if (
+            frame is not None
+            and frame.board.score > 0
+            and frame.board.score >= self._high_score
+            and (board.snapshot is None or frame.board.score > board.snapshot.score)
+        ):
+            self._render_frame(frame)
+        score = board.snapshot.score if board.snapshot is not None else "--"
+        self.query_one("#score", Label).update(
+            f"Score: {score}  High: {self._high_score}"
+        )
+        if self._high_score > 0 and (
+            board.snapshot is None or board.snapshot.score < self._high_score
+        ):
+            self.query_one("#board-panel").border_subtitle = "Not Available"
+            if self._high_score > self._reported_missing_high_score:
+                self._reported_missing_high_score = self._high_score
+                self._write_event(
+                    f"[yellow]Dropped frames: no board received for "
+                    f"highscore {self._high_score}.[/yellow]"
+                )
 
     def _render_frame(self, frame: FrameTelemetry) -> None:
         self.query_one("#board", SnakeBoard).apply_snapshot(frame.board)
@@ -558,6 +586,7 @@ class SnakeLabClient(App[None]):
         self.query_one("#score", Label).update(
             f"Score: {episode.get('score', 0)}  High: {self._high_score}"
         )
+        self._refresh_highscore_board()
         epsilon = episode.get("epsilon")
         loss = episode.get("loss")
         self.query_one("#epsilon", Label).update(
@@ -585,6 +614,7 @@ class SnakeLabClient(App[None]):
             )
         if "high_score" in payload:
             self._high_score = int(payload["high_score"])
+            self._refresh_highscore_board()
         delay_select = self.query_one("#move-delay", Select)
         if delay_select.value != self._move_delay_ms:
             delay_select.value = self._move_delay_ms
@@ -687,6 +717,7 @@ class SnakeLabClient(App[None]):
         self.query_one("#display-every", Input).disabled = event.value
         if event.value:
             self._clear_board()
+            self._refresh_highscore_board()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id != "display-every":
