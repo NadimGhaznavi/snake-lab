@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add a lab-client “Show only highscores” checkbox that holds matching record-episode boards and disables frame-display sampling while checked.
+- Shrink lab-client controls: size Submit Config to its label with two characters of padding per side, and set Pause and Cancel to 16 characters wide.
+
 ## [1.1.3] - 2026-09-15 @ 06:00
 
 - Add a lab client control to display every X received frames, holding board snapshots between updates without slowing the simulation.

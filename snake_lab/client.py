@@ -13,7 +13,7 @@ from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
 from textual.screen import ModalScreen
 from textual.validation import Integer
-from textual.widgets import Button, Input, Label, RichLog, Select
+from textual.widgets import Button, Checkbox, Input, Label, RichLog, Select
 
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.board import SnakeBoard
@@ -238,11 +238,13 @@ class SnakeLabClient(App[None]):
         height: 1;
     }
     #control-buttons Button {
-        width: 1fr;
+        width: 16;
         min-width: 0;
     }
     #submit-config {
-        width: 100%;
+        width: auto;
+        min-width: 0;
+        padding: 0 2;
         height: 1;
     }
     #move-delay {
@@ -251,6 +253,14 @@ class SnakeLabClient(App[None]):
     #diagnostic-mode {
         height: 1;
         color: #9a9a9a;
+    }
+    #show-only-highscores {
+        height: 1;
+        border: none;
+        padding: 0;
+    }
+    #frame-display:disabled {
+        opacity: 40%;
     }
     #frame-display {
         height: 1;
@@ -299,6 +309,9 @@ class SnakeLabClient(App[None]):
         self._move_delay_ms = 0
         self._display_every = 1
         self._frames_until_display = 0
+        self._show_only_highscores = False
+        self._latest_frame: FrameTelemetry | None = None
+        self._pending_highscore: tuple[int, int] | None = None
         self._control_busy = False
         self._high_score = 0
         self._last_config_path = "examples/sample-config.json"
@@ -348,6 +361,9 @@ class SnakeLabClient(App[None]):
                         )
                         yield Label(
                             "Sampled telemetry", id="diagnostic-mode"
+                        )
+                        yield Checkbox(
+                            "Show only highscores", id="show-only-highscores"
                         )
                         with Horizontal(id="frame-display"):
                             yield Label("Display every ")
@@ -479,17 +495,42 @@ class SnakeLabClient(App[None]):
     def _activate_run(self, run_id: str) -> None:
         if run_id != self._active_run:
             self._frames_until_display = 0
+            self._high_score = 0
+            self._latest_frame = None
+            self._pending_highscore = None
+            if self._show_only_highscores:
+                self._clear_board()
         self._active_run = run_id
         self.query_one("#run", Label).update(f"Run: {run_id[:12]}")
 
     def on_telemetry_error(self, message: TelemetryError) -> None:
         self._write_event(f"[red]Telemetry error: {message.error}[/red]")
 
+    def _clear_board(self) -> None:
+        self.query_one("#board", SnakeBoard).snapshot = None
+        self.query_one("#board-panel").border_title = "Snake"
+        self.query_one("#board-panel").border_subtitle = "Waiting for a new highscore"
+
+    def _show_pending_highscore(self) -> None:
+        frame = self._latest_frame
+        if frame is not None and self._pending_highscore == (
+            frame.episode, frame.board.score
+        ):
+            self._render_frame(frame)
+            self._pending_highscore = None
+
     def _show_frame(self, frame: FrameTelemetry) -> None:
+        self._latest_frame = frame
+        if self._show_only_highscores:
+            self._show_pending_highscore()
+            return
         if self._frames_until_display:
             self._frames_until_display -= 1
             return
         self._frames_until_display = self._display_every - 1
+        self._render_frame(frame)
+
+    def _render_frame(self, frame: FrameTelemetry) -> None:
         self.query_one("#board", SnakeBoard).apply_snapshot(frame.board)
         self.query_one("#episode", Label).update(
             f"Episode: {frame.episode}  Step: {frame.step}"
@@ -516,6 +557,11 @@ class SnakeLabClient(App[None]):
         )
         self._show_episode_values(episode)
         if self._high_score > previous_high_score:
+            if self._show_only_highscores:
+                self._pending_highscore = (
+                    int(episode["episode"]), self._high_score
+                )
+                self._show_pending_highscore()
             self._write_event(
                 f"[green]New high score {self._high_score} "
                 f"at episode {episode.get('episode')}[/green]"
@@ -644,6 +690,17 @@ class SnakeLabClient(App[None]):
     def _cancel_confirmed(self, confirmed: bool | None) -> None:
         if confirmed:
             self._begin_control("cancel")
+
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        if event.checkbox.id != "show-only-highscores":
+            return
+        self._show_only_highscores = event.value
+        self._frames_until_display = 0
+        self._pending_highscore = None
+        self.query_one("#frame-display").disabled = event.value
+        self.query_one("#display-every", Input).disabled = event.value
+        if event.value:
+            self._clear_board()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id != "display-every":
