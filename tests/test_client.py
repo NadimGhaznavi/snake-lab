@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from textual.widgets import Button, Input, Label, Select
+from textual.widgets import Button, Checkbox, Input, Label, Select
 
 from snake_lab.board import SnakeBoard
 from snake_lab.game import Outcome
@@ -137,6 +137,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 "#cancel-run",
                 "#move-delay",
                 "#display-every",
+                "#show-only-highscores",
             ):
                 widget = app.query_one(selector)
                 self.assertGreater(widget.region.height, 0)
@@ -197,6 +198,84 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(board.snapshot.score, 6)
             receive(7, "next-run")
             self.assertEqual(board.snapshot.score, 7)
+            self.assertEqual(control.operations, [])
+
+    async def test_highscores_hold_matching_boards_and_bypass_sampling(self) -> None:
+        control = FakeControlClient()
+        app = SnakeLabClient(telemetry_port=59999, control_client=control)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            interval = app.query_one("#display-every", Input)
+            checkbox = app.query_one("#show-only-highscores", Checkbox)
+            board = app.query_one("#board", SnakeBoard)
+            interval.value = "100"
+            await pilot.pause()
+            app._activate_run("first-run")
+
+            def frame(episode: int, score: int) -> None:
+                app._show_frame(FrameTelemetry(
+                    episode=episode, step=score + 1, action=1,
+                    reward=0.0, done=True, outcome=Outcome.EMPTY,
+                    board=BoardSnapshot(
+                        width=20, height=20, snake_head=(score, 1),
+                        snake_body=(), food=(19, 19), direction=(1, 0),
+                        score=score,
+                    ),
+                ))
+
+            def complete(episode: int, score: int, high: int) -> None:
+                app._show_episode({
+                    "episode": {"episode": episode, "score": score},
+                    "summary": {"high_score": high,
+                                "completed_epochs": episode, "epochs": 100},
+                })
+
+            frame(1, 1)
+            checkbox.value = True
+            await pilot.pause()
+            self.assertIsNone(board.snapshot)
+            self.assertTrue(interval.disabled)
+            self.assertTrue(app.query_one("#frame-display").disabled)
+            self.assertEqual(interval.value, "100")
+            frame(2, 3)
+            self.assertIsNone(board.snapshot)
+            complete(2, 3, 3)
+            self.assertEqual(board.snapshot.score, 3)
+            record = board.snapshot
+            frame(3, 3)
+            complete(3, 3, 3)
+            frame(4, 1)
+            complete(4, 1, 3)
+            self.assertEqual(board.snapshot, record)
+            self.assertEqual(str(app.query_one("#progress", Label).render()),
+                             "Progress: 4/100")
+
+            # Episode summaries can arrive before their sampled board.
+            complete(5, 5, 5)
+            self.assertEqual(board.snapshot, record)
+            frame(5, 5)
+            self.assertEqual(board.snapshot.score, 5)
+            record = board.snapshot
+            frame(6, 2)
+            complete(6, 7, 7)  # No matching board was received.
+            self.assertEqual(board.snapshot, record)
+            frame(7, 7)  # A tied episode must not stand in for the record.
+            complete(7, 7, 7)
+            self.assertEqual(board.snapshot, record)
+
+            app._activate_run("second-run")
+            self.assertIsNone(board.snapshot)
+            frame(1, 1)
+            complete(1, 1, 1)
+            self.assertEqual(board.snapshot.score, 1)
+            checkbox.value = False
+            await pilot.pause()
+            self.assertFalse(interval.disabled)
+            self.assertEqual(interval.value, "100")
+            frame(2, 2)
+            self.assertEqual(board.snapshot.score, 2)
+            frame(3, 3)
+            self.assertEqual(board.snapshot.score, 2)
             self.assertEqual(control.operations, [])
 
     async def test_loads_and_submits_a_local_config_file(self) -> None:
