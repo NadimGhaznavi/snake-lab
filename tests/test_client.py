@@ -200,7 +200,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(board.snapshot.score, 7)
             self.assertEqual(control.operations, [])
 
-    async def test_highscores_hold_matching_boards_and_bypass_sampling(self) -> None:
+    async def test_episode_highscores_refresh_immediately_and_bypass_sampling(self) -> None:
         control = FakeControlClient()
         app = SnakeLabClient(telemetry_port=59999, control_client=control)
         async with app.run_test(size=(100, 30)) as pilot:
@@ -212,12 +212,16 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
             app._activate_run("first-run")
 
+            step = 0
+
             def frame(episode: int, score: int) -> None:
+                nonlocal step
+                step += 1
                 app._show_frame(FrameTelemetry(
-                    episode=episode, step=score + 1, action=1,
-                    reward=0.0, done=True, outcome=Outcome.EMPTY,
+                    episode=episode, step=step, action=1,
+                    reward=0.0, done=False, outcome=Outcome.EMPTY,
                     board=BoardSnapshot(
-                        width=20, height=20, snake_head=(score, 1),
+                        width=20, height=20, snake_head=(step, 1),
                         snake_body=(), food=(19, 19), direction=(1, 0),
                         score=score,
                     ),
@@ -237,31 +241,31 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(interval.disabled)
             self.assertTrue(app.query_one("#frame-display").disabled)
             self.assertEqual(interval.value, "100")
-            frame(2, 3)
+            frame(2, 0)
             self.assertIsNone(board.snapshot)
-            complete(2, 3, 3)
+            frame(2, 1)
+            self.assertEqual(board.snapshot.score, 1)
+            record = board.snapshot
+            frame(2, 1)
+            self.assertEqual(board.snapshot, record)
+            frame(2, 3)
             self.assertEqual(board.snapshot.score, 3)
             record = board.snapshot
-            frame(3, 3)
-            complete(3, 3, 3)
-            frame(4, 1)
-            complete(4, 1, 3)
+            complete(2, 3, 30)  # Overall records do not gate episode boards.
             self.assertEqual(board.snapshot, record)
-            self.assertEqual(str(app.query_one("#progress", Label).render()),
-                             "Progress: 4/100")
-
-            # Episode summaries can arrive before their sampled board.
-            complete(5, 5, 5)
-            self.assertEqual(board.snapshot, record)
-            frame(5, 5)
-            self.assertEqual(board.snapshot.score, 5)
+            frame(3, 0)
+            self.assertIsNone(board.snapshot)
+            frame(3, 1)
+            self.assertEqual(board.snapshot.score, 1)
             record = board.snapshot
-            frame(6, 2)
-            complete(6, 7, 7)  # No matching board was received.
+            frame(3, 1)
             self.assertEqual(board.snapshot, record)
-            frame(7, 7)  # A tied episode must not stand in for the record.
-            complete(7, 7, 7)
-            self.assertEqual(board.snapshot, record)
+            complete(3, 1, 30)
+            self.assertEqual(str(app.query_one("#progress", Label).render()),
+                             "Progress: 3/100")
+            # The first sampled frame of an episode can already have scored.
+            frame(4, 2)
+            self.assertEqual(board.snapshot.score, 2)
 
             app._activate_run("second-run")
             self.assertIsNone(board.snapshot)
