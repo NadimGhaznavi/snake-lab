@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Change the lab-client “Show only highscores” mode to clear the board on each new episode and refresh immediately when received frames show an improvement in that episode’s score.
+
 ## [1.2.0] - 2026-09-16 @ 18:05
 
 - Add a lab-client “Show only highscores” checkbox that holds matching record-episode boards and disables frame-display sampling while checked.

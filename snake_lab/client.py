@@ -310,8 +310,8 @@ class SnakeLabClient(App[None]):
         self._display_every = 1
         self._frames_until_display = 0
         self._show_only_highscores = False
-        self._latest_frame: FrameTelemetry | None = None
-        self._pending_highscore: tuple[int, int] | None = None
+        self._display_episode: int | None = None
+        self._episode_high_score = 0
         self._control_busy = False
         self._high_score = 0
         self._last_config_path = "examples/sample-config.json"
@@ -496,8 +496,8 @@ class SnakeLabClient(App[None]):
         if run_id != self._active_run:
             self._frames_until_display = 0
             self._high_score = 0
-            self._latest_frame = None
-            self._pending_highscore = None
+            self._display_episode = None
+            self._episode_high_score = 0
             if self._show_only_highscores:
                 self._clear_board()
         self._active_run = run_id
@@ -511,18 +511,18 @@ class SnakeLabClient(App[None]):
         self.query_one("#board-panel").border_title = "Snake"
         self.query_one("#board-panel").border_subtitle = "Waiting for a new highscore"
 
-    def _show_pending_highscore(self) -> None:
-        frame = self._latest_frame
-        if frame is not None and self._pending_highscore == (
-            frame.episode, frame.board.score
-        ):
-            self._render_frame(frame)
-            self._pending_highscore = None
-
     def _show_frame(self, frame: FrameTelemetry) -> None:
-        self._latest_frame = frame
         if self._show_only_highscores:
-            self._show_pending_highscore()
+            if frame.episode != self._display_episode:
+                self._display_episode = frame.episode
+                self._episode_high_score = 0
+                self._clear_board()
+                self.query_one("#board-panel").border_title = (
+                    f"Snake — Episode {frame.episode}"
+                )
+            if frame.board.score > self._episode_high_score:
+                self._episode_high_score = frame.board.score
+                self._render_frame(frame)
             return
         if self._frames_until_display:
             self._frames_until_display -= 1
@@ -557,11 +557,6 @@ class SnakeLabClient(App[None]):
         )
         self._show_episode_values(episode)
         if self._high_score > previous_high_score:
-            if self._show_only_highscores:
-                self._pending_highscore = (
-                    int(episode["episode"]), self._high_score
-                )
-                self._show_pending_highscore()
             self._write_event(
                 f"[green]New high score {self._high_score} "
                 f"at episode {episode.get('episode')}[/green]"
@@ -696,7 +691,8 @@ class SnakeLabClient(App[None]):
             return
         self._show_only_highscores = event.value
         self._frames_until_display = 0
-        self._pending_highscore = None
+        self._display_episode = None
+        self._episode_high_score = 0
         self.query_one("#frame-display").disabled = event.value
         self.query_one("#display-every", Input).disabled = event.value
         if event.value:
