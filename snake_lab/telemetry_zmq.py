@@ -21,7 +21,7 @@ from snake_lab.telemetry import (
 
 
 class TelemetryPublisher:
-    """Publish low-rate events and the latest frame at a bounded rate."""
+    """Publish events and every offered board frame in queue order."""
 
     def __init__(
         self,
@@ -29,27 +29,20 @@ class TelemetryPublisher:
         context: zmq.asyncio.Context,
         address: str,
         port: int,
-        frame_rate: float,
         event_queue_size: int = 1024,
     ) -> None:
-        if frame_rate <= 0:
-            raise ValueError("frame_rate must be greater than zero")
         if event_queue_size <= 0:
             raise ValueError("event_queue_size must be greater than zero")
 
         self.endpoint = f"tcp://{address}:{port}"
-        self._frame_interval = 1.0 / frame_rate
         self._socket = context.socket(zmq.XPUB)
         self._socket.setsockopt(zmq.LINGER, 0)
         self._socket.setsockopt(zmq.SNDHWM, event_queue_size)
         self._events: asyncio.Queue[tuple[str, str, dict[str, Any]]] = (
             asyncio.Queue(maxsize=event_queue_size)
         )
-        self._latest_frame: tuple[str, FrameTelemetry] | None = None
-        self._frame_ready = asyncio.Event()
         self._sequences: defaultdict[str, int] = defaultdict(int)
         self._event_task: asyncio.Task[None] | None = None
-        self._frame_task: asyncio.Task[None] | None = None
         self._started = False
         self._frame_filters: set[bytes] = set()
         self._has_frame_subscribers = False
@@ -64,9 +57,6 @@ class TelemetryPublisher:
         )
         self._event_task = asyncio.create_task(
             self._event_loop(), name="telemetry-events"
-        )
-        self._frame_task = asyncio.create_task(
-            self._frame_loop(), name="telemetry-frames"
         )
         self._started = True
 
@@ -92,13 +82,10 @@ class TelemetryPublisher:
             else:
                 self._frame_filters.discard(prefix)
             self._has_frame_subscribers = bool(self._frame_filters)
-            if not self._has_frame_subscribers:
-                self._latest_frame = None
-                self._frame_ready.clear()
 
     def check(self) -> None:
         """Surface failed telemetry tasks to the server service loop."""
-        for task in (self._subscription_task, self._event_task, self._frame_task):
+        for task in (self._subscription_task, self._event_task):
             if task is not None and task.done():
                 task.result()
                 raise RuntimeError("telemetry publisher stopped unexpectedly")
@@ -107,21 +94,13 @@ class TelemetryPublisher:
         self,
         run_id: str,
         frame: FrameTelemetry,
-        *,
-        preserve: bool = False,
     ) -> None:
-        """Offer a sampled frame, or preserve it in diagnostic mode."""
+        """Queue each frame immediately when a viewer is subscribed."""
         if not isinstance(frame, FrameTelemetry):
             raise TypeError("frame must be FrameTelemetry")
         if not self.has_frame_subscribers:
             return
-        if preserve:
-            self._latest_frame = None
-            self._frame_ready.clear()
-            self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
-            return
-        self._latest_frame = (run_id, frame)
-        self._frame_ready.set()
+        self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
 
     def offer_run(self, run_id: str, payload: dict[str, Any]) -> None:
         self._offer_event(TOPIC_RUN, run_id, payload)
@@ -161,36 +140,14 @@ class TelemetryPublisher:
             finally:
                 self._events.task_done()
 
-    async def _frame_loop(self) -> None:
-        loop = asyncio.get_running_loop()
-        next_send = loop.time()
-        while True:
-            await self._frame_ready.wait()
-            delay = next_send - loop.time()
-            if delay > 0:
-                await asyncio.sleep(delay)
-
-            pending = self._latest_frame
-            self._latest_frame = None
-            self._frame_ready.clear()
-            if pending is None or not self.has_frame_subscribers:
-                continue
-            run_id, frame = pending
-            self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
-            next_send = loop.time() + self._frame_interval
-
-            if self._latest_frame is not None:
-                self._frame_ready.set()
-
     async def close(self) -> None:
         tasks = [
             task
-            for task in (self._event_task, self._frame_task, self._subscription_task)
+            for task in (self._event_task, self._subscription_task)
             if task is not None
         ]
         self._subscription_task = None
         self._event_task = None
-        self._frame_task = None
         for task in tasks:
             task.cancel()
         if tasks:
@@ -198,8 +155,6 @@ class TelemetryPublisher:
         self._socket.close()
         self._frame_filters.clear()
         self._has_frame_subscribers = False
-        self._latest_frame = None
-        self._frame_ready.clear()
         self._started = False
 
 

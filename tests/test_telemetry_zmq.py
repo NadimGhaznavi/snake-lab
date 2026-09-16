@@ -6,7 +6,7 @@ import zmq
 import zmq.asyncio
 
 from snake_lab.game import Outcome
-from snake_lab.telemetry import BoardSnapshot, FrameTelemetry, TOPIC_FRAME, TOPIC_RUN
+from snake_lab.telemetry import BoardSnapshot, FrameTelemetry, TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
 from snake_lab.telemetry_zmq import TelemetryPublisher
 
 
@@ -60,77 +60,55 @@ def frame(step: int) -> FrameTelemetry:
 
 
 class TelemetryPublisherTests(unittest.IsolatedAsyncioTestCase):
-    async def test_diagnostic_mode_preserves_every_offered_frame(self) -> None:
+    async def test_full_speed_frames_are_all_sent_before_episode_result(self) -> None:
         context = FakeContext()
         publisher = TelemetryPublisher(
             context=context,
             address="127.0.0.1",
             port=41971,
-            frame_rate=15,
         )
         publisher.start()
         context.socket_instance.incoming.put_nowait(b"\x01" + TOPIC_FRAME.encode())
         await asyncio.sleep(0)
 
-        for step in (1, 2, 3):
-            publisher.offer_frame("run-1", frame(step), preserve=True)
-        await self._wait_for_messages(context.socket_instance, 3)
-        await publisher.close()
-
-        self.assertEqual(
-            [
-                json.loads(frames[1].decode("utf-8"))["payload"]["step"]
-                for frames in context.socket_instance.sent
-            ],
-            [1, 2, 3],
-        )
-
-    async def test_full_speed_mode_keeps_only_the_latest_frame(self) -> None:
-        context = FakeContext()
-        publisher = TelemetryPublisher(
-            context=context,
-            address="127.0.0.1",
-            port=41971,
-            frame_rate=15,
-        )
-        publisher.start()
-        context.socket_instance.incoming.put_nowait(b"\x01" + TOPIC_FRAME.encode())
-        await asyncio.sleep(0)
-
-        for step in (1, 2, 3):
-            publisher.offer_frame("run-1", frame(step))
-        await self._wait_for_messages(context.socket_instance, 1)
-        await publisher.close()
-
-        payload = json.loads(
-            context.socket_instance.sent[0][1].decode("utf-8")
-        )["payload"]
-        self.assertEqual(payload["step"], 3)
+        try:
+            for step in range(100):
+                publisher.offer_frame("run-1", frame(step))
+            publisher.offer_episode("run-1", {"episode": 1})
+            await self._wait_for_messages(context.socket_instance, 101)
+            messages = context.socket_instance.sent
+            self.assertEqual([message[0] for message in messages],
+                             [TOPIC_FRAME.encode()] * 100 + [TOPIC_EPISODE.encode()])
+            self.assertEqual(
+                [json.loads(message[1])["payload"]["step"] for message in messages[:-1]],
+                list(range(100)),
+            )
+        finally:
+            await publisher.close()
 
     async def test_no_frame_interest_skips_serialization_but_keeps_run_events(self) -> None:
         from unittest.mock import patch
 
         context = FakeContext()
         publisher = TelemetryPublisher(
-            context=context, address="127.0.0.1", port=41971, frame_rate=15,
+            context=context, address="127.0.0.1", port=41971,
         )
         publisher.start()
         try:
             with patch.object(FrameTelemetry, "to_dict") as serialize:
                 publisher.offer_frame("run-1", frame(1))
-                publisher.offer_frame("run-1", frame(2), preserve=True)
+                publisher.offer_frame("run-1", frame(2))
                 publisher.offer_run("run-1", {"state": "running"})
                 await self._wait_for_messages(context.socket_instance, 1)
                 serialize.assert_not_called()
             self.assertEqual(context.socket_instance.sent[0][0], TOPIC_RUN.encode())
-            self.assertIsNone(publisher._latest_frame)
         finally:
             await publisher.close()
 
     async def test_last_unsubscribe_discards_pending_frames(self) -> None:
         context = FakeContext()
         publisher = TelemetryPublisher(
-            context=context, address="127.0.0.1", port=41971, frame_rate=15,
+            context=context, address="127.0.0.1", port=41971,
         )
         publisher.start()
         try:
@@ -138,12 +116,11 @@ class TelemetryPublisherTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0)
             # Wake the subscription reader before either publishing task runs.
             context.socket_instance.incoming.put_nowait(b"\x00" + TOPIC_FRAME.encode())
-            publisher.offer_frame("run-1", frame(1), preserve=True)
+            publisher.offer_frame("run-1", frame(1))
             publisher.offer_frame("run-1", frame(2))
             publisher.offer_run("run-1", {"state": "completed"})
             await self._wait_for_messages(context.socket_instance, 1)
             self.assertFalse(publisher.has_frame_subscribers)
-            self.assertIsNone(publisher._latest_frame)
             self.assertEqual(
                 [message[0] for message in context.socket_instance.sent],
                 [TOPIC_RUN.encode()],
@@ -164,7 +141,7 @@ class SubscriptionIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.context = zmq.asyncio.Context()
         self.publisher = TelemetryPublisher(
-            context=self.context, address="127.0.0.1", port=0, frame_rate=100,
+            context=self.context, address="127.0.0.1", port=0,
         )
         self.publisher.endpoint = "inproc://telemetry-demand"
         self.publisher.start()
@@ -191,7 +168,7 @@ class SubscriptionIntegrationTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(wait(), 2)
 
     async def receive_frame(self, subscriber) -> None:
-        self.publisher.offer_frame("run-1", frame(1), preserve=True)
+        self.publisher.offer_frame("run-1", frame(1))
         message = await asyncio.wait_for(subscriber.recv_multipart(), 2)
         self.assertEqual(message[0], TOPIC_FRAME.encode())
 

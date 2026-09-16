@@ -73,7 +73,6 @@ class SnakeLabServer:
         address: str = "*",
         port: int = DSnakeLab.PORT,
         telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
-        telemetry_frame_rate: float = DSnakeLab.TELEMETRY_FRAME_RATE,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         store: SimulationStore | None = None,
         events_port: int = DSnakeLab.EVENTS_PORT,
@@ -93,7 +92,6 @@ class SnakeLabServer:
             context=self._context,
             address=address,
             port=telemetry_port,
-            frame_rate=telemetry_frame_rate,
         )
         self.events = EventsPublisher(
             context=self._context,
@@ -367,7 +365,6 @@ class SnakeLabServer:
             on_frame=lambda frame: self.telemetry.offer_frame(
                 run.run_id,
                 frame,
-                preserve=run.control.diagnostic_mode,
             ),
             runtime_control=run.control,
             frame_enabled=lambda: self.telemetry.has_frame_subscribers,
@@ -539,11 +536,6 @@ async def amain() -> None:
     parser.add_argument(
         "--events-port", type=int, default=DSnakeLab.EVENTS_PORT
     )
-    parser.add_argument(
-        "--telemetry-frame-rate",
-        type=float,
-        default=DSnakeLab.TELEMETRY_FRAME_RATE,
-    )
     parser.add_argument("--log-file", default=DSnakeLab.SERVER_LOG_FILE)
     parser.add_argument(
         "--ephemeral",
@@ -562,7 +554,6 @@ async def amain() -> None:
         address=args.address,
         port=args.port,
         telemetry_port=args.telemetry_port,
-        telemetry_frame_rate=args.telemetry_frame_rate,
         events_port=args.events_port,
         log_file=args.log_file,
         store=store,

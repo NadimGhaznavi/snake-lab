@@ -11,7 +11,6 @@ class DSnakeLab:
     EVENTS_PORT: Final[int] = 41972
     PORT: Final[int] = 41970
     PYTORCH_NUM_THREADS: Final[int] = 10
-    TELEMETRY_FRAME_RATE: Final[float] = 15.0
     TELEMETRY_PORT: Final[int] = 41971
     SERVER_LOG_FILE: Final[str] = "/opt/snake-lab/logs/server.log"
-    VERSION: Final[str] = "1.2.3"
+    VERSION: Final[str] = "1.3.0"
