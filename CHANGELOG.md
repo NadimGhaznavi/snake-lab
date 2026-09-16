@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Accept highscore board frames arriving after their score update, reuse cached record boards, and keep the Run panel score aligned with the displayed board in highscore mode.
+- Show “Not Available” in the board subtitle and log a dropped-frames message once per missing highscore board.
+
 ## [1.2.2] - 2026-09-16 @ 18:20
 
 - Compare lab-client highscores across the entire simulation run, holding the board between episodes and clearing it when a new run starts.

@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from textual.widgets import Button, Checkbox, Input, Label, Select
 
@@ -263,8 +264,27 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(board.snapshot.score, 4)
             record = board.snapshot
             # Respect records reported for episodes whose frames were missed.
-            complete(5, 7, 7)
+            with patch.object(app, "_write_event", wraps=app._write_event) as log:
+                complete(5, 7, 7)
+                app._refresh_highscore_board()
+                self.assertEqual(
+                    sum("Dropped frames" in call.args[0] for call in log.call_args_list),
+                    1,
+                )
+            self.assertEqual(app.query_one("#board-panel").border_subtitle,
+                             "Not Available")
+            self.assertEqual(str(app.query_one("#score", Label).render()),
+                             "Score: 4  High: 7")
             frame(6, 6)
+            self.assertEqual(board.snapshot, record)
+            # A frame matching an already announced record must be accepted.
+            frame(6, 7)
+            self.assertEqual(board.snapshot.score, 7)
+            self.assertEqual(app.query_one("#board-panel").border_subtitle,
+                             "Score 7")
+            self.assertEqual(str(app.query_one("#score", Label).render()),
+                             "Score: 7  High: 7")
+            record = board.snapshot
             frame(6, 7)
             self.assertEqual(board.snapshot, record)
             frame(6, 8)
@@ -287,10 +307,20 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             # records received while local frame sampling hid their boards.
             checkbox.value = True
             await pilot.pause()
+            self.assertEqual(board.snapshot.score, 3)
+            record = board.snapshot
             frame(4, 3)
-            self.assertIsNone(board.snapshot)
+            self.assertEqual(board.snapshot, record)
             frame(4, 4)
             self.assertEqual(board.snapshot.score, 4)
+            app._show_run({"state": "running", "high_score": 5})
+            frame(5, 5)
+            self.assertEqual(board.snapshot.score, 5)
+            self.assertEqual(str(app.query_one("#score", Label).render()),
+                             "Score: 5  High: 5")
+            complete(6, 1, 5)
+            self.assertEqual(str(app.query_one("#score", Label).render()),
+                             "Score: 5  High: 5")
             self.assertEqual(control.operations, [])
 
     async def test_loads_and_submits_a_local_config_file(self) -> None:
