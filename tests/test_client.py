@@ -200,7 +200,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(board.snapshot.score, 7)
             self.assertEqual(control.operations, [])
 
-    async def test_episode_highscores_refresh_immediately_and_bypass_sampling(self) -> None:
+    async def test_run_highscores_hold_across_episodes_and_bypass_sampling(self) -> None:
         control = FakeControlClient()
         app = SnakeLabClient(telemetry_port=59999, control_client=control)
         async with app.run_test(size=(100, 30)) as pilot:
@@ -234,7 +234,7 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                                 "completed_epochs": episode, "epochs": 100},
                 })
 
-            frame(1, 1)
+            frame(1, 0)
             checkbox.value = True
             await pilot.pause()
             self.assertIsNone(board.snapshot)
@@ -251,21 +251,24 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             frame(2, 3)
             self.assertEqual(board.snapshot.score, 3)
             record = board.snapshot
-            complete(2, 3, 30)  # Overall records do not gate episode boards.
+            complete(2, 3, 3)
             self.assertEqual(board.snapshot, record)
-            frame(3, 0)
-            self.assertIsNone(board.snapshot)
-            frame(3, 1)
-            self.assertEqual(board.snapshot.score, 1)
-            record = board.snapshot
-            frame(3, 1)
-            self.assertEqual(board.snapshot, record)
-            complete(3, 1, 30)
+            for score in (0, 1, 3):
+                frame(3, score)
+                self.assertEqual(board.snapshot, record)
+            complete(3, 3, 3)
             self.assertEqual(str(app.query_one("#progress", Label).render()),
                              "Progress: 3/100")
-            # The first sampled frame of an episode can already have scored.
-            frame(4, 2)
-            self.assertEqual(board.snapshot.score, 2)
+            frame(4, 4)
+            self.assertEqual(board.snapshot.score, 4)
+            record = board.snapshot
+            # Respect records reported for episodes whose frames were missed.
+            complete(5, 7, 7)
+            frame(6, 6)
+            frame(6, 7)
+            self.assertEqual(board.snapshot, record)
+            frame(6, 8)
+            self.assertEqual(board.snapshot.score, 8)
 
             app._activate_run("second-run")
             self.assertIsNone(board.snapshot)
@@ -280,6 +283,14 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(board.snapshot.score, 2)
             frame(3, 3)
             self.assertEqual(board.snapshot.score, 2)
+            # Toggling the filter must not reset the run's record, including
+            # records received while local frame sampling hid their boards.
+            checkbox.value = True
+            await pilot.pause()
+            frame(4, 3)
+            self.assertIsNone(board.snapshot)
+            frame(4, 4)
+            self.assertEqual(board.snapshot.score, 4)
             self.assertEqual(control.operations, [])
 
     async def test_loads_and_submits_a_local_config_file(self) -> None:
