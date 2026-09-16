@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-16 @ 18:15
+
 - Change the lab-client “Show only highscores” mode to clear the board on each new episode and refresh immediately when received frames show an improvement in that episode’s score.
 
 ## [1.2.0] - 2026-09-16 @ 18:05
