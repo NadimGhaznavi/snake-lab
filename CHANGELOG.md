@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-16 @ 18:51
+
 - Remove server-side telemetry frame sampling and the `--telemetry-frame-rate` option. Queue every generated board frame for subscribed viewers; client display filtering remains available.
 
 ## [1.2.3] - 2026-09-16 @ 18:43
