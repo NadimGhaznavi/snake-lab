@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-09-17 @ 17:59
+
 - Match the Score Distribution histogram bars to the snake body colour (`#025b02`).
 
 ## [1.5.1] - 2026-09-17 @ 17:44
