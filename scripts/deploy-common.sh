@@ -42,6 +42,9 @@ validate_release_checkout() {
         "snake_lab/__init__.py"
         "snake_lab/board.py"
         "snake_lab/client.py"
+        "snake_lab/client.tcss"
+        "snake_lab/client_config.py"
+        "snake_lab/client_plots.py"
         "snake_lab/configuration.py"
         "snake_lab/control_client.py"
         "snake_lab/database.py"
@@ -167,7 +170,7 @@ deploy_application() {
 
     install -m 0644 "${PROJECT_DIR}/constants/"*.py \
         "${staging_dir}/constants/"
-    install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
+    install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py "${PROJECT_DIR}/snake_lab/"*.tcss \
         "${staging_dir}/snake_lab/"
     install -m 0644 \
         "${PROJECT_DIR}/snake_lab/schemas/"*.json \

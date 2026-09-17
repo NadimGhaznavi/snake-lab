@@ -86,69 +86,42 @@ class FakeControlClient:
 
 
 class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
-    async def test_game_is_fixed_while_other_panels_stretch(self) -> None:
-        app = SnakeLabClient(
-            telemetry_port=59999, control_client=FakeControlClient()
-        )
-        async with app.run_test(size=(120, 40)) as pilot:
+    async def test_legacy_layout_keeps_board_between_configuration_and_runtime(self) -> None:
+        app = SnakeLabClient(telemetry_port=59999, control_client=FakeControlClient())
+        async with app.run_test(size=(120, 55)) as pilot:
             await pilot.pause()
+            config = app.query_one("#configuration-panel")
+            board = app.query_one("#board-panel")
+            status = app.query_one("#status-panel")
+            self.assertEqual(board.region.width, 46)
+            self.assertEqual(app.query_one("#board", SnakeBoard).region.size, (40, 20))
+            self.assertEqual(config.region.right, board.region.x)
+            self.assertEqual(board.region.right, status.region.x)
+            self.assertEqual(config.region.y, status.region.y)
+            self.assertEqual(app.query_one("#plots").region.y, board.region.bottom)
+            self.assertEqual(app.query_one("#controls-panel").region.y, config.region.bottom)
+            self.assertEqual(app.query_one("#highscores-panel").region.y, status.region.bottom)
+            await pilot.resize_terminal(140, 60)
+            self.assertEqual(board.region.width, 46)
+            self.assertGreater(config.region.width, 32)
 
-            board_panel = app.query_one("#board-panel")
-            title = app.query_one("#title")
-            controls_panel = app.query_one("#controls-panel")
-            status_panel = app.query_one("#status-panel")
-            event_log = app.query_one("#event-log")
-            initial_controls = controls_panel.region
-            initial_events = event_log.region
-
-            self.assertEqual(board_panel.region.size, (44, 22))
-            self.assertEqual(
-                app.query_one("#board", SnakeBoard).region.size, (40, 20)
-            )
-            self.assertEqual(event_log.region.y, board_panel.region.bottom)
-            self.assertEqual(title.region.width, app.size.width)
-            self.assertEqual(event_log.region.width, app.size.width)
-            self.assertEqual(
-                status_panel.region.y, controls_panel.region.bottom
-            )
-
-            await pilot.resize_terminal(140, 50)
-
-            self.assertEqual(board_panel.region.size, (44, 22))
-            self.assertGreater(
-                controls_panel.region.width, initial_controls.width
-            )
-            self.assertEqual(
-                controls_panel.region.height, initial_controls.height
-            )
-            self.assertEqual(title.region.width, app.size.width)
-            self.assertEqual(event_log.region.width, app.size.width)
-            self.assertGreater(event_log.region.height, initial_events.height)
-
-    async def test_controls_are_visible_in_a_compact_terminal(self) -> None:
-        app = SnakeLabClient(
-            telemetry_port=59999, control_client=FakeControlClient()
-        )
+    async def test_controls_remain_accessible_by_scrolling_a_compact_terminal(self) -> None:
+        app = SnakeLabClient(telemetry_port=59999, control_client=FakeControlClient())
         async with app.run_test(size=(100, 20)) as pilot:
             await pilot.pause()
-
-            for selector in (
-                "#submit-config",
-                "#pause-resume",
-                "#cancel-run",
-                "#move-delay",
-                "#display-every",
-                "#show-only-highscores",
-            ):
+            for selector in ("#submit-config", "#pause-resume", "#cancel-run", "#move-delay",
+                             "#display-every", "#show-only-highscores"):
                 widget = app.query_one(selector)
+                widget.scroll_visible(animate=False)
+                await pilot.pause()
                 self.assertGreater(widget.region.height, 0)
                 self.assertLessEqual(widget.region.bottom, app.size.height)
-
-            delay_select = app.query_one("#move-delay", Select)
-            self.assertEqual(
-                [value for _label, value in delay_select._options],
-                [0, 20, 40, 60, 80, 100],
-            )
+            status = app.query_one("#status-panel")
+            status.scroll_visible(animate=False)
+            await pilot.pause()
+            self.assertLessEqual(status.region.right, app.size.width)
+            delay = app.query_one("#move-delay", Select)
+            self.assertEqual([value for _label, value in delay._options], [0, 20, 40, 60, 80, 100])
 
     async def test_frame_interval_holds_snapshots_and_can_change_live(self) -> None:
         control = FakeControlClient()
