@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add a Textual Plot Score Distribution histogram to the live client, counting scores across all received episodes of the current run and resetting on run changes.
+
 ## [1.4.0] - 2026-09-17 @ 17:21
 
 - Adapt the live client to the legacy dashboard layout and colours, with bounded score/highscore/loss plots using textual-plot 0.10.1, richer episode telemetry, and a read-only database display of the nine LLM-tuned configuration values. Preserve submission and runtime controls without changing the server protocol or fetching plot history.
