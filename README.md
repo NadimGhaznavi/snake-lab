@@ -24,8 +24,10 @@ See the [SnakeLab Homepage](https://snakelabserver.osoyalce.com) for operations,
 configuration, upgrades, development, and simulation server setup.
 
 The live client uses the legacy three-column dashboard with bounded score,
-record and loss plots (the latest 500 received episodes). It does not fetch
-plot history. Smaller terminals can scroll the dashboard.
+record and loss plots (the latest 500 received episodes). The Score Distribution
+tab uses a Textual Plot histogram to count how often each score occurs across
+all received episodes in the current run. Counts reset for each new run; no
+plot history is fetched. Smaller terminals can scroll the dashboard.
 
 The **Configuration** panel reads the nine LLM-tuned values for the current
 run from MariaDB using a read-only transaction. It excludes fixed settings.
