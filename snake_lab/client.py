@@ -6,14 +6,18 @@ import argparse
 import asyncio
 from collections.abc import Coroutine
 from pathlib import Path
+from datetime import datetime
 from typing import Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Grid, Horizontal, Vertical
+from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
 from textual.message import Message
+from textual.theme import Theme
 from textual.screen import ModalScreen
 from textual.validation import Integer
 from textual.widgets import Button, Checkbox, Input, Label, RichLog, Select
+from snake_lab.client_plots import LivePlots
+from snake_lab.client_config import ConfigurationReader, TUNED_FIELDS
 
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.board import SnakeBoard
@@ -53,6 +57,13 @@ class ControlResult(Message):
         self.operation = operation
         self.response = response
         self.error = error
+
+
+class ConfigurationReceived(Message):
+    def __init__(self, run_id: str, values: dict[str, Any] | None) -> None:
+        super().__init__()
+        self.run_id = run_id
+        self.values = values
 
 
 class ConfigFileScreen(ModalScreen[str | None]):
@@ -190,102 +201,7 @@ class SnakeLabClient(App[None]):
 
     TITLE = "SnakeLab Live"
     BINDINGS = [("q", "quit", "Quit")]
-    CSS = """
-    Screen {
-        background: black;
-        color: #31b8e6;
-    }
-    #title {
-        width: 100%;
-        height: 3;
-        border: round #2aa5ce;
-        color: #5fc442;
-        text-style: bold;
-        padding: 0 1;
-    }
-    #main {
-        height: 1fr;
-    }
-    #top-row {
-        width: 100%;
-        height: 22;
-    }
-    #board-panel {
-        width: 44;
-        height: 22;
-        border: round #2aa5ce;
-        border-title-color: #42bbc4;
-        border-subtitle-color: #42bbc4;
-        padding: 0 1;
-    }
-    #sidebar {
-        width: 1fr;
-        height: 22;
-    }
-    #status-panel {
-        height: 1fr;
-        border: round #2aa5ce;
-        border-title-color: #42bbc4;
-        padding: 0 1;
-    }
-    #controls-panel {
-        height: 1fr;
-        border: round #2aa5ce;
-        border-title-color: #42bbc4;
-        padding: 0 1;
-    }
-    #control-buttons {
-        height: 1;
-    }
-    #control-buttons Button {
-        width: 16;
-        min-width: 0;
-    }
-    #submit-config {
-        width: auto;
-        min-width: 0;
-        padding: 0 2;
-        height: 1;
-    }
-    #move-delay {
-        width: 100%;
-    }
-    #diagnostic-mode {
-        height: 1;
-        color: #9a9a9a;
-    }
-    #show-only-highscores {
-        height: 1;
-        border: none;
-        padding: 0;
-    }
-    #frame-display:disabled {
-        opacity: 40%;
-    }
-    #frame-display {
-        height: 1;
-    }
-    #frame-display Label {
-        width: auto;
-    }
-    #display-every {
-        width: 8;
-        height: 1;
-        border: none;
-        padding: 0 1;
-    }
-    #event-log {
-        height: 1fr;
-        border: round #2aa5ce;
-        border-title-color: #42bbc4;
-        scrollbar-color: #2aa5ce;
-    }
-    SnakeBoard {
-        width: 100%;
-        height: 100%;
-        background: black;
-    }
-    """
+    CSS_PATH = "client.tcss"
 
     def __init__(
         self,
@@ -294,8 +210,11 @@ class SnakeLabClient(App[None]):
         control_port: int = DSnakeLab.PORT,
         telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
         control_client: AsyncLabClient | None = None,
+        configuration_reader: ConfigurationReader | None = None,
     ) -> None:
         super().__init__()
+        self._configuration_reader = configuration_reader or ConfigurationReader()
+        self._config_task: asyncio.Task[Any] | None = None
         self._host = host
         self._control_port = control_port
         self._telemetry_port = telemetry_port
@@ -326,62 +245,31 @@ class SnakeLabClient(App[None]):
             )
         ]
         yield Label("SnakeLab Live Telemetry", id="title")
-        with Vertical(id="main"):
+        with VerticalScroll(id="main"):
             with Horizontal(id="top-row"):
-                with Vertical(id="board-panel"):
-                    yield SnakeBoard(id="board")
-                with Vertical(id="sidebar"):
+                with Vertical(id="left-column"):
+                    with VerticalScroll(id="configuration-panel"):
+                        yield Label("Configuration unavailable for this run", id="configuration-values", markup=False)
                     with Vertical(id="controls-panel"):
-                        yield Button(
-                            "Submit config…",
-                            id="submit-config",
-                            compact=True,
-                        )
+                        yield Button("Submit config…", id="submit-config", compact=True)
                         with Horizontal(id="control-buttons"):
-                            yield Button(
-                                "Pause",
-                                id="pause-resume",
-                                disabled=True,
-                                compact=True,
-                            )
-                            yield Button(
-                                "Cancel",
-                                id="cancel-run",
-                                variant="error",
-                                disabled=True,
-                                compact=True,
-                            )
+                            yield Button("Pause", id="pause-resume", disabled=True, compact=True)
+                            yield Button("Cancel", id="cancel-run", variant="error", disabled=True, compact=True)
                         yield Label("Move delay")
-                        yield Select[int](
-                            delay_options,
-                            value=0,
-                            allow_blank=False,
-                            id="move-delay",
-                            disabled=True,
-                        )
-                        yield Label(
-                            "Sampled telemetry", id="diagnostic-mode"
-                        )
-                        yield Checkbox(
-                            "Show only highscores", id="show-only-highscores"
-                        )
+                        yield Select[int](delay_options, value=0, allow_blank=False,
+                                          id="move-delay", disabled=True, compact=True)
+                        yield Label("Live telemetry", id="diagnostic-mode")
+                        yield Checkbox("Show only highscores", id="show-only-highscores", compact=True)
                         with Horizontal(id="frame-display"):
                             yield Label("Display every ")
-                            yield Input(
-                                value="1",
-                                type="integer",
-                                validators=[Integer(minimum=1)],
-                                valid_empty=False,
-                                id="display-every",
-                                tooltip="Show every X received frames (1 = all). Enter a positive whole number.",
-                            )
+                            yield Input(value="1", type="integer", validators=[Integer(minimum=1)],
+                                        valid_empty=False, id="display-every")
                             yield Label(" frames")
+                with Vertical(id="board-panel"):
+                    yield SnakeBoard(id="board")
+                with Vertical(id="right-column"):
                     with Vertical(id="status-panel"):
-                        yield Label(
-                            f"Server: {self._host} "
-                            f"({self._control_port}/{self._telemetry_port})",
-                            id="connection",
-                        )
+                        yield Label(f"Server: {self._host}", id="connection", markup=False)
                         yield Label("Run: waiting", id="run")
                         yield Label("State: idle", id="run-state")
                         yield Label("Progress: 0/0", id="progress")
@@ -389,11 +277,28 @@ class SnakeLabClient(App[None]):
                         yield Label("Score: 0  High: 0", id="score")
                         yield Label("Epsilon: --", id="epsilon")
                         yield Label("Loss: --", id="loss")
-            yield RichLog(id="event-log", wrap=True, markup=True)
+                        yield Label("Reward: --", id="reward")
+                        yield Label("Outcome: --", id="outcome")
+                        yield Label("Total steps: 0", id="total-steps")
+                        yield Label("Epsilon injections: 0", id="injections")
+                    with Vertical(id="highscores-panel"):
+                        yield Label("Episode  Score  Received", classes="table-heading")
+                        yield RichLog(id="highscores", max_lines=200, wrap=False)
+            yield LivePlots(id="plots")
+            yield RichLog(id="event-log", max_lines=300, wrap=True, markup=True)
 
     async def on_mount(self) -> None:
+        self.register_theme(Theme(
+            name="snake-lab", primary="#88C0D0", secondary="#1f6a83",
+            accent="#B48EAD", foreground="#31b8e6", background="#000000",
+            success="#A3BE8C", warning="#EBCB8B", error="#BF616A",
+            surface="#111111", panel="#000000", dark=True,
+        ))
+        self.theme = "snake-lab"
         self.query_one("#board-panel").border_title = "Snake"
-        self.query_one("#status-panel").border_title = "Run"
+        self.query_one("#status-panel").border_title = "Runtime Values"
+        self.query_one("#configuration-panel").border_title = "Configuration"
+        self.query_one("#highscores-panel").border_title = "Highscores"
         self.query_one("#controls-panel").border_title = "Controls"
         self.query_one("#event-log").border_title = "Events"
         self._subscriber = TelemetrySubscriber(
@@ -494,6 +399,18 @@ class SnakeLabClient(App[None]):
 
     def _activate_run(self, run_id: str) -> None:
         if run_id != self._active_run:
+            if self._config_task is not None:
+                self._config_task.cancel()
+            self._config_task = asyncio.create_task(self._load_configuration(run_id))
+            self._tasks.add(self._config_task)
+            self._config_task.add_done_callback(self._tasks.discard)
+            self.query_one("#plots", LivePlots).reset()
+            self.query_one("#highscores", RichLog).clear()
+            self.query_one("#configuration-values", Label).update("Configuration unavailable for this run")
+            for selector, value in (("reward", "Reward: --"), ("outcome", "Outcome: --"),
+                                    ("epsilon", "Epsilon: --"), ("loss", "Loss: --"),
+                                    ("total-steps", "Total steps: 0"), ("injections", "Epsilon injections: 0")):
+                self.query_one(f"#{selector}", Label).update(value)
             self._frames_until_display = 0
             self._high_score = 0
             self._best_frame = None
@@ -502,6 +419,26 @@ class SnakeLabClient(App[None]):
                 self._clear_board()
         self._active_run = run_id
         self.query_one("#run", Label).update(f"Run: {run_id[:12]}")
+
+    async def _load_configuration(self, run_id: str) -> None:
+        try:
+            values = await asyncio.to_thread(self._configuration_reader.read, run_id)
+        except Exception:
+            # Avoid exposing credentials or connection details in the dashboard.
+            values = None
+        self.post_message(ConfigurationReceived(run_id, values))
+
+    def on_configuration_received(self, message: ConfigurationReceived) -> None:
+        if message.run_id != self._active_run:
+            return
+        text = "Configuration unavailable for this run"
+        if message.values is not None:
+            text = "\n".join(
+                f"{label}: {message.values.get(field, '--')}" for field, label in TUNED_FIELDS
+            )
+        else:
+            self._write_event("Configuration unavailable: check database access and --db-credentials.")
+        self.query_one("#configuration-values", Label).update(text)
 
     def on_telemetry_error(self, message: TelemetryError) -> None:
         self._write_event(f"[red]Telemetry error: {message.error}[/red]")
@@ -576,7 +513,12 @@ class SnakeLabClient(App[None]):
             f"Progress: {completed}/{total}"
         )
         self._show_episode_values(episode)
+        self._show_totals(summary)
+        self.query_one("#plots", LivePlots).add_episode(episode, self._high_score)
         if self._high_score > previous_high_score:
+            self.query_one("#highscores", RichLog).write(
+                f"{episode.get('episode', 0):7} {self._high_score:6}  {datetime.now():%H:%M:%S}"
+            )
             self._write_event(
                 f"[green]New high score {self._high_score} "
                 f"at episode {episode.get('episode')}[/green]"
@@ -587,6 +529,11 @@ class SnakeLabClient(App[None]):
             f"Score: {episode.get('score', 0)}  High: {self._high_score}"
         )
         self._refresh_highscore_board()
+        self.query_one("#reward", Label).update(f"Reward: {episode.get('reward', '--')}")
+        self.query_one("#outcome", Label).update(f"Outcome: {episode.get('outcome', '--')}")
+        self.query_one("#episode", Label).update(
+            f"Episode: {episode.get('episode', '--')}  Step: {episode.get('steps', '--')}"
+        )
         epsilon = episode.get("epsilon")
         loss = episode.get("loss")
         self.query_one("#epsilon", Label).update(
@@ -596,9 +543,18 @@ class SnakeLabClient(App[None]):
             "Loss: --" if loss is None else f"Loss: {loss:.6f}"
         )
 
+    def _show_totals(self, payload: dict[str, Any]) -> None:
+        for field, selector, label in (
+            ("total_steps", "total-steps", "Total steps"),
+            ("epsilon_injections", "injections", "Epsilon injections"),
+        ):
+            if field in payload:
+                self.query_one(f"#{selector}", Label).update(f"{label}: {payload[field]}")
+
     def _show_run(
         self, payload: dict[str, Any], *, write_event: bool = True
     ) -> None:
+        self._show_totals(payload)
         previous_state = self._run_state
         self._run_state = str(payload.get("state", "unknown"))
         self._move_delay_ms = int(
@@ -655,7 +611,7 @@ class SnakeLabClient(App[None]):
         mode = (
             "Every move — diagnostic mode"
             if self._move_delay_ms > 0
-            else "Sampled telemetry"
+            else "Live telemetry"
         )
         self.query_one("#diagnostic-mode", Label).update(mode)
 
@@ -843,11 +799,17 @@ def main() -> None:
     parser.add_argument(
         "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
     )
+    parser.add_argument("--db-host", default=DSnakeLab.DB_HOST)
+    parser.add_argument("--db-port", type=int, default=DSnakeLab.DB_PORT)
+    parser.add_argument("--db-credentials", default=DSnakeLab.DB_CREDENTIALS_FILE)
     args = parser.parse_args()
     SnakeLabClient(
         host=args.host,
         control_port=args.control_port,
         telemetry_port=args.telemetry_port,
+        configuration_reader=ConfigurationReader(
+            host=args.db_host, port=args.db_port, credentials_file=args.db_credentials
+        ),
     ).run()
 
 

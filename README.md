@@ -22,3 +22,20 @@ local time. An existing backup from the same minute is never overwritten.
 
 See the [SnakeLab Homepage](https://snakelabserver.osoyalce.com) for operations,
 configuration, upgrades, development, and simulation server setup.
+
+The live client uses the legacy three-column dashboard with bounded score,
+record and loss plots (the latest 500 received episodes). It does not fetch
+plot history. Smaller terminals can scroll the dashboard.
+
+The **Configuration** panel reads the nine LLM-tuned values for the current
+run from MariaDB using a read-only transaction. It excludes fixed settings.
+Database access is separate from ZMQ; use a credentials JSON file readable by
+the client user, containing `password` and optionally `user` and `database`:
+
+```sh
+client/lab-client.sh --host SERVER --db-host DATABASE_HOST --db-credentials /path/to/database.json
+```
+
+Defaults use the existing local SnakeLab database settings. If the database
+is unavailable, telemetry continues and the panel reports configuration as
+unavailable. The client does not initialize, migrate, or update the database.
