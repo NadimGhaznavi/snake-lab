@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Restore the legacy Game Score settings: a 200-episode deque and adaptive averaging with divisor 40.
+
 ## [1.5.0] - 2026-09-17 @ 17:40
 
 - Add a Textual Plot Score Distribution histogram to the live client, counting scores across all received episodes of the current run and resetting on run changes.

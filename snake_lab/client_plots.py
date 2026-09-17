@@ -39,10 +39,13 @@ class LivePlotWidget(PlotWidget):
 
 class LivePlots(Widget):
     MAX_POINTS = 500
+    MAX_GAMESCORE_DATA_POINTS = 200
+    AVG_DIVISOR = 40
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.episodes: deque[tuple[int, float, int, float | None]] = deque(maxlen=self.MAX_POINTS)
+        self.game_scores: deque[tuple[int, float]] = deque(maxlen=self.MAX_GAMESCORE_DATA_POINTS)
         # Aggregate the whole observed run, independently of the rolling plots.
         self.score_counts: Counter[float] = Counter()
         self._dirty = False
@@ -73,11 +76,13 @@ class LivePlots(Widget):
         if self.episodes and number <= self.episodes[-1][0]:
             return
         self.episodes.append((number, score, high_score, episode.get("loss")))
+        self.game_scores.append((number, score))
         self.score_counts[score] += 1
         self._dirty = True
 
     def reset(self) -> None:
         self.episodes.clear()
+        self.game_scores.clear()
         self.score_counts.clear()
         for plot in self.query(PlotWidget):
             plot.clear()
@@ -92,16 +97,19 @@ class LivePlots(Widget):
             plot = self.query_one(f"#plot-{name}", PlotWidget)
             plot.clear()
             points = [(row[0], row[column]) for row in rows if row[column] is not None]
+            if name == "scores":
+                points = list(self.game_scores)
             if points:
                 plot.plot(x=[p[0] for p in points], y=[p[1] for p in points],
                           hires_mode=HiResMode.BRAILLE, line_style="green",
                           label="Current" if name == "scores" else None)
-            if name == "scores" and len(points) >= 20:
-                averages = [sum(p[1] for p in points[i-19:i+1]) / 20
-                            for i in range(19, len(points))]
-                plot.plot(x=[p[0] for p in points[19:]], y=averages,
-                          hires_mode=HiResMode.BRAILLE, line_style="red", label="Average (20)")
             if name == "scores":
+                window = max(1, len(points) // self.AVG_DIVISOR)
+                if len(points) > window:
+                    averages = [sum(p[1] for p in points[i:i + window]) / window
+                                for i in range(len(points) - window + 1)]
+                    plot.plot(x=[p[0] for p in points[window - 1:]], y=averages,
+                              hires_mode=HiResMode.BRAILLE, line_style="red", label="Average")
                 plot.show_legend(location=LegendLocation.TOPLEFT)
         distribution = self.query_one("#plot-distribution", PlotWidget)
         distribution.clear()

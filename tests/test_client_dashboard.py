@@ -56,6 +56,12 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             plots.redraw()
             self.assertEqual(len(plots.episodes), 500)
             self.assertEqual(plots.episodes[0][0], 100)
+            self.assertEqual(len(plots.game_scores), 200)
+            score_plot = plots.query_one("#plot-scores", PlotWidget)
+            self.assertEqual(score_plot._datasets[0].x.tolist(), list(range(400, 600)))
+            # Legacy smoothing uses five points once the 200-point window is full.
+            self.assertEqual(score_plot._datasets[1].x.tolist(), list(range(404, 600)))
+            self.assertEqual(score_plot._datasets[1].y[0], 2.0)
             self.assertEqual(dict(plots.score_counts), {score: 75 for score in range(8)})
             # Duplicate episode delivery must not inflate the histogram.
             plots.add_episode({"episode": 599, "score": 7}, 7)
@@ -70,6 +76,7 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("5990", str(app.query_one("#total-steps", Label).content))
             app._activate_run("second")
             self.assertEqual(len(plots.episodes), 0)
+            self.assertEqual(len(plots.game_scores), 0)
             self.assertEqual(dict(plots.score_counts), {})
             self.assertEqual(histogram._datasets, [])
             for number in range(1, 40):
@@ -77,6 +84,9 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             plots.redraw()
             self.assertEqual(histogram._datasets[0].x.tolist(), [20])
             self.assertEqual(histogram._datasets[0].y.tolist(), [39])
+            # Before 80 observations, the legacy average has a one-point window.
+            self.assertEqual(score_plot._datasets[1].x.tolist(), list(range(1, 40)))
+            self.assertEqual(score_plot._datasets[1].y.tolist(), [20] * 39)
             app.on_configuration_received(ConfigurationReceived("first", {"training_learning_rate": 999}))
             self.assertNotIn("999", str(app.query_one("#configuration-values", Label).content))
             await pilot.pause()
