@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-17 @ 17:21
+
+- Adapt the live client to the legacy dashboard layout and colours, with bounded score/highscore/loss plots using textual-plot 0.10.1, richer episode telemetry, and a read-only database display of the nine LLM-tuned configuration values. Preserve submission and runtime controls without changing the server protocol or fetching plot history.
+
 ## [1.3.0] - 2026-09-16 @ 18:51
 
 - Remove server-side telemetry frame sampling and the `--telemetry-frame-rate` option. Queue every generated board frame for subscribed viewers; client display filtering remains available.

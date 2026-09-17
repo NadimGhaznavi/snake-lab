@@ -1,0 +1,40 @@
+Screen { background: black; color: #31b8e6; }
+#title {
+    height: 3; width: 100%; border: round #0c323e;
+    color: #3e99af; text-style: bold; content-align: center middle;
+}
+#main { height: 1fr; overflow-x: auto; }
+#top-row { height: 26; min-width: 114; }
+#left-column { width: 1fr; min-width: 32; }
+#right-column { width: 1fr; min-width: 36; }
+#configuration-panel, #controls-panel, #board-panel, #status-panel, #highscores-panel, #event-log {
+    border: round #0c323e; border-title-color: #5fc442;
+    border-title-style: bold; background: black; padding: 0 1;
+}
+#configuration-panel { height: 12; }
+#configuration-values { width: 100%; color: #5fc442; }
+#controls-panel { height: 14; }
+#board-panel { width: 46; height: 26; align: center middle; border-subtitle-color: #5fc442; }
+SnakeBoard { width: 40; height: 20; background: black; }
+#status-panel { height: 15; color: #afa73e; }
+#highscores-panel { height: 11; }
+#highscores { height: 1fr; color: #afa73e; }
+.table-heading { color: #3e99af; text-style: bold; }
+#control-buttons { height: 3; }
+Button { background: black; border: round #0c323e; height: 3; min-width: 0; }
+#control-buttons Button { width: 1fr; }
+#submit-config { width: 100%; color: #5fc442; }
+#pause-resume { color: #c49b42; }
+#cancel-run { color: #c44242; }
+#move-delay { width: 100%; }
+#diagnostic-mode { height: 1; color: #3e99af; }
+#show-only-highscores { height: 1; border: none; padding: 0; }
+#frame-display { height: 1; }
+#frame-display:disabled { opacity: 40%; }
+#frame-display Label { width: auto; }
+#display-every { width: 5; height: 1; border: none; padding: 0 1; }
+LivePlots { height: 19; min-width: 114; background: black; }
+LivePlots TabbedContent { height: 100%; }
+LivePlots TabPane { padding: 0; }
+LivePlots PlotWidget { height: 15; width: 100%; }
+#event-log { height: 7; min-width: 114; scrollbar-color: #0c323e; }
