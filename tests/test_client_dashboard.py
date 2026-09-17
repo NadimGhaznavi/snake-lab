@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from textual.widgets import Label
+from textual.widgets import Label, TabbedContent
+from textual_plot import PlotWidget
 from snake_lab.client import ConfigurationReceived, SnakeLabClient
 from snake_lab.client_config import ConfigurationReader, TUNED_FIELDS
 from snake_lab.client_plots import LivePlots
@@ -55,10 +56,27 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             plots.redraw()
             self.assertEqual(len(plots.episodes), 500)
             self.assertEqual(plots.episodes[0][0], 100)
+            self.assertEqual(dict(plots.score_counts), {score: 75 for score in range(8)})
+            # Duplicate episode delivery must not inflate the histogram.
+            plots.add_episode({"episode": 599, "score": 7}, 7)
+            self.assertEqual(sum(plots.score_counts.values()), 600)
+            plots.query_one(TabbedContent).active = "tab-distribution"
+            await pilot.pause()
+            histogram = plots.query_one("#plot-distribution", PlotWidget)
+            self.assertTrue(histogram.visible)
+            self.assertEqual(histogram._datasets[0].x.tolist(), list(range(8)))
+            self.assertEqual(histogram._datasets[0].y.tolist(), [75] * 8)
             self.assertIn("Learning rate", str(app.query_one("#configuration-values", Label).content))
             self.assertIn("5990", str(app.query_one("#total-steps", Label).content))
             app._activate_run("second")
             self.assertEqual(len(plots.episodes), 0)
+            self.assertEqual(dict(plots.score_counts), {})
+            self.assertEqual(histogram._datasets, [])
+            for number in range(1, 40):
+                plots.add_episode({"episode": number, "score": 20}, 20)
+            plots.redraw()
+            self.assertEqual(histogram._datasets[0].x.tolist(), [20])
+            self.assertEqual(histogram._datasets[0].y.tolist(), [39])
             app.on_configuration_received(ConfigurationReceived("first", {"training_learning_rate": 999}))
             self.assertNotIn("999", str(app.query_one("#configuration-values", Label).content))
             await pilot.pause()

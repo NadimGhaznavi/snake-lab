@@ -1,6 +1,6 @@
 """Bounded plots of the live episode stream; no history or persistence."""
 
-from collections import deque
+from collections import Counter, deque
 from typing import Any
 
 from rich.segment import Segment
@@ -43,11 +43,14 @@ class LivePlots(Widget):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.episodes: deque[tuple[int, float, int, float | None]] = deque(maxlen=self.MAX_POINTS)
+        # Aggregate the whole observed run, independently of the rolling plots.
+        self.score_counts: Counter[float] = Counter()
         self._dirty = False
 
     def compose(self) -> ComposeResult:
         with TabbedContent():
-            for title, name in (("Game Score", "scores"), ("Highscores", "records"), ("Loss", "losses")):
+            for title, name in (("Game Score", "scores"), ("Highscores", "records"),
+                                ("Loss", "losses"), ("Score Distribution", "distribution")):
                 with TabPane(title, id=f"tab-{name}"):
                     yield LivePlotWidget(id=f"plot-{name}")
 
@@ -56,6 +59,10 @@ class LivePlots(Widget):
             plot = self.query_one(f"#plot-{name}", PlotWidget)
             plot.set_xlabel("Episode")
             plot.set_ylabel(label)
+        distribution = self.query_one("#plot-distribution", PlotWidget)
+        distribution.set_xlabel("Score")
+        distribution.set_ylabel("Episodes")
+        distribution.set_ylimits(0, None)
         self.set_interval(0.5, self.redraw)
 
     def add_episode(self, episode: dict[str, Any], high_score: int) -> None:
@@ -66,10 +73,12 @@ class LivePlots(Widget):
         if self.episodes and number <= self.episodes[-1][0]:
             return
         self.episodes.append((number, score, high_score, episode.get("loss")))
+        self.score_counts[score] += 1
         self._dirty = True
 
     def reset(self) -> None:
         self.episodes.clear()
+        self.score_counts.clear()
         for plot in self.query(PlotWidget):
             plot.clear()
         self._dirty = False
@@ -94,3 +103,11 @@ class LivePlots(Widget):
                           hires_mode=HiResMode.BRAILLE, line_style="red", label="Average (20)")
             if name == "scores":
                 plot.show_legend(location=LegendLocation.TOPLEFT)
+        distribution = self.query_one("#plot-distribution", PlotWidget)
+        distribution.clear()
+        if self.score_counts:
+            scores = sorted(self.score_counts)
+            distribution.bar(
+                x=scores, y=[self.score_counts[score] for score in scores],
+                width=0.8, bar_style="green", hires_mode=HiResMode.HALFBLOCK,
+            )
