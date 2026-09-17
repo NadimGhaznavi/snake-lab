@@ -117,5 +117,5 @@ class LivePlots(Widget):
             scores = sorted(self.score_counts)
             distribution.bar(
                 x=scores, y=[self.score_counts[score] for score in scores],
-                width=0.8, bar_style="green", hires_mode=HiResMode.HALFBLOCK,
+                width=0.8, bar_style="#025b02", hires_mode=HiResMode.HALFBLOCK,
             )
