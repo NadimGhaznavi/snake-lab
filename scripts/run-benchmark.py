@@ -46,7 +46,7 @@ def payload(response):
     return response["payload"]
 
 
-def measure_and_delete(connection, run_id):
+def measure_and_delete(connection, run_id, verbose=False):
     """Only delete a committed, successfully completed run, in one transaction."""
     connection.begin()
     try:
@@ -68,8 +68,9 @@ def measure_and_delete(connection, run_id):
             )
             steps = int(cursor.fetchone()["steps"])
             seconds = elapsed_us / 1_000_000
-            print(f"Total steps: {steps:,}\nElapsed seconds: {seconds:.6f}\n"
-                  f"Steps/second: {steps / seconds:,.2f}", flush=True)
+            if verbose:
+                print(f"Total steps: {steps:,}\nElapsed seconds: {seconds:.6f}\n"
+                      f"Steps/second: {steps / seconds:,.0f}", flush=True)
             # Both configurations and simulation_episodes cascade from this row.
             cursor.execute("DELETE FROM simulation_runs WHERE run_id = %s", (run_id,))
             if cursor.rowcount != 1:
@@ -78,10 +79,12 @@ def measure_and_delete(connection, run_id):
     except BaseException:
         connection.rollback()
         raise
-    print(f"Deleted benchmark data for {run_id}.", flush=True)
+    if verbose:
+        print(f"Deleted benchmark data for {run_id}.", flush=True)
+    print(f"Snake Lab Benchmark: {steps / seconds:.0f} steps per second", flush=True)
 
 
-async def benchmark(config):
+async def benchmark(config, verbose=False):
     connection = connect_database()
     client = AsyncLabClient()
     run_id = None
@@ -89,14 +92,15 @@ async def benchmark(config):
         if payload(await client.active())["run"] is not None:
             raise RuntimeError("Server must be idle before starting a benchmark")
         run_id = payload(await client.submit(config))["run_id"]
-        print(f"Benchmark run: {run_id}", flush=True)
+        if verbose:
+            print(f"Benchmark run: {run_id}", flush=True)
         previous = None
         while True:
             status = payload(await client.request(
                 METHOD_SIMULATION_STATUS, {"run_id": run_id},
             ))
             progress = (status["state"], status.get("completed_epochs", 0))
-            if progress != previous:
+            if verbose and progress != previous:
                 print(f"{progress[0]}: {progress[1]}/{status.get('epochs', '?')} episodes",
                       flush=True)
                 previous = progress
@@ -105,7 +109,7 @@ async def benchmark(config):
             if status["state"] in {"failed", "cancelled"}:
                 raise RuntimeError(f"Benchmark {status['state']}: {status.get('error', '')}")
             await asyncio.sleep(1)
-        measure_and_delete(connection, run_id)
+        measure_and_delete(connection, run_id, verbose=verbose)
     except BaseException:
         if run_id is not None:
             print(f"Benchmark did not finish cleanly; inspect run {run_id}. "
@@ -120,11 +124,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-c", "--config", required=True, type=Path,
                         help="Simulation JSON configuration")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Show progress, timing, and cleanup details")
     args = parser.parse_args()
     if os.geteuid() != 0:
         parser.error("Run this tool as root")
     try:
-        asyncio.run(benchmark(load_config(args.config.expanduser())))
+        asyncio.run(benchmark(load_config(args.config.expanduser()), verbose=args.verbose))
     except KeyboardInterrupt:
         print("Benchmark interrupted.", file=sys.stderr)
         return 130
