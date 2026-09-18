@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.5] - 2026-09-17 @ 23:58
+
 - Use the installed virtual environment for the benchmark launcher, using the shared install-directory constant.
 
 ## [1.5.4] - 2026-09-17 @ 23:52
