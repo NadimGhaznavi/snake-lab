@@ -22,7 +22,6 @@ from snake_lab.client.ConfigurationReader import ConfigurationReader, TUNED_FIEL
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.client.SnakeBoard import SnakeBoard
 from snake_lab.client.AsyncLabClient import AsyncLabClient, load_config
-from snake_lab.server.SimulationControl import MAX_MOVE_DELAY_MS, MOVE_DELAY_STEP_MS
 from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
 from snake_lab.zmq.FrameTelemetry import FrameTelemetry
 from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
@@ -235,9 +234,9 @@ class SnakeLabClient(App[None]):
         delay_options = [("Off — full speed", 0)] + [
             (f"{delay} ms", delay)
             for delay in range(
-                MOVE_DELAY_STEP_MS,
-                MAX_MOVE_DELAY_MS + 1,
-                MOVE_DELAY_STEP_MS,
+                DSnakeLab.MOVE_DELAY_STEP_MS,
+                DSnakeLab.MAX_MOVE_DELAY_MS + 1,
+                DSnakeLab.MOVE_DELAY_STEP_MS,
             )
         ]
         yield Label("SnakeLab Live Telemetry", id="title")
