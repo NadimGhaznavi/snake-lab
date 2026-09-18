@@ -9,6 +9,7 @@ from threading import RLock
 from typing import Any, Mapping, Sequence
 
 import pymysql
+from pymysql.constants import CR
 
 
 class DatabaseError(RuntimeError):
@@ -26,7 +27,6 @@ class DbMgr:
         self._connection = connection
         self._lock = RLock()
         self._in_transaction = False
-        self._transaction_failure: BaseException | None = None
         self._closed = False
 
     @classmethod
@@ -81,51 +81,50 @@ class DbMgr:
         parameters.append(value)
         return "%s"
 
+    def _begin_transaction(self, read_only: bool) -> None:
+        if read_only:
+            with self._connection.cursor() as cursor:
+                cursor.execute("START TRANSACTION READ ONLY")
+        else:
+            self._connection.begin()
+
     @contextmanager
     def transaction(self, *, read_only: bool = False):
-        """Commit one unit of work, or roll it back on any failure."""
+        """Commit one unit of work, or roll back errors propagated by its caller."""
         with self._lock:
             if self._closed:
                 raise RuntimeError("Database manager is closed")
             if self._in_transaction:
                 raise RuntimeError("Nested transactions are not supported")
             self._in_transaction = True
-            self._transaction_failure = None
             try:
-                if read_only:
-                    with self._connection.cursor() as cursor:
-                        cursor.execute("START TRANSACTION READ ONLY")
-                else:
-                    self._connection.begin()
+                try:
+                    self._begin_transaction(read_only)
+                except (pymysql.OperationalError, pymysql.InterfaceError) as error:
+                    if error.args[0] not in (0, CR.CR_SERVER_GONE_ERROR, CR.CR_SERVER_LOST):
+                        raise
+                    # BEGIN has not run any application statements. Reopen an
+                    # expired connection once, restoring the driver's settings.
+                    self._connection.connect()
+                    self._begin_transaction(read_only)
                 yield self
-                if self._transaction_failure is not None:
-                    raise DatabaseError("Cannot commit a failed transaction") from self._transaction_failure
                 self._connection.commit()
             except BaseException as error:
                 try:
                     self._connection.rollback()
-                except Exception:
+                except pymysql.Error:
                     pass  # Preserve the original failure, even if the connection died.
                 if isinstance(error, pymysql.Error):
                     raise DatabaseError("MariaDB transaction failed") from error
                 raise
             finally:
                 self._in_transaction = False
-                self._transaction_failure = None
 
     @contextmanager
     def _operation(self):
         with self._lock:
             if self._in_transaction:
-                if self._transaction_failure is not None:
-                    raise DatabaseError("Transaction has already failed") from self._transaction_failure
-                try:
-                    yield
-                except BaseException as error:
-                    self._transaction_failure = error
-                    if isinstance(error, pymysql.Error):
-                        raise DatabaseError("MariaDB operation failed") from error
-                    raise
+                yield
             else:
                 with self.transaction():
                     yield

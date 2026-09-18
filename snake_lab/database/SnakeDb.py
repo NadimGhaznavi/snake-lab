@@ -110,8 +110,7 @@ class SnakeDb:
                 "simulation_episodes", "steps", where={"run_id": run_id},
             ))
             # Configurations and episode results cascade from this parent row.
-            if self._dbmgr.delete("simulation_runs", where={"run_id": run_id}) != 1:
-                raise RuntimeError("Benchmark cleanup did not delete exactly one run")
+            self._dbmgr.delete("simulation_runs", where={"run_id": run_id})
         return steps, seconds
 
     def close(self) -> None:

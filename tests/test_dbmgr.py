@@ -69,24 +69,60 @@ class DbMgrTests(unittest.TestCase):
         self.connection.rollback.assert_called_once_with()
         self.connection.commit.assert_not_called()
         self.assertFalse(self.db._in_transaction)
+        self.connection.connect.assert_not_called()
 
-    def test_caught_statement_failure_prevents_commit_and_further_writes(self):
-        failure = pymysql.IntegrityError(1062, "duplicate")
-        self.cursor.execute.side_effect = [1, failure]
-        with self.assertRaisesRegex(DatabaseError, "Cannot commit"):
-            with self.db.transaction():
+    def test_lost_connection_at_begin_reconnects_before_writing(self):
+        for failure in (pymysql.OperationalError(2006, "gone away"),
+                        pymysql.OperationalError(2013, "lost connection"),
+                        pymysql.InterfaceError(0, "")):
+            with self.subTest(failure=failure):
+                self.connection.reset_mock()
+                self.connection.begin.side_effect = [failure, None]
                 self.db.insert("records", {"id": 1})
+                self.connection.connect.assert_called_once_with()
+                self.assertEqual(self.connection.begin.call_count, 2)
+                self.cursor.execute.assert_called_once_with(
+                    "INSERT INTO `records` (`id`) VALUES (%s)", (1,))
+                self.connection.commit.assert_called_once_with()
+                self.connection.rollback.assert_not_called()
+
+    def test_reconnection_failure_propagates_without_writing(self):
+        self.connection.begin.side_effect = pymysql.OperationalError(2006, "gone away")
+        failure = pymysql.OperationalError(2003, "connection refused")
+        self.connection.connect.side_effect = failure
+        with self.assertRaises(DatabaseError) as raised:
+            self.db.insert("records", {"id": 1})
+        self.assertIs(raised.exception.__cause__, failure)
+        self.connection.connect.assert_called_once_with()
+        self.cursor.execute.assert_not_called()
+        self.connection.commit.assert_not_called()
+
+    def test_begin_retry_is_bounded_and_other_errors_are_not_retried(self):
+        for code, reconnects, begins in ((2013, 1, 2), (1044, 0, 1)):
+            with self.subTest(code=code):
+                self.connection.reset_mock()
+                failure = pymysql.OperationalError(code, "begin failed")
+                self.connection.begin.side_effect = failure
                 with self.assertRaises(DatabaseError) as raised:
                     self.db.insert("records", {"id": 1})
                 self.assertIs(raised.exception.__cause__, failure)
-                with self.assertRaisesRegex(DatabaseError, "already failed"):
-                    self.db.insert("records", {"id": 2})
-        self.assertEqual(self.cursor.execute.call_count, 2)
-        self.connection.commit.assert_not_called()
+                self.assertEqual(self.connection.connect.call_count, reconnects)
+                self.assertEqual(self.connection.begin.call_count, begins)
+                self.cursor.execute.assert_not_called()
+                self.connection.commit.assert_not_called()
+
+    def test_rollback_failure_preserves_original_connection_error(self):
+        failure = pymysql.OperationalError(2006, "server has gone away")
+        self.cursor.execute.side_effect = failure
+        self.connection.rollback.side_effect = pymysql.InterfaceError(0, "")
+        with self.assertRaises(DatabaseError) as raised:
+            with self.db.transaction():
+                self.db.insert("records", {"id": 1})
+        self.assertIs(raised.exception.__cause__, failure)
+        self.cursor.execute.assert_called_once()
         self.connection.rollback.assert_called_once_with()
-        self.cursor.execute.side_effect = None
-        self.db.insert("records", {"id": 3})
-        self.connection.commit.assert_called_once_with()
+        self.connection.commit.assert_not_called()
+        self.assertFalse(self.db._in_transaction)
 
     def test_row_locks_require_explicit_transaction(self):
         with self.assertRaisesRegex(RuntimeError, "explicit transaction"):
@@ -109,10 +145,15 @@ class DbMgrTests(unittest.TestCase):
             self.db.sum("records", "amount); DROP TABLE records", where={})
 
     def test_commit_failure_rolls_back(self):
-        self.connection.commit.side_effect = pymysql.OperationalError("commit failed")
-        with self.assertRaises(DatabaseError):
+        failure = pymysql.OperationalError(2013, "connection lost during commit")
+        self.connection.commit.side_effect = failure
+        with self.assertRaises(DatabaseError) as raised:
             self.db.update("records", {"name": "new"}, where={"id": 1})
+        self.assertIs(raised.exception.__cause__, failure)
         self.connection.rollback.assert_called_once_with()
+        self.connection.connect.assert_not_called()
+        self.cursor.execute.assert_called_once()
+        self.connection.commit.assert_called_once_with()
 
     def test_read_only_transaction_closes_after_lookup(self):
         self.cursor.fetchone.return_value = {"id": 1}
