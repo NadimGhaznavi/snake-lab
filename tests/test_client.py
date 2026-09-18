@@ -5,16 +5,12 @@ from unittest.mock import patch
 
 from textual.widgets import Button, Checkbox, Input, Label, Select
 
-from snake_lab.board import SnakeBoard
+from snake_lab.client.SnakeBoard import SnakeBoard
 from snake_lab.game import Outcome
-from snake_lab.telemetry import (
-    TOPIC_EPISODE,
-    TOPIC_FRAME,
-    TOPIC_RUN,
-    BoardSnapshot,
-    FrameTelemetry,
-    TelemetryEnvelope,
-)
+from snake_lab.game.BoardSnapshot import BoardSnapshot
+from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
+from snake_lab.zmq.FrameTelemetry import FrameTelemetry
+from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
 from snake_lab.client import SnakeLabClient, TelemetryReceived
 
 

@@ -4,9 +4,10 @@ from unittest.mock import Mock, call, patch
 
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.database import MemorySimulationStore
-from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
-from snake_lab.protocol import PROTOCOL_VERSION
-from snake_lab.server import SimulationRun, SnakeLabServer
+from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
+from snake_lab.zmq.Protocol import PROTOCOL_VERSION
+from snake_lab.server.SimulationRun import SimulationRun
+from snake_lab.server.SnakeLabServer import SnakeLabServer
 
 
 class FakeLog:
@@ -36,7 +37,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.server.store = MemorySimulationStore()
         run = SimulationRun("capture-run", {"epochs": 1})
         self.server.store.create_run(run.run_id, run.config, DSnakeLab.VERSION)
-        with patch("snake_lab.simulator.Simulator._select_action", return_value=0):
+        with patch("snake_lab.server.Simulator.Simulator._select_action", return_value=0):
             await self.server._execute_simulation(run)
         run.state = "completed"
 

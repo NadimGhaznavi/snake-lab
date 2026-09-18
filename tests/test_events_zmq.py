@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock
 
 import zmq
 
-from snake_lab.events_zmq import EventsPublisher
-from snake_lab.event_protocol import (
+from snake_lab.zmq.EventsPublisher import EventsPublisher
+from snake_lab.zmq.ZMQHelper import (
     EVENT_PROTOCOL_VERSION,
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
 )
-from snake_lab.protocol import ProtocolError
+from snake_lab.zmq.Protocol import ProtocolError
 
 
 class EventsPublisherTests(unittest.IsolatedAsyncioTestCase):

@@ -3,11 +3,13 @@ import json
 import unittest
 from unittest.mock import MagicMock
 
-from snake_lab.control_client import AsyncLabClient
-from snake_lab.database import MariaDBSimulationStore, MemorySimulationStore
-from snake_lab.protocol import METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, PROTOCOL_VERSION
-from snake_lab.server import SnakeLabServer
-from snake_lab.telemetry import BoardSnapshot
+from snake_lab.database.DbMgr import DbMgr
+from snake_lab.database.SnakeDb import SnakeDb
+from snake_lab.client.AsyncLabClient import AsyncLabClient
+from snake_lab.database import MemorySimulationStore
+from snake_lab.zmq.Protocol import METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, PROTOCOL_VERSION
+from snake_lab.server.SnakeLabServer import SnakeLabServer
+from snake_lab.game.BoardSnapshot import BoardSnapshot
 
 
 SNAPSHOT = {
@@ -24,7 +26,7 @@ class SnapshotLookupTests(unittest.TestCase):
     def test_database_decodes_snapshot_and_ends_read_transaction(self):
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
-        store = MariaDBSimulationStore(connection)
+        store = SnakeDb(DbMgr(connection))
         for value in (json.dumps(SNAPSHOT), None):
             cursor.fetchone.return_value = {"run_id": "saved", "high_score_snapshot": value}
             row = store.get_high_score_snapshot("saved")

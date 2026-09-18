@@ -5,17 +5,18 @@ from unittest.mock import MagicMock
 import pymysql
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.configuration import simulation_config_template
+from snake_lab.database.DbMgr import DbMgr, DatabaseError
+from snake_lab.database.SnakeDb import SnakeDb
+from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.database import (
     CONFIGURATION_PATHS,
     configuration_values,
-    MariaDBSimulationStore,
     MemorySimulationStore,
     canonical_config,
     config_hash,
 )
 from snake_lab.game import Outcome
-from snake_lab.simulator import EpisodeResult
+from snake_lab.server.Simulator import EpisodeResult
 
 
 class SimulationDatabaseTests(unittest.TestCase):
@@ -23,11 +24,11 @@ class SimulationDatabaseTests(unittest.TestCase):
         snapshot = {"version": 1, "episode": 2, "step": 5, "board": {"score": 4}}
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
-        MariaDBSimulationStore(connection).finish_run(
+        SnakeDb(DbMgr(connection)).finish_run(
             "run-1", "completed", 3, 4, high_score_snapshot=snapshot,
         )
         sql, values = cursor.execute.call_args.args
-        self.assertIn("high_score_snapshot = %s", sql)
+        self.assertIn("`high_score_snapshot` = %s", sql)
         self.assertEqual(values[:3], ("completed", 3, 4))
         self.assertEqual(json.loads(values[3]), snapshot)
         connection.commit.assert_called_once_with()
@@ -126,7 +127,7 @@ class SimulationDatabaseTests(unittest.TestCase):
     def test_mariadb_episode_write_and_summary_are_one_transaction(self) -> None:
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
-        store = MariaDBSimulationStore(connection)
+        store = SnakeDb(DbMgr(connection))
         result = EpisodeResult(
             episode=8,
             seed=11,
@@ -154,7 +155,7 @@ class SimulationDatabaseTests(unittest.TestCase):
     def test_mariadb_repeated_configuration_inserts_both_runs(self) -> None:
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
-        store = MariaDBSimulationStore(connection)
+        store = SnakeDb(DbMgr(connection))
         config = simulation_config_template().resolve({})
 
         store.create_run("first", config, DSnakeLab.VERSION)
@@ -164,10 +165,10 @@ class SimulationDatabaseTests(unittest.TestCase):
         for invocation, run_id in zip(
             cursor.execute.call_args_list[::2], ("first", "second")
         ):
-            self.assertIn("INSERT INTO simulation_runs", invocation.args[0])
+            self.assertIn("INSERT INTO `simulation_runs`", invocation.args[0])
             self.assertEqual(
                 invocation.args[1],
-                (run_id, DSnakeLab.VERSION, config_hash(config)),
+                (run_id, DSnakeLab.VERSION, config_hash(config), "queued"),
             )
         self.assertEqual(connection.commit.call_count, 2)
         connection.rollback.assert_not_called()
@@ -197,11 +198,11 @@ class SimulationDatabaseTests(unittest.TestCase):
             "game": {"rewards": {"further_from_food": -3}},
             "training": {"learning_rate": 0.002123456},
         })
-        MariaDBSimulationStore(connection).create_run("run-1", config, DSnakeLab.VERSION)
+        SnakeDb(DbMgr(connection)).create_run("run-1", config, DSnakeLab.VERSION)
         sql, values = cursor.execute.call_args_list[1].args
-        self.assertIn("INSERT INTO configurations", sql)
+        self.assertIn("INSERT INTO `configurations`", sql)
         columns = sql.split("(", 1)[1].split(")", 1)[0].split(", ")
-        row = dict(zip(columns, values))
+        row = dict(zip((c.strip("`") for c in columns), values))
         self.assertEqual(row["run_id"], "run-1")
         self.assertEqual(row["seed"], 2024)
         self.assertEqual(row["game_rewards_further_from_food"], -3)
@@ -215,8 +216,8 @@ class SimulationDatabaseTests(unittest.TestCase):
         cursor = connection.cursor.return_value.__enter__.return_value
         cursor.execute.side_effect = [None, pymysql.err.OperationalError("write failed")]
         config = simulation_config_template().resolve({})
-        with self.assertRaises(pymysql.err.OperationalError):
-            MariaDBSimulationStore(connection).create_run("run-1", config, DSnakeLab.VERSION)
+        with self.assertRaises(DatabaseError):
+            SnakeDb(DbMgr(connection)).create_run("run-1", config, DSnakeLab.VERSION)
         self.assertEqual(cursor.execute.call_count, 2)
         connection.rollback.assert_called_once_with()
         connection.commit.assert_not_called()
@@ -225,9 +226,9 @@ class SimulationDatabaseTests(unittest.TestCase):
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
         cursor.execute.side_effect = pymysql.err.IntegrityError(1062, "duplicate ID")
-        store = MariaDBSimulationStore(connection)
+        store = SnakeDb(DbMgr(connection))
 
-        with self.assertRaises(pymysql.err.IntegrityError):
+        with self.assertRaises(DatabaseError):
             store.create_run("run-1", {"epochs": 100}, DSnakeLab.VERSION)
 
         cursor.execute.assert_called_once()

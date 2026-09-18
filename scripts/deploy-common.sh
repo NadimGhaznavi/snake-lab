@@ -40,32 +40,50 @@ validate_release_checkout() {
         "scripts/apply-database-schema.sh"
         "scripts/rebuild-venv.sh"
         "snake_lab/__init__.py"
-        "snake_lab/board.py"
-        "snake_lab/client.py"
-        "snake_lab/client.tcss"
-        "snake_lab/client_config.py"
-        "snake_lab/client_plots.py"
-        "snake_lab/configuration.py"
-        "snake_lab/control_client.py"
-        "snake_lab/database.py"
-        "snake_lab/events_zmq.py"
-        "snake_lab/memory.py"
-        "snake_lab/model.py"
-        "snake_lab/protocol.py"
-        "snake_lab/runtime_control.py"
+        "snake_lab/client/SnakeBoard.py"
+        "snake_lab/client/__init__.py"
+        "snake_lab/client/__main__.py"
+        "snake_lab/client/client.tcss"
+        "snake_lab/client/ConfigurationReader.py"
+        "snake_lab/client/LivePlots.py"
+        "snake_lab/server/Configuration.py"
+        "snake_lab/server/JSONValidator.py"
+        "snake_lab/client/AsyncLabClient.py"
+        "snake_lab/database/__init__.py"
+        "snake_lab/database/DbMgr.py"
+        "snake_lab/database/SnakeDb.py"
+        "snake_lab/zmq/EventsPublisher.py"
+        "snake_lab/zmq/ZMQHelper.py"
+        "snake_lab/game/__init__.py"
+        "snake_lab/game/SnakeGame.py"
+        "snake_lab/game/GameState.py"
+        "snake_lab/game/BoardSnapshot.py"
+        "snake_lab/game/GameRules.py"
+        "snake_lab/nn/__init__.py"
+        "snake_lab/nn/EpsilonAlgo.py"
+        "snake_lab/nn/ReplayMemory.py"
+        "snake_lab/nn/RNNModel.py"
+        "snake_lab/zmq/Protocol.py"
+        "snake_lab/server/SimulationControl.py"
         "snake_lab/schemas/database-v1.sql"
         "snake_lab/schemas/database-v2.sql"
         "snake_lab/schemas/database-v3.sql"
         "snake_lab/schemas/database-v4.sql"
         "snake_lab/schemas/simulation-config-v2.schema.json"
-        "snake_lab/server.py"
-        "snake_lab/simulator.py"
-        "snake_lab/telemetry.py"
-        "snake_lab/telemetry_zmq.py"
-        "snake_lab/trainer.py"
+        "snake_lab/server/__init__.py"
+        "snake_lab/server/__main__.py"
+        "snake_lab/server/SimulationRun.py"
+        "snake_lab/server/SnakeLabServer.py"
+        "snake_lab/server/Simulator.py"
+        "snake_lab/zmq/FrameTelemetry.py"
+        "snake_lab/zmq/TelemetryEnvelope.py"
+        "snake_lab/zmq/TelemetrySubscriber.py"
+        "snake_lab/zmq/__init__.py"
+        "snake_lab/zmq/TelemetryPublisher.py"
+        "snake_lab/nn/Trainer.py"
         "systemd/snake-lab.service"
-        "utils/__init__.py"
-        "utils/MyLog.py"
+        "snake_lab/utils/__init__.py"
+        "snake_lab/utils/MyLog.py"
     )
 
     for path in "${required_files[@]}"; do
@@ -158,26 +176,31 @@ SQL
 }
 
 deploy_application() {
-    local staging_dir
+    local staging_dir package
     staging_dir=$(mktemp -d "${INSTALL_DIR}/.app.XXXXXX")
     chmod 0755 "${staging_dir}"
 
     install -d -m 0755 \
         "${staging_dir}/constants" \
         "${staging_dir}/snake_lab" \
-        "${staging_dir}/snake_lab/schemas" \
-        "${staging_dir}/utils"
+        "${staging_dir}/snake_lab/schemas"
 
     install -m 0644 "${PROJECT_DIR}/constants/"*.py \
         "${staging_dir}/constants/"
-    install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py "${PROJECT_DIR}/snake_lab/"*.tcss \
+    install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
         "${staging_dir}/snake_lab/"
     install -m 0644 \
         "${PROJECT_DIR}/snake_lab/schemas/"*.json \
         "${PROJECT_DIR}/snake_lab/schemas/"*.sql \
         "${staging_dir}/snake_lab/schemas/"
-    install -m 0644 "${PROJECT_DIR}/utils/"*.py \
-        "${staging_dir}/utils/"
+    for package in nn game zmq utils server client database; do
+        install -d -m 0755 "${staging_dir}/snake_lab/${package}"
+        install -m 0644 "${PROJECT_DIR}/snake_lab/${package}/"*.py \
+            "${staging_dir}/snake_lab/${package}/"
+    done
+
+    install -m 0644 "${PROJECT_DIR}/snake_lab/client/"*.tcss \
+        "${staging_dir}/snake_lab/client/"
 
     rm -rf -- "${APP_DIR}"
     mv -- "${staging_dir}" "${APP_DIR}"
