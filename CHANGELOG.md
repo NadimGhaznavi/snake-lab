@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add a root-run benchmark tool that submits a JSON config, reports steps per second from persisted results, and deletes the completed benchmark's database records.
+
 ## [1.5.3] - 2026-09-17 @ 22:15
 
 - Retain loss data for the whole observed run and thin the Loss plot using the legacy average-binning settings (75-point target), instead of a sliding window.
