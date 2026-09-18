@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-09-18 @ 05:13
+
 - Simplify the homepage to the project overview, documentation links, and components. Move run and deletion instructions to `pages/run-a-simulation.md`, configuration details to `pages/sample-config.md`, upgrade and uninstall instructions to the installation guide, and development setup to the developer guide. Update links to the relocated sections.
 
 ## [1.7.1] - 2026-09-18 @ 04:59
