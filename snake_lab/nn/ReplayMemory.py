@@ -82,6 +82,9 @@ class ReplayMemory:
         self.max_frames = max_frames
         self._rng = Random(seed)
         self._episodes: deque[_Episode] = deque()
+        self._eligible_episodes: list[_Episode] = []
+        self._cumulative_windows: list[int] = []
+        self._total_windows = 0
         self._current: list[Transition] = []
         self._frame_count = 0
         self.log = log or MyLog(
@@ -158,22 +161,29 @@ class ReplayMemory:
             removed = self._episodes.popleft()
             self._frame_count -= removed.size
 
-    def sample(self) -> ReplayBatch | None:
-        """Sample uniformly from all in-episode sliding windows."""
-        eligible = [
+        # Completed episodes stay unchanged until the next finalization.
+        self._eligible_episodes = [
             episode
             for episode in self._episodes
             if episode.size >= self.sequence_length
         ]
         window_counts = [
-            episode.size - self.sequence_length + 1 for episode in eligible
+            episode.size - self.sequence_length + 1
+            for episode in self._eligible_episodes
         ]
-        total_windows = sum(window_counts)
-        if total_windows < self.batch_size:
+        self._cumulative_windows = list(accumulate(window_counts))
+        self._total_windows = (
+            self._cumulative_windows[-1] if self._cumulative_windows else 0
+        )
+
+    def sample(self) -> ReplayBatch | None:
+        """Sample uniformly from all in-episode sliding windows."""
+        if self._total_windows < self.batch_size:
             return None
 
-        cumulative = list(accumulate(window_counts))
-        window_ids = self._rng.sample(range(total_windows), self.batch_size)
+        window_ids = self._rng.sample(
+            range(self._total_windows), self.batch_size
+        )
         states = np.empty(
             (self.batch_size, self.sequence_length, self.state_size),
             dtype=np.float32,
@@ -190,13 +200,14 @@ class ReplayMemory:
         )
 
         for batch_index, window_id in enumerate(window_ids):
-            episode_index = bisect_right(cumulative, window_id)
+            episode_index = bisect_right(self._cumulative_windows, window_id)
             previous_total = (
-                cumulative[episode_index - 1] if episode_index else 0
+                self._cumulative_windows[episode_index - 1]
+                if episode_index else 0
             )
             start = window_id - previous_total
             end = start + self.sequence_length
-            episode = eligible[episode_index]
+            episode = self._eligible_episodes[episode_index]
             states[batch_index] = episode.states[start:end]
             actions[batch_index] = episode.actions[start:end]
             rewards[batch_index] = episode.rewards[start:end]

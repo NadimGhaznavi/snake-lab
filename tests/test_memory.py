@@ -1,4 +1,5 @@
 import unittest
+from random import Random
 
 import numpy as np
 
@@ -103,6 +104,54 @@ class ReplayMemoryTests(unittest.TestCase):
         self.assertEqual(memory.frame_count, 3)
         batch = memory.sample()
         self.assertTrue(np.all(batch.states >= 10.0))
+
+    def test_cached_windows_preserve_seeded_sampling_during_open_episode(self) -> None:
+        memory = make_memory(seed=19)
+        for values in ((0.0,), (10.0, 11.0, 12.0), (20.0, 21.0, 22.0, 23.0)):
+            for index, value in enumerate(values):
+                memory.append(make_transition(value, done=index == len(values) - 1))
+
+        windows = np.asarray(
+            ((10, 11), (11, 12), (20, 21), (21, 22), (22, 23)),
+            dtype=np.float32,
+        )
+        rng = Random(19)
+        for value in range(5):
+            memory.append(make_transition(float(100 + value)))
+            batch = memory.sample()
+            np.testing.assert_array_equal(
+                batch.states[:, :, 0], windows[rng.sample(range(5), 4)]
+            )
+
+    def test_short_episode_eviction_updates_available_windows(self) -> None:
+        memory = make_memory(max_frames=8)
+        for value in range(5):
+            memory.append(make_transition(float(value), done=value == 4))
+        self.assertIsNotNone(memory.sample())
+
+        for value in range(4):
+            memory.append(make_transition(float(100 + value), done=True))
+
+        self.assertEqual(memory.frame_count, 4)
+        self.assertEqual(memory.episode_count, 4)
+        self.assertIsNone(memory.sample())
+
+    def test_oversized_episode_clears_windows_and_next_episode_repopulates(self) -> None:
+        memory = make_memory(max_frames=8)
+        for length in (5, 9):
+            for value in range(length):
+                memory.append(make_transition(float(value), done=value == length - 1))
+        self.assertEqual(memory.episode_count, 0)
+        self.assertEqual(memory.frame_count, 0)
+        self.assertIsNone(memory.sample())
+
+        for value in range(5):
+            memory.append(make_transition(float(100 + value), done=value == 4))
+        batch = memory.sample()
+        self.assertEqual(
+            {tuple(sequence[:, 0]) for sequence in batch.states},
+            {(100, 101), (101, 102), (102, 103), (103, 104)},
+        )
 
 
 if __name__ == "__main__":

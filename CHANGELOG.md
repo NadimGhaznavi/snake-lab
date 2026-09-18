@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Cache the replay-window index when episodes complete, after eviction, so sampling no longer scans stored episodes. Preserve uniform window sampling and seeded ordering.
+
 ## [1.6.6] - 2026-09-18 @ 03:55
 
 - Separate trusted outgoing event construction from incoming validation in `ZMQHelper`; retain payload snapshots and validate incoming events in `parse_event()`. Remove the redundant internal frame type check.
