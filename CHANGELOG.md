@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix the manual Pages rebuild workflow to call the GitHub Pages build API with `pages: write` permission. Remove checkout and empty commits, correct the manual trigger syntax, and report build submission separately from deployment completion.
+
 ## [1.7.0] - 2026-09-18 @ 04:52
 
 - Add a concise architecture overview covering folders, modules, and simulation execution flow.

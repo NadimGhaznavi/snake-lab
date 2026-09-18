@@ -1,19 +1,24 @@
-# .github/workflows/rebuild-site.yml
 name: Rebuild GitHub Pages Site
 
 on:
-  workflow_dispatch:  manual trigger
+  workflow_dispatch:
+
+permissions:
+  pages: write
 
 jobs:
   rebuild:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Trigger GitHub Pages Build
+      # Requires Pages to use "Deploy from a branch" in repository settings.
+      # Requests a rebuild of the configured source, not the dispatch branch.
+      - name: Request GitHub Pages build
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config --global user.email "nghaznavi@gmail.com"
-          git config --global user.name "Nadim Ghaznavi"
-          git commit --allow-empty -m "Trigger GitHub Pages rebuild"
-          git push
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "repos/${GITHUB_REPOSITORY}/pages/builds"
+          echo "Build requested. Check the Pages deployment for the result." >> "$GITHUB_STEP_SUMMARY"
