@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-09-18 @ 04:32
+
 - Restore RNN per-timestep action outputs and Trainer final-timestep selection, retaining compact [B] replay supervision and reusable sampling buffers.
 
 ## [1.6.7] - 2026-09-18 @ 04:28
