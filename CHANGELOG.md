@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Retain loss data for the whole observed run and thin the Loss plot using the legacy average-binning settings (75-point target), instead of a sliding window.
+
 ## [1.5.2] - 2026-09-17 @ 17:59
 
 - Match the Score Distribution histogram bars to the snake body colour (`#025b02`).
