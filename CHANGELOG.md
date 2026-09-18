@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.9] - 2026-09-18 @ 00:53
+
 - Reduced the *Torch Threads* from 10 to 5 after benchmarking. This is one less than the number of physical cores on the benchmarked (and prod) machine.
 
 ## [1.5.7] - 2026-09-18 @ 00:13
