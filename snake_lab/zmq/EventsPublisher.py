@@ -9,7 +9,7 @@ from typing import Any
 import zmq
 import zmq.asyncio
 
-from snake_lab.event_protocol import EVENT_TOPICS, event_message
+from snake_lab.zmq.ZMQHelper import EVENT_TOPICS, event_message
 
 
 class EventsPublisher:

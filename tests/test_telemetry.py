@@ -7,12 +7,10 @@ from snake_lab.game import (
     Position,
     StepResult,
 )
-from snake_lab.protocol import ProtocolError
-from snake_lab.telemetry import (
-    BoardSnapshot,
-    FrameTelemetry,
-    TelemetryEnvelope,
-)
+from snake_lab.zmq.Protocol import ProtocolError
+from snake_lab.game.BoardSnapshot import BoardSnapshot
+from snake_lab.zmq.FrameTelemetry import FrameTelemetry
+from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
 
 
 class TelemetryContractTests(unittest.TestCase):

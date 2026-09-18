@@ -78,3 +78,10 @@ def error_response(
         "status": "error",
         "error": {"code": code, "message": message},
     }
+
+
+TOPIC_PREFIX = "snake_lab"
+TOPIC_RUN = f"{TOPIC_PREFIX}.run"
+TOPIC_FRAME = f"{TOPIC_PREFIX}.frame"
+TOPIC_EPISODE = f"{TOPIC_PREFIX}.episode"
+TELEMETRY_TOPICS = (TOPIC_RUN, TOPIC_FRAME, TOPIC_EPISODE)

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from snake_lab.protocol import ProtocolError
+from snake_lab.zmq.Protocol import ProtocolError
 
 
 EVENT_PROTOCOL_VERSION = 2

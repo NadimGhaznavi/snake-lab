@@ -1,6 +1,6 @@
 """Server-owned v2 validation, including continuous decimal ranges."""
 import unittest
-from snake_lab.configuration import ConfigTemplate, ConfigurationError, simulation_config_template
+from snake_lab.server.Configuration import Configuration, ConfigurationError, simulation_config_template
 
 
 class V2ConfigurationTests(unittest.TestCase):
@@ -36,4 +36,4 @@ class V2ConfigurationTests(unittest.TestCase):
         schema = {'type': 'object', 'properties': {'epsilon': {'type': 'object', 'properties': {
             'initial': {'type': 'number'}, 'minimum': {'type': 'number'}}}}}
         with self.assertRaisesRegex(ConfigurationError, 'cannot exceed'):
-            ConfigTemplate(schema).resolve({'epsilon': {'initial': .5, 'minimum': .6}})
+            Configuration(schema).resolve({'epsilon': {'initial': .5, 'minimum': .6}})

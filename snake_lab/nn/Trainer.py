@@ -10,7 +10,7 @@ from constants.DSnakeLab import DSnakeLab
 from constants.DTrainer import DTrainer
 from snake_lab.nn.ReplayMemory import ReplayMemory
 from snake_lab.nn.RNNModel import RNNModel
-from utils.MyLog import MyLog
+from snake_lab.utils.MyLog import MyLog
 
 
 class Trainer:

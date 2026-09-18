@@ -20,7 +20,7 @@ JSON object with these fields:
 | `event_type` | string | Explicit event identifier from the table below |
 | `payload` | object | Fields defined for that event type |
 
-Event definitions and validation live in `snake_lab/event_protocol.py`.
+Event definitions and validation live in `snake_lab/zmq/ZMQHelper.py`.
 `event_message(event_type, payload)` validates outgoing messages;
 `parse_event(decoded_json)` validates incoming envelopes. Invalid messages
 raise `ProtocolError` (`invalid_event`, `unknown_event`, or `unsupported_protocol`).
@@ -69,7 +69,7 @@ Start this subscriber before submitting work from another client:
 import json
 import zmq
 
-from snake_lab.event_protocol import (
+from snake_lab.zmq.ZMQHelper import (
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
     parse_event,

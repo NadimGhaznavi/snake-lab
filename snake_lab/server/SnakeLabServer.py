@@ -1,10 +1,7 @@
 """ZeroMQ request/reply server for SnakeLab."""
 
-import argparse
 import asyncio
-import signal
 import uuid
-from dataclasses import dataclass, field
 from typing import Any
 
 import zmq
@@ -13,18 +10,17 @@ import zmq.asyncio
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.configuration import (
+from snake_lab.server.Configuration import (
     ConfigurationError,
     simulation_config_template,
 )
 from snake_lab.database import (
-    MariaDBSimulationStore,
     MemorySimulationStore,
     SimulationStore,
 )
-from snake_lab.event_protocol import EVENT_SIMULATION_ENDED
-from snake_lab.events_zmq import EventsPublisher
-from snake_lab.protocol import (
+from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
+from snake_lab.zmq.EventsPublisher import EventsPublisher
+from snake_lab.zmq.Protocol import (
     METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
     METHOD_HEALTH,
     METHOD_SIMULATION_ACTIVE,
@@ -39,30 +35,11 @@ from snake_lab.protocol import (
     error_response,
     success_response,
 )
-from snake_lab.runtime_control import (
-    SimulationCancelled,
-    SimulationControl,
-)
-from snake_lab.simulator import EpisodeResult, SimulationState, Simulator
-from snake_lab.telemetry_zmq import TelemetryPublisher
-from utils.MyLog import MyLog
-
-
-@dataclass(slots=True)
-class SimulationRun:
-    run_id: str
-    config: dict[str, Any]
-    state: str = "queued"
-    completed_epochs: int = 0
-    total_steps: int = 0
-    high_score: int = 0
-    high_score_snapshot: dict[str, Any] | None = None
-    total_reward: float = 0.0
-    epsilon_injections: int = 0
-    last_loss: float | None = None
-    last_episode: EpisodeResult | None = None
-    error: str | None = None
-    control: SimulationControl = field(default_factory=SimulationControl)
+from snake_lab.server.SimulationControl import SimulationCancelled
+from snake_lab.server.SimulationRun import SimulationRun
+from snake_lab.server.Simulator import EpisodeResult, SimulationState, Simulator
+from snake_lab.zmq.TelemetryPublisher import TelemetryPublisher
+from snake_lab.utils.MyLog import MyLog
 
 
 class SnakeLabServer:
@@ -525,52 +502,3 @@ class SnakeLabServer:
                     self.store.close()
                     self.log.shutdown()
 
-
-async def amain() -> None:
-    parser = argparse.ArgumentParser(description="Run the SnakeLab server")
-    parser.add_argument("--address", default="*")
-    parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
-    parser.add_argument(
-        "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
-    )
-    parser.add_argument(
-        "--events-port", type=int, default=DSnakeLab.EVENTS_PORT
-    )
-    parser.add_argument("--log-file", default=DSnakeLab.SERVER_LOG_FILE)
-    parser.add_argument(
-        "--ephemeral",
-        action="store_true",
-        help="keep simulation results in memory instead of MariaDB",
-    )
-    args = parser.parse_args()
-
-    store: SimulationStore
-    if args.ephemeral:
-        store = MemorySimulationStore()
-    else:
-        store = MariaDBSimulationStore.connect()
-
-    server = SnakeLabServer(
-        address=args.address,
-        port=args.port,
-        telemetry_port=args.telemetry_port,
-        events_port=args.events_port,
-        log_file=args.log_file,
-        store=store,
-    )
-
-    loop = asyncio.get_running_loop()
-    for signal_number in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(signal_number, server.stop)
-        except (NotImplementedError, RuntimeError):
-            pass
-    await server.run()
-
-
-def main() -> None:
-    asyncio.run(amain())
-
-
-if __name__ == "__main__":
-    main()

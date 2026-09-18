@@ -25,8 +25,8 @@ if __name__ == "__main__":
 
 import pymysql
 
-from snake_lab.control_client import AsyncLabClient, load_config
-from snake_lab.protocol import METHOD_SIMULATION_STATUS
+from snake_lab.client.AsyncLabClient import AsyncLabClient, load_config
+from snake_lab.zmq.Protocol import METHOD_SIMULATION_STATUS
 
 
 def connect_database():
