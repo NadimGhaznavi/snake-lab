@@ -160,7 +160,11 @@ class Simulator:
 
     @property
     def runtime_description(self) -> str:
-        return f"Simulation running on {self._location}"
+        return (
+            f"Simulation running on {self._location}: "
+            f"torch_threads={self._torch.get_num_threads()}, "
+            f"torch_interop_threads={self._torch.get_num_interop_threads()}"
+        )
 
     def probe_runtime(self) -> None:
         """Exercise the selected device and report where work is running."""
