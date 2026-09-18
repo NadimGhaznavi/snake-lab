@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remove unused loss-history accumulation and `get_average_loss()` from `Trainer`; continue returning each training loss directly to the simulator.
+- Add five training tests covering Double DQN action selection and target evaluation, terminal-state masking, target-network updates after optimization, independent target weights, and skipping updates when no replay batch is available. All 21 NN tests passed; retain the existing replay sampling policy.
+
 ## [1.6.2] - 2026-09-18 @ 03:27
 
 - Complete the game package cleanup: move `Action` and `Outcome` into `constants/DGame.py`, extract `Position`, `Direction`, `RewardConfig`, and `StepResult` into their own modules, and place shared food-placement logic in `game/GameHelper.py`. Reduce `game/__init__.py` to its package description and update imports and deployment references.
