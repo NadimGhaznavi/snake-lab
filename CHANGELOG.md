@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Clean up `MyLog` documentation and typing. Normalize log filenames before handler reuse, remove defensive attribute lookup, and let the named logger control thresholds so level changes reach both file and console destinations.
+- Move process-wide logging shutdown from `MyLog`/`SnakeLabServer` into the server command entry point, including failure cleanup. Stopping an embedded server no longer closes unrelated logging handlers.
+- Add eight logging tests covering equivalent paths, console reuse, propagation, level changes, directory failures, and shutdown ownership. All 35 targeted logging, server, simulator, and runtime-control tests passed.
+
 ## [1.6.4] - 2026-09-18 @ 03:47
 
 - Have `Simulator` consume the server-resolved configuration directly and remove redundant component-initialization checks. Keep a private configuration copy and preserve external-input validation.
