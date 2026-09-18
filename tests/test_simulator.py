@@ -105,7 +105,8 @@ class SimulatorTests(unittest.TestCase):
         log = FakeLog()
 
         simulator = Simulator(
-            {"epochs": 1500}, torch_module=torch_module, log=log
+            simulation_config_template().resolve({"epochs": 1500}),
+            torch_module=torch_module, log=log
         )
         simulator.probe_runtime()
 
@@ -122,7 +123,8 @@ class SimulatorTests(unittest.TestCase):
         log = FakeLog()
 
         simulator = Simulator(
-            {"epochs": 1500}, torch_module=torch_module, log=log
+            simulation_config_template().resolve({"epochs": 1500}),
+            torch_module=torch_module, log=log
         )
         simulator.probe_runtime()
 
@@ -148,8 +150,9 @@ class SimulatorTests(unittest.TestCase):
             self.assertTrue(all(p.device.type == "cpu" for p in model.parameters()))
 
     def test_episode_seeds_are_independent_and_reproducible(self) -> None:
-        first = Simulator({"epochs": 100}, log=FakeLog())
-        second = Simulator({"epochs": 100}, log=FakeLog())
+        config = simulation_config_template().resolve({"epochs": 100})
+        first = Simulator(config, log=FakeLog())
+        second = Simulator(config, log=FakeLog())
 
         first_seeds = [first._new_game(index).seed for index in (1, 2)]
         second_seeds = [second._new_game(index).seed for index in (1, 2)]
@@ -158,7 +161,9 @@ class SimulatorTests(unittest.TestCase):
         self.assertNotEqual(first_seeds[0], first_seeds[1])
 
     def test_policy_receives_the_complete_rolling_window(self) -> None:
-        simulator = Simulator({"epochs": 100}, log=FakeLog())
+        simulator = Simulator(
+            simulation_config_template().resolve({"epochs": 100}), log=FakeLog()
+        )
         model = CapturingModel()
         simulator.model = model
         simulator.epsilon = GreedyEpsilon()
@@ -182,7 +187,7 @@ class SimulatorTests(unittest.TestCase):
 class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
     @staticmethod
     def capture_simulator():
-        simulator = Simulator({}, log=FakeLog())
+        simulator = Simulator(simulation_config_template().resolve({}), log=FakeLog())
         # Exercise tiny game mechanics without relaxing the public config schema.
         simulator.config["game"].update(
             board_width=4, board_height=1, initial_snake_length=3,
@@ -257,22 +262,8 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
             {
                 "epochs": 100,
                 "seed": 7,
-                "game": {
-                    "board_width": 4,
-                    "board_height": 1,
-                    "initial_snake_length": 3,
-                    "max_moves_multiplier": 1,
-                },
-                "model": {
-                    "hidden_size": 8,
-                    "layers": 1,
-                    "dropout": 0,
-                },
-                "training": {
-                    "sequence_length": 1,
-                    "batch_size": 2,
-                    "replay_max_frames": 100,
-                },
+                "model": {"hidden_size": 64},
+                "training": {"sequence_length": 4, "batch_size": 8},
             }
         )
 
@@ -290,12 +281,18 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         state = await simulator.run()
 
         self.assertEqual(state.completed_epochs, 100)
-        self.assertEqual(state.total_steps, 100)
+        self.assertEqual(
+            state.total_steps, sum(result.steps for result in state.episodes)
+        )
         self.assertEqual(len(state.episodes), 100)
         self.assertEqual(len(completed), 100)
-        self.assertEqual(len(frames), 100)
+        self.assertEqual(len(frames), state.total_steps)
         self.assertTrue(frames[-1].done)
-        self.assertEqual(simulator.replay.episode_count, 100)
+        self.assertEqual(sum(frame.done for frame in frames), 100)
+        self.assertEqual(
+            simulator.replay.episode_count,
+            sum(result.steps >= 4 for result in state.episodes),
+        )
         self.assertIsNotNone(state.last_loss)
 
     async def test_frame_construction_tracks_demand_during_run(self) -> None:
@@ -304,7 +301,7 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
 
         def completed(result, _state):
             nonlocal demand
-            # This fixture has one move per episode. Join after 20, leave at 40.
+            # Join after episode 20 and leave after episode 40.
             demand = 20 <= result.episode < 40
 
         simulator = Simulator(
@@ -316,10 +313,20 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         ) as construct:
             state = await simulator.run()
         self.assertEqual(state.completed_epochs, 100)
-        self.assertEqual(state.total_steps, 100)
-        self.assertEqual(construct.call_count, 20)
-        self.assertEqual([item.episode for item in frames], list(range(21, 41)))
-        self.assertEqual(simulator.replay.episode_count, 100)
+        self.assertEqual(
+            state.total_steps, sum(result.steps for result in state.episodes)
+        )
+        expected_episodes = [
+            result.episode
+            for result in state.episodes[20:40]
+            for _ in range(result.steps)
+        ]
+        self.assertEqual(construct.call_count, len(expected_episodes))
+        self.assertEqual([item.episode for item in frames], expected_episodes)
+        self.assertEqual(
+            simulator.replay.episode_count,
+            sum(result.steps >= 4 for result in state.episodes),
+        )
         self.assertIsNotNone(state.last_loss)
 
     async def test_no_viewer_constructs_no_frames(self) -> None:
@@ -331,7 +338,10 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
             state = await simulator.run()
         construct.assert_not_called()
         self.assertEqual(state.completed_epochs, 100)
-        self.assertEqual(simulator.replay.episode_count, 100)
+        self.assertEqual(
+            simulator.replay.episode_count,
+            sum(result.steps >= 4 for result in state.episodes),
+        )
 
 
 if __name__ == "__main__":

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-09-18 @ 03:47
+
+- Have `Simulator` consume the server-resolved configuration directly and remove redundant component-initialization checks. Keep a private configuration copy and preserve external-input validation.
+- Move shared move-delay limits into `constants/DSnakeLab.py`, removing the client dependency on `server/SimulationControl.py`.
+- Update simulator and server test setup to supply resolved configurations. Repair four outdated simulator fixtures using the fixed 20×20 board and supported model/training settings; verify telemetry using actual episode lengths and retain the short-episode replay policy. All 41 targeted simulator, server, runtime-control, client, and configuration-boundary tests passed. Preserve production worker exception handling and existing cancellation behavior.
+
 ## [1.6.3] - 2026-09-18 @ 03:34
 
 - Remove unused loss-history accumulation and `get_average_loss()` from `Trainer`; continue returning each training loss directly to the simulator.

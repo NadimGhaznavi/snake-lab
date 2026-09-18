@@ -6,6 +6,7 @@ from constants.DSnakeLab import DSnakeLab
 from snake_lab.database.MemorySimulationStore import MemorySimulationStore
 from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
 from snake_lab.zmq.Protocol import PROTOCOL_VERSION
+from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.server.SimulationRun import SimulationRun
 from snake_lab.server.SnakeLabServer import SnakeLabServer
 
@@ -35,7 +36,9 @@ class FakeStore:
 class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
     async def test_completed_simulation_saves_capture_before_ended_event(self) -> None:
         self.server.store = MemorySimulationStore()
-        run = SimulationRun("capture-run", {"epochs": 1})
+        run = SimulationRun(
+            "capture-run", simulation_config_template().resolve({"epochs": 1})
+        )
         self.server.store.create_run(run.run_id, run.config, DSnakeLab.VERSION)
         with patch("snake_lab.server.Simulator.Simulator._select_action", return_value=0):
             await self.server._execute_simulation(run)
