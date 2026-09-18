@@ -5,7 +5,7 @@ import unittest
 import zmq
 import zmq.asyncio
 
-from snake_lab.game import Outcome
+from constants.DGame import Outcome
 from snake_lab.game.BoardSnapshot import BoardSnapshot
 from snake_lab.zmq.FrameTelemetry import FrameTelemetry
 from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN

@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from constants.DGame import DGameDef
-from snake_lab.game import Direction, Position
+from snake_lab.game.Direction import Direction
+from snake_lab.game.Position import Position
 
 
 @dataclass(frozen=True, slots=True)

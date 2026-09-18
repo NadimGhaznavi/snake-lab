@@ -5,13 +5,11 @@ from constants.DGame import DGameDef
 from constants.DNNet import DNetDef
 from snake_lab.game.GameRules import GameRules
 from snake_lab.game.GameState import GameState
-from snake_lab.game import (
-    Action,
-    Direction,
-    Outcome,
-    Position,
-    RewardConfig,
-)
+from constants.DGame import Action
+from snake_lab.game.Direction import Direction
+from constants.DGame import Outcome
+from snake_lab.game.Position import Position
+from snake_lab.game.RewardConfig import RewardConfig
 
 from snake_lab.game.SnakeGame import SnakeGame
 
