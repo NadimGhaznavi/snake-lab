@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-09-17 @ 23:52
+
 - Include actual PyTorch intra-op and inter-op thread counts in the simulation startup log.
 
 - Add a root-run benchmark tool that submits a JSON config, reports steps per second from persisted results, and deletes the completed benchmark's database records.
