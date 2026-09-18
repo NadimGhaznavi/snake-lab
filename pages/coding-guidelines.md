@@ -4,6 +4,8 @@ author_profile: true
 layout: single
 ---
 
+[Architecture](/pages/architecture.html) · [Developer integration](/pages/developer.html)
+
 SnakeLab should be easy to navigate, understand, and maintain. Each component
 should have a clear responsibility, an obvious home, and a defined interface.
 These guidelines describe the design goals for the ongoing refactor; some
@@ -121,13 +123,16 @@ trigger it.
 Use `server/Configuration.py` as the public configuration interface:
 
 ```text
-Server / Simulator ---> Configuration ---> JSONValidator
+Server ---> Configuration ---> JSONValidator
+       ---> Simulator (resolved configuration)
 ```
 
 `Configuration` selects the SnakeLab schema, loads it, and applies the
 application rules. These include relationships between epsilon values, snake
 length and board dimensions, and replay capacity and training batch size. It
-returns a complete configuration or raises `ConfigurationError`.
+returns a complete configuration or raises `ConfigurationError`. The server
+resolves external input before creating a run; `Simulator` takes a private
+copy of that resolved configuration without validating it again.
 
 `JSONValidator` is strictly an internal helper for `Configuration`. It handles
 schema defaults, merging, and JSON Schema validation. It contains no SnakeLab

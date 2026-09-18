@@ -4,6 +4,8 @@ author_profile: true
 layout: single
 ---
 
+[Architecture](/pages/architecture.html) · [Coding guidelines](/pages/coding-guidelines.html)
+
 SnakeLab exposes three ZeroMQ interfaces for downstream systems. Install
 `pyzmq` for Python clients and replace `wintermute` with your server hostname.
 
@@ -48,6 +50,11 @@ No client change or simulation configuration option is required.
 Each publication is a two-part message: the UTF-8 topic followed by a JSON
 envelope containing `protocol_version`, `sequence`, `run_id`, and `payload`.
 Subscribe before submitting a run when the initial lifecycle events are needed.
+Telemetry is best effort: queue overflow drops the oldest pending message,
+regardless of topic, and shutdown discards pending telemetry. Sequence numbers
+increase per topic across runs within one server process; they cannot reveal
+messages dropped before publication. Use control status for current progress
+and the database for stored results.
 
 The project's
 [control client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/client/AsyncLabClient.py)
@@ -138,11 +145,9 @@ and NumPy replay batches. Episodes remain serial with one training attempt
 after each completed episode when a batch is available. CUDA availability does
 not change the selected device.
 
-This restores the execution path used before 0.10.2, with inference and
-training now forced to CPU. Seeded trajectories differ from the tensor-based
-0.10.2 release; identical results across hardware or library versions are not
-guaranteed. Subscription-driven telemetry and completion event semantics are
-unchanged.
+Model, exploration, replay, and episode seeds are derived separately from the
+configured master seed. Identical results across hardware or library versions
+are not guaranteed.
 
 ## Replay and Training
 
@@ -151,16 +156,20 @@ uniformly across all eligible windows, without replacement within a batch.
 Windows never cross episode boundaries. Longer games contribute more windows;
 a batch can contain multiple windows from the same game.
 
-The defaults are `training.batch_size: 64` (windows) and
+The defaults are `training.batch_size: 24` (windows) and
 `training.sequence_length: 8` (moves). Training starts when enough windows
 exist for a batch; there is no minimum episode count. Each sampled window
 contributes its final move as the loss target. Terminal moves are included
 when their ending windows are selected.
 
-The whole-game sampling and terminal-aligned chunking introduced in 0.10.4
-have been rolled back. Remove `training.replay_min_episodes` from saved
-configurations created with that feature. Explicit `batch_size` values remain
-supported and now count windows again; use 64 to match the restored default.
+Episodes shorter than `sequence_length` contribute no windows. Replay evicts
+whole oldest episodes to stay within `training.replay_max_frames`. Completed
+episodes share one contiguous array for current and next observations; sampled
+batches reuse buffers and must be consumed before the next sample.
+
+The current [configuration schema](/snake_lab/schemas/simulation-config-v2.schema.json)
+defines tunable ranges and fixed settings. `training.replay_min_episodes` is
+not supported.
 
 ## Configuration Queries
 
@@ -168,8 +177,11 @@ The `configurations` table stores one row per accepted run, linked to
 `simulation_runs.run_id`. Its 26 numeric columns follow the configuration
 schema, replacing dots with underscores: `training.learning_rate` becomes
 `training_learning_rate`, and `game.rewards.food` becomes `game_rewards_food`.
-`seed` uses `BIGINT UNSIGNED`; other integers use `INT UNSIGNED` and numbers
-use `DOUBLE`. Configuration and run creation commit together. Configuration values are stored only in `configurations`.
+`seed` uses `BIGINT UNSIGNED`; epoch counts, dimensions, lengths, and model
+sizes use `INT UNSIGNED`. Rewards and floating-point settings use `DOUBLE`,
+including rewards constrained to integers by configuration schema v2.
+Configuration and run creation commit together. Configuration values are stored
+only in `configurations`.
 
 Repeated configurations have separate rows for each run. Join to run status
 when searching completed experiments:
@@ -206,6 +218,23 @@ sudo scripts/apply-database-schema.sh
 sudo systemctl start snake-lab.service
 ```
 
-To run the optional MariaDB integration test, set `SNAKELAB_TEST_DB_SOCKET` to
-an isolated test server's Unix socket. The test uses passwordless root access
-and creates and drops a randomly named test database.
+Run `venv/bin/python scripts/run-database-tests.py` to create a disposable
+local MariaDB instance and run the database tests. It requires MariaDB server
+tools and permission to open local sockets. Alternatively, set
+`SNAKELAB_TEST_DB_SOCKET` to an isolated test server's Unix socket; the tests
+use passwordless root access and create and drop randomly named test databases.
+
+## Live Client
+
+The live client uses the legacy three-column dashboard. Game Score retains the
+latest 200 received episodes in a deque, with the legacy smoothing window of
+`max(1, retained_count // 40)` (five points when full). The record plot retains
+the latest 500 received episodes. Loss retains all received non-null losses for
+the current run and plots averaged bins of `max(1, loss_count // 75)` samples,
+using the first episode in each bin, as in the legacy client. The Score Distribution
+tab uses a Textual Plot histogram to count how often each score occurs across
+all received episodes in the current run. Counts reset for each new run; no
+plot history is fetched. Smaller terminals can scroll the dashboard.
+
+See [Installation](/pages/install.html#start-the-client) for client startup
+and database credentials.

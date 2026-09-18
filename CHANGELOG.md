@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-18 @ 04:52
+
+- Add a concise architecture overview covering folders, modules, and simulation execution flow.
+- Move installation, client setup, backup, and benchmark instructions into `pages/install.md`; keep the README brief and link every documentation page from the homepage. Preserve dashboard details in the developer guide.
+- Align documentation with current training defaults, configuration boundaries, event validation, telemetry delivery, database storage, and upgrade behavior. Clarify that GPU and model setup notes belong to the separate Fr3d setup. Verify local documentation links and Python/JSON examples.
+
 ## [1.6.8] - 2026-09-18 @ 04:32
 
 - Restore RNN per-timestep action outputs and Trainer final-timestep selection, retaining compact [B] replay supervision and reusable sampling buffers.
