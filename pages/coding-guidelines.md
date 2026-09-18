@@ -109,6 +109,11 @@ For example, `SnakeDb.mark_started(run_id)` translates the request into
 - Transaction execution: begin, commit, rollback, and read-only transactions.
 - Consistent result handling and database errors that preserve their causes.
 
+Let database errors leave the transaction block so `DbMgr` can roll back and
+report them. Handle them outside the block; do not swallow an error and
+continue issuing statements inside the same transaction. Rely on MariaDB's
+row locks and constraints rather than adding duplicate consistency checks.
+
 `DbMgr` must not know about runs, episodes, game rules, or SnakeLab tables.
 `SnakeDb` must not create connections through the driver, handle cursors, or
 implement a second SQL execution mechanism. Client adapters must not duplicate
