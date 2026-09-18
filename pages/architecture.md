@@ -4,6 +4,8 @@ author_profile: true
 layout: single
 ---
 
+![Architecture](/pages/images/architecture.png)
+
 SnakeLab runs queued Snake experiments serially on CPU, stores results in
 MariaDB, and streams progress to a Textual client or external subscribers.
 

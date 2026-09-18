@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remove the unrelated Fr3d driver and model setup pages and their homepage links.
+- Added a snake-lab logo.
+- Moved architecture image into the architecture page.
+
 ## [1.7.4] - 2026-09-18 @ 05:22
 
 - Added architecture image onto the homepage.
