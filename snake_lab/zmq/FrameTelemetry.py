@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from snake_lab.game.BoardSnapshot import BoardSnapshot
-from snake_lab.game import Outcome, StepResult
+from snake_lab.game.BoardSnapshot import BoardSnapshot, BoardSnapshotError
+from constants.DGame import Outcome
+from snake_lab.game.StepResult import StepResult
 from snake_lab.zmq.Protocol import ProtocolError
 
 
@@ -77,6 +78,11 @@ class FrameTelemetry:
                 "invalid_telemetry", "outcome is not recognized"
             ) from error
 
+        try:
+            board = BoardSnapshot.from_dict(data["board"])
+        except BoardSnapshotError as error:
+            raise ProtocolError("invalid_telemetry", str(error)) from error
+
         return cls(
             episode=data["episode"],
             step=data["step"],
@@ -84,7 +90,7 @@ class FrameTelemetry:
             reward=float(reward),
             done=data["done"],
             outcome=outcome,
-            board=BoardSnapshot.from_dict(data["board"]),
+            board=board,
         )
 
     def to_dict(self) -> dict[str, Any]:

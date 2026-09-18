@@ -1,12 +1,10 @@
 import unittest
 
 from snake_lab.game.GameState import GameState
-from snake_lab.game import (
-    Direction,
-    Outcome,
-    Position,
-    StepResult,
-)
+from snake_lab.game.Direction import Direction
+from constants.DGame import Outcome
+from snake_lab.game.Position import Position
+from snake_lab.game.StepResult import StepResult
 from snake_lab.zmq.Protocol import ProtocolError
 from snake_lab.game.BoardSnapshot import BoardSnapshot
 from snake_lab.zmq.FrameTelemetry import FrameTelemetry

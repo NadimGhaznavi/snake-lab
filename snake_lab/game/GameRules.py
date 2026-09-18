@@ -5,15 +5,13 @@ from __future__ import annotations
 import random
 from dataclasses import replace
 
-from snake_lab.game import (
-    Action,
-    Direction,
-    Outcome,
-    Position,
-    RewardConfig,
-    StepResult,
-    _random_free_position,
-)
+from constants.DGame import Action
+from snake_lab.game.Direction import Direction
+from constants.DGame import Outcome
+from snake_lab.game.Position import Position
+from snake_lab.game.RewardConfig import RewardConfig
+from snake_lab.game.StepResult import StepResult
+from snake_lab.game.GameHelper import random_free_position
 from snake_lab.game.GameState import GameState
 
 
@@ -86,7 +84,7 @@ class GameRules:
 
         if ate_food:
             body = (state.snake_head,) + state.snake_body
-            food = _random_free_position(
+            food = random_free_position(
                 rng,
                 state.grid_size,
                 {new_head, *body},

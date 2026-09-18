@@ -11,7 +11,7 @@ from snake_lab.database.SnakeDb import SnakeDb
 from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.database.DBHelper import configuration_values, canonical_config, config_hash
 from snake_lab.database.MemorySimulationStore import MemorySimulationStore
-from snake_lab.game import Outcome
+from constants.DGame import Outcome
 from snake_lab.server.Simulator import EpisodeResult
 
 

@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-18 @ 03:27
+
+- Complete the game package cleanup: move `Action` and `Outcome` into `constants/DGame.py`, extract `Position`, `Direction`, `RewardConfig`, and `StepResult` into their own modules, and place shared food-placement logic in `game/GameHelper.py`. Reduce `game/__init__.py` to its package description and update imports and deployment references.
+- Remove the game package's dependency on the messaging layer. Board snapshot parsing now raises `BoardSnapshotError`; `FrameTelemetry` translates it into the existing `invalid_telemetry` protocol error. Preserve game mechanics, wire formats, and existing constructor validation.
+- Add game boundary tests for error translation, dependency direction, and telemetry round-tripping. All 96 targeted game, messaging, client, server, and persistence regression tests passed.
+- Clarify coding guidelines: trust internal module contracts through annotations and tests, validate external inputs at their boundaries, and fix programming errors at their source instead of adding defensive runtime checks or hiding failures. Preserve resource cleanup and transaction rollback while propagating errors.
+
 ## [1.6.1] - 2026-09-18 @ 03:13
+
+- Make database statement failures consistently raise `DatabaseError` and prevent failed transactions from committing, even when a caller catches the statement error. Reject further operations until the transaction rolls back.
+- Deep-copy configurations in `MemorySimulationStore` so later caller changes cannot alter stored values or invalidate their saved hashes.
+- Route benchmark measurement and cleanup through `SnakeDb`. Add generic aggregation and explicit-transaction row locking to `DbMgr`, preserving atomic measurement and scoped cascading deletion. Report benchmark success only after cleanup commits.
+- Move configuration column mappings into `constants/DSQL.py`, shared persistence helpers into `database/DBHelper.py`, and storage interfaces and implementations into `SimulationStore.py` and `MemorySimulationStore.py`. Leave `database/__init__.py` as a minimal package initializer and update imports and deployment checks.
+- Add 11 live DAL integration tests and `scripts/run-database-tests.py`, which provisions and cleans up an isolated MariaDB instance. Verify lifecycle persistence, recovery, fresh reads, rollback, read-only enforcement, restricted client credentials, row locking, and benchmark cleanup. All 49 database and benchmark tests passed against MariaDB 11.8.6 with no skips.
 
 ## [1.6.0] - 2026-09-18 @ 02:50
 

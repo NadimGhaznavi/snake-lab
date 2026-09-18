@@ -54,6 +54,29 @@ Keep generic helpers independent of SnakeLab rules and schema details. Keep
 application decisions in the layer that understands SnakeLab. Use composition
 to make that relationship explicit.
 
+## Trust internal contracts
+
+SnakeLab's internal modules are developed and maintained together. Use clear
+interfaces, type annotations, and tests to establish their contracts. Do not
+add runtime type checks, attribute-existence checks, repeated validation, or
+fallback paths merely to defend against another internal module being used
+incorrectly.
+
+Validate external inputs at their entry points, such as configuration files,
+incoming messages, and decoded database results. Once data has been validated
+and converted into application objects, internal callers should use those
+objects directly without rechecking the same contract at every layer.
+
+Let internal programming errors surface clearly, even if they stop the
+application. Fix the root cause and add a regression test. Do not hide bugs
+with broad exception handlers, silent defaults, coercions, or speculative
+recovery code intended to keep execution going.
+
+Keep resource cleanup and transaction rollback reliable while allowing the
+failure to propagate. Handle expected external failures at the responsible
+boundary, preserving their cause. These responsibilities do not justify
+defensive scaffolding around trusted internal calls.
+
 ## Use a shared data access layer
 
 Both server persistence and client database lookups must use the same data
