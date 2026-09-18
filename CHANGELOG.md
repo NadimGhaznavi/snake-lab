@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-09-18 @ 04:28
+
 - Apply the RNN output layer only to the final hidden state, returning [B,A] action values. Remove Trainer timestep slicing and verify output and gradient equivalence with the previous final-timestep calculation.
 
 - Preallocate replay sampling buffers and return final-transition actions, rewards, and dones as [B] arrays. Update Trainer to consume them directly; document batch buffer reuse and test simulator episode continuity.
