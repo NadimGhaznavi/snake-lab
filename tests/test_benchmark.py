@@ -23,12 +23,25 @@ class MeasurementTests(unittest.TestCase):
         ]
         with patch("builtins.print") as output:
             benchmark.measure_and_delete(self.connection, "owned-run")
-        self.assertIn("Steps/second: 250.00", output.call_args_list[0].args[0])
+        output.assert_called_once_with(
+            "Snake Lab Benchmark: 250 steps per second", flush=True
+        )
         self.cursor.execute.assert_called_with(
             "DELETE FROM simulation_runs WHERE run_id = %s", ("owned-run",)
         )
         self.connection.commit.assert_called_once()
         self.connection.rollback.assert_not_called()
+
+    def test_verbose_includes_details(self):
+        self.cursor.fetchone.side_effect = [
+            {"status": "completed", "elapsed_us": 2_000_000}, {"steps": 500},
+        ]
+        with patch("builtins.print") as output:
+            benchmark.measure_and_delete(self.connection, "owned-run", verbose=True)
+        self.assertIn("Steps/second: 250", output.call_args_list[0].args[0])
+        self.assertIn("Deleted benchmark data", output.call_args_list[1].args[0])
+        self.assertEqual(output.call_args_list[2].args[0],
+                         "Snake Lab Benchmark: 250 steps per second")
 
     def test_unfinished_missing_and_invalid_timing_never_delete(self):
         for run in [None, {"status": "running"},
@@ -68,10 +81,11 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
              patch.object(benchmark, "AsyncLabClient", return_value=client), \
              patch.object(benchmark, "measure_and_delete") as cleanup, \
              patch.object(benchmark.asyncio, "sleep", new_callable=AsyncMock), \
-             patch("builtins.print"):
+             patch("builtins.print") as output:
             await benchmark.benchmark({"epochs": 2})
+        output.assert_not_called()
         client.submit.assert_awaited_once_with({"epochs": 2})
-        cleanup.assert_called_once_with(connection, "new-run")
+        cleanup.assert_called_once_with(connection, "new-run", verbose=False)
         client.close.assert_called_once()
         connection.close.assert_called_once()
 

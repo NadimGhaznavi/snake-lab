@@ -30,9 +30,10 @@ The script automatically uses the installed virtual environment at
 `/opt/snake-lab/venv`, deriving the install directory from the credential path
 in `DSnakeLab.DB_CREDENTIALS_FILE`.
 The tool uses the installed credentials at `/opt/snake-lab/config/database.json`,
-reports episode progress, and calculates steps/second using the run's database
+prints `Snake Lab Benchmark: XXX steps per second`, and calculates throughput using the run's database
 start and completion timestamps (including simulation setup and persistence).
-After reporting results, it deletes only that run and its cascading episode and
+Add `-v` for episode progress, timing, and cleanup details.
+Before printing the final result, it deletes only that run and its cascading episode and
 configuration records. Failed or interrupted runs are retained, with their run
 ID printed for inspection; interrupting the tool does not cancel the simulation.
 
