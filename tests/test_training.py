@@ -42,12 +42,39 @@ class RNNModelTests(unittest.TestCase):
             log=FakeLog(),
         )
 
-    def test_forward_sequence_preserves_batch_and_time(self) -> None:
+    def test_forward_sequence_returns_final_action_values_per_batch(self) -> None:
         states = torch.zeros(2, 4, DNetDef.INPUT_SIZE)
         self.assertEqual(
             self.model.forward_sequence(states).shape,
-            (2, 4, DNetDef.OUTPUT_SIZE),
+            (2, DNetDef.OUTPUT_SIZE),
         )
+
+    def test_final_hidden_matches_previous_outputs_and_gradients(self) -> None:
+        for layers in (1, 3):
+            model = RNNModel(
+                seed=7, hidden_size=8, dropout=0, layers=layers, log=FakeLog()
+            )
+            for shape in (
+                (DNetDef.INPUT_SIZE,), (4, DNetDef.INPUT_SIZE),
+                (2, 4, DNetDef.INPUT_SIZE),
+            ):
+                with self.subTest(layers=layers, shape=shape):
+                    states = torch.randn(shape, requires_grad=True)
+                    normalized = states.reshape(
+                        shape[0] if len(shape) == 3 else 1,
+                        shape[-2] if len(shape) > 1 else 1,
+                        DNetDef.INPUT_SIZE,
+                    )
+                    recurrent, _ = model.recurrent_layer(model.input_layer(normalized))
+                    expected = model.output_layer(recurrent)[:, -1, :]
+                    actual = model.forward_sequence(states)
+                    torch.testing.assert_close(actual, expected)
+                    torch.testing.assert_close(model(states), actual)
+                    parameters = (states, *model.parameters())
+                    expected_gradients = torch.autograd.grad(expected.sum(), parameters)
+                    actual_gradients = torch.autograd.grad(actual.sum(), parameters)
+                    for actual_grad, expected_grad in zip(actual_gradients, expected_gradients):
+                        torch.testing.assert_close(actual_grad, expected_grad)
 
     def test_forward_returns_final_timestep(self) -> None:
         state = torch.zeros(DNetDef.INPUT_SIZE)
@@ -120,7 +147,7 @@ class TableModel(nn.Module):
         self.values = nn.Parameter(torch.tensor(values, dtype=torch.float32))
 
     def forward_sequence(self, states):
-        return self.values[states[..., 0].long()]
+        return self.values[states[:, -1, 0].long()]
 
 
 class RecordingHuberLoss(nn.SmoothL1Loss):
