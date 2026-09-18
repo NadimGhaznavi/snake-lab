@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.7] - 2026-09-18 @ 00:13
+
 - Print a single throughput line by default for benchmarks; add `-v` for progress, timing, and cleanup details.
 
 ## [1.5.6] - 2026-09-18 @ 00:03
