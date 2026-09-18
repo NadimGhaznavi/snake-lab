@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-09-18 @ 05:18
+
 - Remove `.html` suffixes from documentation links in `index.md` to use extensionless page URLs.
 
 ## [1.7.2] - 2026-09-18 @ 05:13
