@@ -6,14 +6,12 @@ import random
 
 from snake_lab.game.GameRules import GameRules
 from snake_lab.game.GameState import GameState
-from snake_lab.game import (
-    Action,
-    Direction,
-    Position,
-    RewardConfig,
-    StepResult,
-    _random_free_position,
-)
+from constants.DGame import Action
+from snake_lab.game.Direction import Direction
+from snake_lab.game.Position import Position
+from snake_lab.game.RewardConfig import RewardConfig
+from snake_lab.game.StepResult import StepResult
+from snake_lab.game.GameHelper import random_free_position
 
 
 class SnakeGame:
@@ -112,7 +110,7 @@ class SnakeGame:
             for offset in range(1, self.initial_snake_length)
         )
         occupied = {head, *body}
-        food = _random_free_position(self._rng, self.grid_size, occupied)
+        food = random_free_position(self._rng, self.grid_size, occupied)
         if food is None:
             raise RuntimeError("new game has no free position for food")
         return GameState(

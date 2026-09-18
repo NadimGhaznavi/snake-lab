@@ -12,7 +12,8 @@ from constants.DGame import DGameDef
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.server.Simulator import Simulator
-from snake_lab.game import Action, Outcome
+from constants.DGame import Action
+from constants.DGame import Outcome
 
 
 class FakeDevice:

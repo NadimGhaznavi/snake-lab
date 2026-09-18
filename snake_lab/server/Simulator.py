@@ -19,7 +19,8 @@ from constants.DSnakeLab import DSnakeLab
 from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.nn.EpsilonAlgo import EpsilonAlgo
 from snake_lab.game.GameState import GameState
-from snake_lab.game import Outcome, RewardConfig
+from constants.DGame import Outcome
+from snake_lab.game.RewardConfig import RewardConfig
 from snake_lab.game.SnakeGame import SnakeGame
 from snake_lab.nn.ReplayMemory import ReplayMemory, Transition
 from snake_lab.nn.RNNModel import RNNModel
