@@ -10,9 +10,21 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from constants.DSnakeLab import DSnakeLab
+
+
+if __name__ == "__main__":
+    # Credentials live in <install directory>/config/database.json.
+    install_dir = Path(DSnakeLab.DB_CREDENTIALS_FILE).parent.parent
+    installed_venv = install_dir / "venv"
+    installed_python = installed_venv / "bin/python"
+    if Path(sys.prefix) != installed_venv:
+        if not os.access(installed_python, os.X_OK):
+            sys.exit(f"Installed Python environment not found: {installed_python}")
+        os.execv(str(installed_python), [str(installed_python), str(Path(__file__).resolve()), *sys.argv[1:]])
+
 import pymysql
 
-from constants.DSnakeLab import DSnakeLab
 from snake_lab.control_client import AsyncLabClient, load_config
 from snake_lab.protocol import METHOD_SIMULATION_STATUS
 
