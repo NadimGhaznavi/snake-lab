@@ -2,6 +2,7 @@
 
 import asyncio
 import uuid
+from contextlib import ExitStack
 from typing import Any
 
 import zmq
@@ -488,14 +489,14 @@ class SnakeLabServer:
                 await self._socket.send_json(response)
         finally:
             self._stop_event.set()
-            try:
-                await self._shutdown_worker()
-            finally:
+            with ExitStack() as cleanup:
+                cleanup.callback(self.store.close)
+                cleanup.callback(self._context.term)
+                cleanup.callback(self._socket.close)
                 try:
-                    await self.events.close()
+                    await self._shutdown_worker()
                 finally:
-                    await self.telemetry.close()
-                    self._socket.close()
-                    self._context.term()
-                    self.store.close()
-
+                    try:
+                        await self.events.close()
+                    finally:
+                        await self.telemetry.close()

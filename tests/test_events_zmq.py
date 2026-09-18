@@ -11,7 +11,6 @@ from snake_lab.zmq.ZMQHelper import (
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
 )
-from snake_lab.zmq.Protocol import ProtocolError
 
 
 class EventsPublisherTests(unittest.IsolatedAsyncioTestCase):
@@ -64,12 +63,6 @@ class EventsPublisherTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(zmq.ZMQError, "send failed"):
             await asyncio.wait_for(self.publisher.close(), 1)
         self.socket.close.assert_called_once()
-
-    async def test_invalid_event_is_rejected_before_enqueueing(self) -> None:
-        with self.assertRaises(ProtocolError):
-            self.publisher.publish_event(EVENT_SIMULATION_ENDED, {"run_id": "x", "state": "running"})
-        self.assertTrue(self.publisher._pending.empty())
-        await self.publisher.close()
 
     async def test_publish_snapshots_the_callers_payload(self) -> None:
         self.publisher.start()

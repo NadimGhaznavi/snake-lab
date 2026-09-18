@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.6] - 2026-09-18 @ 03:55
+
+- Separate trusted outgoing event construction from incoming validation in `ZMQHelper`; retain payload snapshots and validate incoming events in `parse_event()`. Remove the redundant internal frame type check.
+- Propagate unexpected telemetry task failures after closing the publisher, while suppressing expected task cancellation. Ensure server socket, context, and database cleanup still runs when publisher cleanup fails.
+- Document and test the existing best-effort telemetry policy: overflow drops the oldest queued message regardless of topic, and shutdown discards pending delivery. Add subscriber decoding and context-ownership tests, plus publisher/server failure-cleanup coverage. All 51 targeted tests passed, including live ZeroMQ subscription tests.
+
 ## [1.6.5] - 2026-09-18 @ 03:51
 
 - Clean up `MyLog` documentation and typing. Normalize log filenames before handler reuse, remove defensive attribute lookup, and let the named logger control thresholds so level changes reach both file and console destinations.

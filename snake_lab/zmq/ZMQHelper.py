@@ -12,7 +12,29 @@ EVENT_TOPICS = {EVENT_SIMULATION_ENDED: TOPIC_SIMULATION_ENDED}
 
 
 def event_message(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate an event and return an envelope owning a copy of its payload."""
+    """Build an outgoing envelope owning a copy of its trusted payload."""
+    return {
+        "protocol_version": EVENT_PROTOCOL_VERSION,
+        "event_type": event_type,
+        "payload": dict(payload),
+    }
+
+
+def parse_event(data: Any) -> dict[str, Any]:
+    """Validate a decoded incoming event, rejecting unsupported versions/types."""
+    if not isinstance(data, dict) or set(data) != {
+        "protocol_version", "event_type", "payload"
+    }:
+        raise ProtocolError("invalid_event", "Event fields do not match the protocol")
+    if (
+        type(data["protocol_version"]) is not int
+        or data["protocol_version"] != EVENT_PROTOCOL_VERSION
+    ):
+        raise ProtocolError(
+            "unsupported_protocol", "Unsupported event protocol version"
+        )
+    event_type = data["event_type"]
+    payload = data["payload"]
     if not isinstance(event_type, str) or event_type not in EVENT_TOPICS:
         raise ProtocolError("unknown_event", "Unsupported event type")
     if not isinstance(payload, dict):
@@ -35,24 +57,4 @@ def event_message(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
             raise ProtocolError(
                 "invalid_event", "error must be a string when present"
             )
-    return {
-        "protocol_version": EVENT_PROTOCOL_VERSION,
-        "event_type": event_type,
-        "payload": dict(payload),
-    }
-
-
-def parse_event(data: Any) -> dict[str, Any]:
-    """Validate a decoded incoming event, rejecting unsupported versions/types."""
-    if not isinstance(data, dict) or set(data) != {
-        "protocol_version", "event_type", "payload"
-    }:
-        raise ProtocolError("invalid_event", "Event fields do not match the protocol")
-    if (
-        type(data["protocol_version"]) is not int
-        or data["protocol_version"] != EVENT_PROTOCOL_VERSION
-    ):
-        raise ProtocolError(
-            "unsupported_protocol", "Unsupported event protocol version"
-        )
-    return event_message(data["event_type"], data["payload"])
+    return event_message(event_type, payload)

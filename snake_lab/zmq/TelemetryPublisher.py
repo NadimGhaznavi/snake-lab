@@ -16,7 +16,11 @@ from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
 
 
 class TelemetryPublisher:
-    """Publish events and every offered board frame in queue order."""
+    """Publish best-effort telemetry in retained queue order.
+
+    Overflow drops the oldest queued message, regardless of topic. Shutdown
+    discards pending messages. Lifecycle notifications use EventsPublisher.
+    """
 
     def __init__(
         self,
@@ -91,8 +95,6 @@ class TelemetryPublisher:
         frame: FrameTelemetry,
     ) -> None:
         """Queue each frame immediately when a viewer is subscribed."""
-        if not isinstance(frame, FrameTelemetry):
-            raise TypeError("frame must be FrameTelemetry")
         if not self.has_frame_subscribers:
             return
         self._offer_event(TOPIC_FRAME, run_id, frame.to_dict())
@@ -145,10 +147,14 @@ class TelemetryPublisher:
         self._event_task = None
         for task in tasks:
             task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        self._socket.close()
-        self._frame_filters.clear()
-        self._has_frame_subscribers = False
-        self._started = False
-
+        try:
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+                for task in tasks:
+                    if not task.cancelled():
+                        task.result()
+        finally:
+            self._socket.close()
+            self._frame_filters.clear()
+            self._has_frame_subscribers = False
+            self._started = False

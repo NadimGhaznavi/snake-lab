@@ -36,13 +36,16 @@ class EventProtocolTests(unittest.TestCase):
             {"run_id": "x", "state": "completed", "extra": True},
         ):
             with self.subTest(payload=payload), self.assertRaises(ProtocolError) as raised:
-                event_message(EVENT_SIMULATION_ENDED, payload)
+                parse_event({"protocol_version": EVENT_PROTOCOL_VERSION,
+                             "event_type": EVENT_SIMULATION_ENDED, "payload": payload})
             self.assertEqual(raised.exception.code, "invalid_event")
 
     def test_rejects_unknown_event_types(self) -> None:
         for event_type in ("unknown", "", None, []):
             with self.subTest(event_type=event_type), self.assertRaises(ProtocolError) as raised:
-                event_message(event_type, {"run_id": "x", "state": "completed"})
+                parse_event({"protocol_version": EVENT_PROTOCOL_VERSION,
+                             "event_type": event_type,
+                             "payload": {"run_id": "x", "state": "completed"}})
             self.assertEqual(raised.exception.code, "unknown_event")
 
     def test_rejects_invalid_envelopes_and_old_version(self) -> None:

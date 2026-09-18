@@ -99,7 +99,7 @@ to the current server process. There is no ordering guarantee across the
 separate control, event, and telemetry sockets.
 
 Server code calls `EventsPublisher.publish_event(event_type, payload)`. The call
-validates and snapshots the payload, then queues it for asynchronous delivery.
+snapshots the trusted internal payload, then queues it for asynchronous delivery.
 Returning means local enqueueing, not receipt by a subscriber. Events are
 processed individually in queue order. Orderly shutdown drains pending events
 before closing the publisher when the transport remains operational; this
