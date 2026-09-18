@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-09-18 @ 03:34
+
 - Remove unused loss-history accumulation and `get_average_loss()` from `Trainer`; continue returning each training loss directly to the simulator.
 - Add five training tests covering Double DQN action selection and target evaluation, terminal-state masking, target-network updates after optimization, independent target weights, and skipping updates when no replay batch is available. All 21 NN tests passed; retain the existing replay sampling policy.
 
