@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-18 @ 02:50
+
+- Reorganize runtime code into `nn`, `game`, `server`, `client`, `zmq`, `database`, and `utils` packages, with major classes in individually named modules. Separate game state, rules, environment, and board snapshots; group client widgets and stylesheets; and extract server, simulation, and messaging components.
+- Introduce a shared database access layer: application-independent `DbMgr` owns MariaDB connections, cursors, parameterized CRUD operations, transactions, and error handling; `SnakeDb` translates application operations into database calls. Route server persistence and client configuration lookups through this layer, keeping interrupted-run recovery explicit at server startup.
+- Separate configuration processing into the public `Configuration` interface and its internal `JSONValidator` helper. Keep SnakeLab validation rules and schema selection in `Configuration`, with generic defaults and JSON Schema validation in the helper.
+- Update imports, tests, documentation references, and deployment copying for the new package layout. Preserve the `python -m snake_lab.server` and `python -m snake_lab.client` entry points.
+- Add coding guidelines covering module ownership, layered interfaces, shared database access, and incremental refactoring, plus tests for database transactions and configuration boundaries.
+
 ## [1.5.9] - 2026-09-18 @ 00:53
 
 - Reduced the *Torch Threads* from 10 to 5 after benchmarking. This is one less than the number of physical cores on the benchmarked (and prod) machine.

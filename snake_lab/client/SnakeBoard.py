@@ -9,7 +9,7 @@ from textual.reactive import var
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
 
-from snake_lab.telemetry import BoardSnapshot
+from snake_lab.game.BoardSnapshot import BoardSnapshot
 
 
 class SnakeBoard(ScrollView):

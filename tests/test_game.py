@@ -3,16 +3,17 @@ import unittest
 
 from constants.DGame import DGameDef
 from constants.DNNet import DNetDef
+from snake_lab.game.GameRules import GameRules
+from snake_lab.game.GameState import GameState
 from snake_lab.game import (
     Action,
     Direction,
-    GameRules,
-    GameState,
     Outcome,
     Position,
     RewardConfig,
-    SnakeGame,
 )
+
+from snake_lab.game.SnakeGame import SnakeGame
 
 
 TEST_REWARDS = RewardConfig(

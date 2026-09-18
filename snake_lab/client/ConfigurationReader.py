@@ -1,10 +1,8 @@
 """Read-only configuration lookup for the telemetry client."""
 
-import json
-from pathlib import Path
 from typing import Any
 
-import pymysql
+from snake_lab.database.SnakeDb import SnakeDb
 
 from constants.DSnakeLab import DSnakeLab
 
@@ -32,21 +30,10 @@ class ConfigurationReader:
         self.credentials_file = credentials_file
 
     def read(self, run_id: str) -> dict[str, Any] | None:
-        credentials = json.loads(Path(self.credentials_file).read_text(encoding="utf-8"))
-        connection = pymysql.connect(
-            host=self.host, port=self.port,
-            user=credentials.get("user", DSnakeLab.DB_USER),
-            password=credentials["password"],
-            database=credentials.get("database", DSnakeLab.DB_NAME),
-            charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor,
-            connect_timeout=3, read_timeout=3, write_timeout=3,
-            autocommit=False,
+        database = SnakeDb.connect(
+            self.credentials_file, host=self.host, port=self.port,
         )
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("START TRANSACTION READ ONLY")
-                columns = ", ".join(name for name, _ in TUNED_FIELDS)
-                cursor.execute(f"SELECT {columns} FROM configurations WHERE run_id = %s", (run_id,))
-                return cursor.fetchone()
+            return database.get_configuration(run_id)
         finally:
-            connection.close()
+            database.close()

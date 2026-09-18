@@ -12,7 +12,7 @@ import zmq
 import zmq.asyncio
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.protocol import (
+from snake_lab.zmq.Protocol import (
     METHOD_SIMULATION_ACTIVE,
     METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
     METHOD_SIMULATION_CANCEL,

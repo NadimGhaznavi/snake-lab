@@ -50,9 +50,9 @@ envelope containing `protocol_version`, `sequence`, `run_id`, and `payload`.
 Subscribe before submitting a run when the initial lifecycle events are needed.
 
 The project's
-[control client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/control_client.py)
+[control client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/client/AsyncLabClient.py)
 and
-[telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/telemetry_zmq.py)
+[telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/zmq/TelemetrySubscriber.py)
 are the reference implementations.
 
 ## High-score Board Snapshots

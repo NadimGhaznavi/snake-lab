@@ -8,9 +8,9 @@ from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
 from constants.DTrainer import DTrainer
-from snake_lab.memory import ReplayMemory
-from snake_lab.model import RNNModel
-from utils.MyLog import MyLog
+from snake_lab.nn.ReplayMemory import ReplayMemory
+from snake_lab.nn.RNNModel import RNNModel
+from snake_lab.utils.MyLog import MyLog
 
 
 class Trainer:

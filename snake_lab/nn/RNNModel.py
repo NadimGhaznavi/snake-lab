@@ -7,7 +7,7 @@ from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DNNet import DNetDef
 from constants.DSnakeLab import DSnakeLab
-from utils.MyLog import MyLog
+from snake_lab.utils.MyLog import MyLog
 
 
 class RNNModel(nn.Module):

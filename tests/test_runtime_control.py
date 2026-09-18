@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from snake_lab.runtime_control import (
+from snake_lab.server.SimulationControl import (
     SimulationCancelled,
     SimulationControl,
 )

@@ -4,14 +4,14 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from snake_lab.telemetry import FrameTelemetry
+from snake_lab.zmq.FrameTelemetry import FrameTelemetry
 
 import torch
 
 from constants.DGame import DGameDef
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.configuration import simulation_config_template
-from snake_lab.simulator import Simulator
+from snake_lab.server.Configuration import simulation_config_template
+from snake_lab.server.Simulator import Simulator
 from snake_lab.game import Action, Outcome
 
 

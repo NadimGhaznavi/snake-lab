@@ -11,10 +11,11 @@ import uuid
 
 import pymysql
 
-from snake_lab.configuration import simulation_config_template
+from snake_lab.database.DbMgr import DbMgr
+from snake_lab.database.SnakeDb import SnakeDb
+from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.database import (
     CONFIGURATION_PATHS,
-    MariaDBSimulationStore,
     configuration_values,
 )
 
@@ -59,7 +60,7 @@ class ConfigurationMigrationTests(unittest.TestCase):
                 self.assertEqual(cursor.fetchone()[0], 0)
 
                 connection.autocommit(False)
-                store = MariaDBSimulationStore(connection)
+                store = SnakeDb(DbMgr(connection))
                 store.create_run("new-1", config, "new")
                 store.create_run("new-2", config, "new")
                 cursor.execute(f"SELECT {columns} FROM configurations WHERE run_id = 'new-1'")

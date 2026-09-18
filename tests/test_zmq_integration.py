@@ -13,13 +13,13 @@ from pathlib import Path
 import zmq
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.control_client import AsyncLabClient
-from snake_lab.event_protocol import (
+from snake_lab.client.AsyncLabClient import AsyncLabClient
+from snake_lab.zmq.ZMQHelper import (
     EVENT_PROTOCOL_VERSION,
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
 )
-from snake_lab.protocol import (
+from snake_lab.zmq.Protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_CANCEL,
     METHOD_SIMULATION_PAUSE,
@@ -29,13 +29,9 @@ from snake_lab.protocol import (
     METHOD_SIMULATION_SUBMIT,
     PROTOCOL_VERSION,
 )
-from snake_lab.telemetry import (
-    TOPIC_EPISODE,
-    TOPIC_FRAME,
-    TOPIC_RUN,
-    FrameTelemetry,
-    TelemetryEnvelope,
-)
+from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
+from snake_lab.zmq.FrameTelemetry import FrameTelemetry
+from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]

@@ -1,12 +1,12 @@
 import unittest
 
-from snake_lab.event_protocol import (
+from snake_lab.zmq.ZMQHelper import (
     EVENT_PROTOCOL_VERSION,
     EVENT_SIMULATION_ENDED,
     event_message,
     parse_event,
 )
-from snake_lab.protocol import ProtocolError
+from snake_lab.zmq.Protocol import ProtocolError
 
 
 class EventProtocolTests(unittest.TestCase):

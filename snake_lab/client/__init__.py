@@ -16,21 +16,17 @@ from textual.theme import Theme
 from textual.screen import ModalScreen
 from textual.validation import Integer
 from textual.widgets import Button, Checkbox, Input, Label, RichLog, Select
-from snake_lab.client_plots import LivePlots
-from snake_lab.client_config import ConfigurationReader, TUNED_FIELDS
+from snake_lab.client.LivePlots import LivePlots
+from snake_lab.client.ConfigurationReader import ConfigurationReader, TUNED_FIELDS
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.board import SnakeBoard
-from snake_lab.control_client import AsyncLabClient, load_config
-from snake_lab.runtime_control import MAX_MOVE_DELAY_MS, MOVE_DELAY_STEP_MS
-from snake_lab.telemetry import (
-    TOPIC_EPISODE,
-    TOPIC_FRAME,
-    TOPIC_RUN,
-    FrameTelemetry,
-    TelemetryEnvelope,
-)
-from snake_lab.telemetry_zmq import TelemetrySubscriber
+from snake_lab.client.SnakeBoard import SnakeBoard
+from snake_lab.client.AsyncLabClient import AsyncLabClient, load_config
+from snake_lab.server.SimulationControl import MAX_MOVE_DELAY_MS, MOVE_DELAY_STEP_MS
+from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
+from snake_lab.zmq.FrameTelemetry import FrameTelemetry
+from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
+from snake_lab.zmq.TelemetrySubscriber import TelemetrySubscriber
 
 
 class TelemetryReceived(Message):
@@ -812,6 +808,3 @@ def main() -> None:
         ),
     ).run()
 
-
-if __name__ == "__main__":
-    main()

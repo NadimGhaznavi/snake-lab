@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 
 from constants.DNNet import DNetDef
-from snake_lab.memory import ReplayMemory, Transition
-from snake_lab.model import RNNModel
-from snake_lab.trainer import Trainer
+from snake_lab.nn.ReplayMemory import ReplayMemory, Transition
+from snake_lab.nn.RNNModel import RNNModel
+from snake_lab.nn.Trainer import Trainer
 
 
 class FakeLog:
