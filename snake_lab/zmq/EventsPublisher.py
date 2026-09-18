@@ -38,10 +38,10 @@ class EventsPublisher:
         )
 
     def publish_event(self, event_type: str, payload: dict[str, Any]) -> None:
-        """Validate and queue an event for asynchronous, best-effort delivery.
+        """Snapshot and queue an internal event for best-effort delivery.
 
-        Returning confirms local enqueueing, not subscriber receipt. Invalid
-        events raise ProtocolError synchronously before entering the queue.
+        Returning confirms local enqueueing, not subscriber receipt. Incoming
+        event validation belongs to parse_event().
         """
         self._pending.put_nowait(event_message(event_type, payload))
 
