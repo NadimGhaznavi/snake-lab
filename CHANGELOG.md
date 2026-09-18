@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.6] - 2026-09-18 @ 00:03
+
 ## [1.5.5] - 2026-09-17 @ 23:58
 
 - Keep a single Python benchmark script that automatically uses the installed virtual environment, deriving its location from the credential-path constant.
