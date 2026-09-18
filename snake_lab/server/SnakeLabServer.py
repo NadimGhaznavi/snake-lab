@@ -498,5 +498,4 @@ class SnakeLabServer:
                     self._socket.close()
                     self._context.term()
                     self.store.close()
-                    self.log.shutdown()
 
