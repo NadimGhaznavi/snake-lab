@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Use the installed virtual environment for the benchmark launcher, using the shared install-directory constant.
+
 ## [1.5.4] - 2026-09-17 @ 23:52
 
 - Include actual PyTorch intra-op and inter-op thread counts in the simulation startup log.
