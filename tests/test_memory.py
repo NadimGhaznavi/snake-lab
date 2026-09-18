@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from snake_lab.memory import ReplayMemory, Transition
+from snake_lab.nn.ReplayMemory import ReplayMemory, Transition
 
 
 class FakeLog:

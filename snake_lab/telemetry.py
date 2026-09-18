@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from snake_lab.game import GameState, Outcome, StepResult
+from snake_lab.game.GameState import GameState
+from snake_lab.game import Outcome, StepResult
 from snake_lab.protocol import PROTOCOL_VERSION, ProtocolError
 
 

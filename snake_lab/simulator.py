@@ -17,13 +17,15 @@ from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.configuration import simulation_config_template
-from snake_lab.epsilon import EpsilonAlgo
-from snake_lab.game import GameState, Outcome, RewardConfig, SnakeGame
-from snake_lab.memory import ReplayMemory, Transition
-from snake_lab.model import RNNModel
+from snake_lab.nn.EpsilonAlgo import EpsilonAlgo
+from snake_lab.game.GameState import GameState
+from snake_lab.game import Outcome, RewardConfig
+from snake_lab.game.SnakeGame import SnakeGame
+from snake_lab.nn.ReplayMemory import ReplayMemory, Transition
+from snake_lab.nn.RNNModel import RNNModel
 from snake_lab.runtime_control import SimulationControl
 from snake_lab.telemetry import BoardSnapshot, FrameTelemetry
-from snake_lab.trainer import Trainer
+from snake_lab.nn.Trainer import Trainer
 from utils.MyLog import MyLog
 
 

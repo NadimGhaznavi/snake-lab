@@ -1,8 +1,8 @@
 import unittest
 
+from snake_lab.game.GameState import GameState
 from snake_lab.game import (
     Direction,
-    GameState,
     Outcome,
     Position,
     StepResult,
