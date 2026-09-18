@@ -40,6 +40,24 @@ class ConfigurationReaderTests(unittest.TestCase):
         connection.close.assert_called_once()
 
 
+class LossBinningTests(unittest.TestCase):
+    def test_legacy_bin_boundaries_and_partial_final_bin(self):
+        plots = LivePlots()
+        self.assertEqual(plots._loss_points(), [])
+        for number in range(76):
+            plots.add_episode({"episode": number * 2, "score": 0, "loss": float(number)}, 0)
+        # The legacy divisor is a target, not a strict 75-point limit.
+        self.assertEqual(plots._loss_points(), [(n * 2, float(n)) for n in range(76)])
+        for number in range(76, 151):
+            plots.add_episode({"episode": number * 2, "score": 0, "loss": float(number)}, 0)
+        plots.add_episode({"episode": 301, "score": 0, "loss": None}, 0)
+        plots.add_episode({"episode": 301, "score": 0, "loss": 999}, 0)
+        points = plots._loss_points()
+        self.assertEqual(len(plots.losses), 151)
+        self.assertEqual(points[:-1], [(n * 2, n + 0.5) for n in range(0, 150, 2)])
+        self.assertEqual(points[-1], (300, 150.0))
+
+
 class DashboardTests(unittest.IsolatedAsyncioTestCase):
     async def test_live_plots_are_bounded_and_reset_between_runs(self):
         reader = MagicMock()
@@ -56,6 +74,10 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             plots.redraw()
             self.assertEqual(len(plots.episodes), 500)
             self.assertEqual(plots.episodes[0][0], 100)
+            self.assertEqual(len(plots.losses), 300)
+            loss_plot = plots.query_one("#plot-losses", PlotWidget)
+            self.assertEqual(loss_plot._datasets[0].x.tolist(), list(range(0, 600, 8)))
+            self.assertEqual(loss_plot._datasets[0].y.tolist(), [0.5] * 75)
             self.assertEqual(len(plots.game_scores), 200)
             score_plot = plots.query_one("#plot-scores", PlotWidget)
             self.assertEqual(score_plot._datasets[0].x.tolist(), list(range(400, 600)))
@@ -77,6 +99,8 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             app._activate_run("second")
             self.assertEqual(len(plots.episodes), 0)
             self.assertEqual(len(plots.game_scores), 0)
+            self.assertEqual(plots.losses, [])
+            self.assertEqual(loss_plot._datasets, [])
             self.assertEqual(dict(plots.score_counts), {})
             self.assertEqual(histogram._datasets, [])
             for number in range(1, 40):
