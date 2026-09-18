@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-18 @ 03:13
+
 ## [1.6.0] - 2026-09-18 @ 02:50
 
 - Reorganize runtime code into `nn`, `game`, `server`, `client`, `zmq`, `database`, and `utils` packages, with major classes in individually named modules. Separate game state, rules, environment, and board snapshots; group client widgets and stylesheets; and extract server, simulation, and messaging components.
