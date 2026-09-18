@@ -16,7 +16,6 @@ from constants.DGame import DGameDef
 from constants.DModule import DModule
 from constants.DMyLog import DMyLogDef
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.nn.EpsilonAlgo import EpsilonAlgo
 from snake_lab.game.GameState import GameState
 from constants.DGame import Outcome
@@ -122,7 +121,7 @@ def _derived_seed(master_seed: int, namespace: str, index: int = 0) -> int:
 
 
 class Simulator:
-    """Execute one isolated, serial SnakeLab simulation."""
+    """Execute one isolated, serial simulation from a resolved configuration."""
 
     def __init__(
         self,
@@ -135,7 +134,7 @@ class Simulator:
         runtime_control: SimulationControl | None = None,
         frame_enabled: Callable[[], bool] | None = None,
     ) -> None:
-        self.config = simulation_config_template().resolve(deepcopy(config))
+        self.config = deepcopy(config)
         self._torch = torch_module
         self._torch.set_num_threads(DSnakeLab.PYTORCH_NUM_THREADS)
         self._log_file = log_file
@@ -235,9 +234,6 @@ class Simulator:
         )
 
     def _select_action(self, history: deque[tuple[float, ...]]) -> int:
-        if self.epsilon is None or self.model is None:
-            raise RuntimeError("simulator components have not been initialized")
-
         random_action = self.epsilon.maybe_random_action()
         if random_action is not None:
             return random_action
@@ -250,9 +246,6 @@ class Simulator:
             return int(self.model(states).argmax(dim=1).item())
 
     async def _run_episode(self, episode: int) -> EpisodeResult:
-        if self.replay is None or self.trainer is None or self.epsilon is None:
-            raise RuntimeError("simulator components have not been initialized")
-
         game = self._new_game(episode)
         current_board = game.state
         observation = game.observe()

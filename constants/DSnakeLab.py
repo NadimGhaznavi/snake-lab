@@ -9,6 +9,8 @@ class DSnakeLab:
     DB_PORT: Final[int] = 3306
     DB_USER: Final[str] = "snakelab"
     EVENTS_PORT: Final[int] = 41972
+    MAX_MOVE_DELAY_MS: Final[int] = 100
+    MOVE_DELAY_STEP_MS: Final[int] = 20
     PORT: Final[int] = 41970
     PYTORCH_NUM_THREADS: Final[int] = 5
     TELEMETRY_PORT: Final[int] = 41971

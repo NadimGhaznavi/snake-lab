@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-
-MAX_MOVE_DELAY_MS = 100
-MOVE_DELAY_STEP_MS = 20
+from constants.DSnakeLab import DSnakeLab
 
 
 class SimulationCancelled(Exception):
@@ -53,12 +51,12 @@ class SimulationControl:
     def set_move_delay(self, move_delay_ms: int) -> None:
         if (
             type(move_delay_ms) is not int
-            or not 0 <= move_delay_ms <= MAX_MOVE_DELAY_MS
-            or move_delay_ms % MOVE_DELAY_STEP_MS != 0
+            or not 0 <= move_delay_ms <= DSnakeLab.MAX_MOVE_DELAY_MS
+            or move_delay_ms % DSnakeLab.MOVE_DELAY_STEP_MS != 0
         ):
             raise ValueError(
                 "move_delay_ms must be an integer from 0 through "
-                f"{MAX_MOVE_DELAY_MS} in {MOVE_DELAY_STEP_MS} ms steps"
+                f"{DSnakeLab.MAX_MOVE_DELAY_MS} in {DSnakeLab.MOVE_DELAY_STEP_MS} ms steps"
             )
         self._move_delay_ms = move_delay_ms
         self._changed.set()
