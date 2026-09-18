@@ -9,6 +9,7 @@ from snake_lab.telemetry import FrameTelemetry
 import torch
 
 from constants.DGame import DGameDef
+from constants.DSnakeLab import DSnakeLab
 from snake_lab.configuration import simulation_config_template
 from snake_lab.simulator import Simulator
 from snake_lab.game import Action, Outcome
@@ -52,6 +53,12 @@ class FakeTorch:
 
     def set_num_threads(self, count: int) -> None:
         self.num_threads = count
+
+    def get_num_threads(self) -> int:
+        return self.num_threads
+
+    def get_num_interop_threads(self) -> int:
+        return 8
 
     @staticmethod
     def device(device_type: str) -> FakeDevice:
@@ -102,9 +109,10 @@ class SimulatorTests(unittest.TestCase):
         simulator.probe_runtime()
 
         self.assertEqual(
-            simulator.runtime_description, "Simulation running on CPU"
+            simulator.runtime_description,
+            f"Simulation running on CPU: torch_threads={DSnakeLab.PYTORCH_NUM_THREADS}, torch_interop_threads=8",
         )
-        self.assertEqual(log.messages, ["Simulation running on CPU"])
+        self.assertEqual(log.messages, [simulator.runtime_description])
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
 
@@ -119,10 +127,10 @@ class SimulatorTests(unittest.TestCase):
 
         self.assertEqual(
             simulator.runtime_description,
-            "Simulation running on CPU",
+            f"Simulation running on CPU: torch_threads={DSnakeLab.PYTORCH_NUM_THREADS}, torch_interop_threads=8",
         )
         self.assertEqual(
-            log.messages, ["Simulation running on CPU"]
+            log.messages, [simulator.runtime_description]
         )
         self.assertEqual(torch_module.tensor_device.type, "cpu")
         self.assertFalse(torch_module.cuda.synchronized)
