@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-18 @ 03:27
+
 - Complete the game package cleanup: move `Action` and `Outcome` into `constants/DGame.py`, extract `Position`, `Direction`, `RewardConfig`, and `StepResult` into their own modules, and place shared food-placement logic in `game/GameHelper.py`. Reduce `game/__init__.py` to its package description and update imports and deployment references.
 - Remove the game package's dependency on the messaging layer. Board snapshot parsing now raises `BoardSnapshotError`; `FrameTelemetry` translates it into the existing `invalid_telemetry` protocol error. Preserve game mechanics, wire formats, and existing constructor validation.
 - Add game boundary tests for error translation, dependency direction, and telemetry round-tripping. All 96 targeted game, messaging, client, server, and persistence regression tests passed.
