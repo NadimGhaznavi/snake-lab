@@ -10,18 +10,18 @@ This project was created to support the [Fr3d Project](https://fr3d.osoyalce.com
 
 ## User Docs
 
-- [Installation](/pages/install.html)
-- [Run a simulation](/pages/run-a-simulation.html)
-- [Sample configuration](/pages/sample-config.html)
+- [Installation](/pages/install)
+- [Run a simulation](/pages/run-a-simulation)
+- [Sample configuration](/pages/sample-config)
 
 ## Technical Docs
 
-- [Architecture](/pages/architecture.html)
-- [Developer integration](/pages/developer.html)
-- [Control protocol](/pages/control-protocol.html)
-- [Event protocol](/pages/event-protocol.html)
-- [Driver setup](/pages/driver-setup.html)
-- [Model setup](/pages/model-setup.html)
-- [Coding guidelines](/pages/coding-guidelines.html)
+- [Architecture](/pages/architecture)
+- [Developer integration](/pages/developer)
+- [Control protocol](/pages/control-protocol)
+- [Event protocol](/pages/event-protocol)
+- [Driver setup](/pages/driver-setup)
+- [Model setup](/pages/model-setup)
+- [Coding guidelines](/pages/coding-guidelines)
 
 
