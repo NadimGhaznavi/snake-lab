@@ -12,6 +12,7 @@ from constants.DGame import DGameDef
 from constants.DSnakeLab import DSnakeLab
 from snake_lab.server.Configuration import simulation_config_template
 from snake_lab.server.Simulator import Simulator
+from snake_lab.nn.ReplayMemory import ReplayMemory
 from constants.DGame import Action
 from constants.DGame import Outcome
 
@@ -278,7 +279,17 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
             on_frame=frames.append,
         )
 
-        state = await simulator.run()
+        with patch.object(
+            ReplayMemory, "append", autospec=True, side_effect=ReplayMemory.append
+        ) as append:
+            state = await simulator.run()
+
+        transitions = [call.args[1] for call in append.call_args_list]
+        self.assertEqual(len(transitions), state.total_steps)
+        self.assertEqual(sum(item.done for item in transitions), 100)
+        for previous, current in zip(transitions, transitions[1:]):
+            if not previous.done:
+                self.assertEqual(previous.next_state, current.state)
 
         self.assertEqual(state.completed_epochs, 100)
         self.assertEqual(

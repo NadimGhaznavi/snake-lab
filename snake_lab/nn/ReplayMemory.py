@@ -27,7 +27,11 @@ class Transition:
 
 @dataclass(frozen=True, slots=True)
 class ReplayBatch:
-    """Dense, fixed-shape arrays ready for conversion to PyTorch tensors."""
+    """Observations [B,T,F] and final-transition supervision [B].
+
+    Replay-owned buffers are overwritten by the next successful sample().
+    Consume synchronously or copy the arrays to retain a batch.
+    """
 
     states: np.ndarray
     actions: np.ndarray
@@ -38,10 +42,11 @@ class ReplayBatch:
 
 @dataclass(frozen=True, slots=True)
 class _Episode:
+    """N transitions backed by one contiguous array of N + 1 observations."""
+
     states: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
-    next_states: np.ndarray
     dones: np.ndarray
 
     @property
@@ -87,6 +92,13 @@ class ReplayMemory:
         self._total_windows = 0
         self._current: list[Transition] = []
         self._frame_count = 0
+        self._batch_states = np.empty(
+            (batch_size, sequence_length, state_size), dtype=np.float32
+        )
+        self._batch_next_states = np.empty_like(self._batch_states)
+        self._batch_actions = np.empty(batch_size, dtype=np.int64)
+        self._batch_rewards = np.empty(batch_size, dtype=np.float32)
+        self._batch_dones = np.empty(batch_size, dtype=np.bool_)
         self.log = log or MyLog(
             client_id=DModule.REPLAY_MEMORY,
             log_level=DMyLogDef.DEFAULT_LOG_LEVEL,
@@ -107,7 +119,11 @@ class ReplayMemory:
         return self._frame_count
 
     def append(self, transition: Transition) -> None:
-        """Append a transition, finalizing its episode when it is terminal."""
+        """Append contiguous transitions, finalizing on a terminal transition.
+
+        Within an episode, each state must be the preceding next_state.
+        This internal caller invariant is covered by tests, not runtime checks.
+        """
         if not isinstance(transition, Transition):
             raise TypeError("transition must be a Transition")
         if len(transition.state) != self.state_size:
@@ -127,7 +143,8 @@ class ReplayMemory:
 
     def _finalize_episode(self) -> None:
         states = np.asarray(
-            [transition.state for transition in self._current],
+            [transition.state for transition in self._current]
+            + [self._current[-1].next_state],
             dtype=np.float32,
         )
         actions = np.asarray(
@@ -138,10 +155,6 @@ class ReplayMemory:
             [transition.reward for transition in self._current],
             dtype=np.float32,
         )
-        next_states = np.asarray(
-            [transition.next_state for transition in self._current],
-            dtype=np.float32,
-        )
         dones = np.asarray(
             [transition.done for transition in self._current],
             dtype=np.bool_,
@@ -150,7 +163,6 @@ class ReplayMemory:
             states=states,
             actions=actions,
             rewards=rewards,
-            next_states=next_states,
             dones=dones,
         )
         self._episodes.append(episode)
@@ -177,27 +189,18 @@ class ReplayMemory:
         )
 
     def sample(self) -> ReplayBatch | None:
-        """Sample uniformly from all in-episode sliding windows."""
+        """Sample windows uniformly into buffers valid until the next sample."""
         if self._total_windows < self.batch_size:
             return None
 
         window_ids = self._rng.sample(
             range(self._total_windows), self.batch_size
         )
-        states = np.empty(
-            (self.batch_size, self.sequence_length, self.state_size),
-            dtype=np.float32,
-        )
-        actions = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.int64
-        )
-        rewards = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.float32
-        )
-        next_states = np.empty_like(states)
-        dones = np.empty(
-            (self.batch_size, self.sequence_length), dtype=np.bool_
-        )
+        states = self._batch_states
+        actions = self._batch_actions
+        rewards = self._batch_rewards
+        next_states = self._batch_next_states
+        dones = self._batch_dones
 
         for batch_index, window_id in enumerate(window_ids):
             episode_index = bisect_right(self._cumulative_windows, window_id)
@@ -207,12 +210,13 @@ class ReplayMemory:
             )
             start = window_id - previous_total
             end = start + self.sequence_length
+            transition_index = end - 1
             episode = self._eligible_episodes[episode_index]
             states[batch_index] = episode.states[start:end]
-            actions[batch_index] = episode.actions[start:end]
-            rewards[batch_index] = episode.rewards[start:end]
-            next_states[batch_index] = episode.next_states[start:end]
-            dones[batch_index] = episode.dones[start:end]
+            actions[batch_index] = episode.actions[transition_index]
+            rewards[batch_index] = episode.rewards[transition_index]
+            next_states[batch_index] = episode.states[start + 1:end + 1]
+            dones[batch_index] = episode.dones[transition_index]
 
         return ReplayBatch(
             states=states,

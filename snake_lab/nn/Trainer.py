@@ -93,7 +93,7 @@ class Trainer:
         self.model.train()
         predicted_all = self.model.forward_sequence(states)
         predicted = predicted_all[:, -1, :].gather(
-            1, actions[:, -1].unsqueeze(-1)
+            1, actions.unsqueeze(-1)
         ).squeeze(-1)
 
         with torch.no_grad():
@@ -106,8 +106,7 @@ class Trainer:
                 1, next_actions
             ).squeeze(-1)
             target = (
-                rewards[:, -1]
-                + self.gamma * target_next * (~dones[:, -1])
+                rewards + self.gamma * target_next * (~dones)
             )
 
         loss = self.criterion(predicted, target)

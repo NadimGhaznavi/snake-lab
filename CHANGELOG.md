@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Preallocate replay sampling buffers and return final-transition actions, rewards, and dones as [B] arrays. Update Trainer to consume them directly; document batch buffer reuse and test simulator episode continuity.
+- Store completed replay episodes in one contiguous array of N + 1 observations, sharing current/next-state storage and preserving the terminal observation. Nearly halve replay state storage for long episodes.
 - Cache the replay-window index when episodes complete, after eviction, so sampling no longer scans stored episodes. Preserve uniform window sampling and seeded ordering.
 
 ## [1.6.6] - 2026-09-18 @ 03:55

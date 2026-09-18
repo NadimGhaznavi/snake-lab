@@ -78,7 +78,7 @@ class TrainerTests(unittest.TestCase):
                     state=state,
                     action=index % DNetDef.OUTPUT_SIZE,
                     reward=float(index),
-                    next_state=tuple(value + 0.5 for value in state),
+                    next_state=tuple(value + 1.0 for value in state),
                     done=index == 2,
                 )
             )
@@ -107,6 +107,9 @@ class TrainerTests(unittest.TestCase):
         self.assertIsNotNone(loss)
         self.assertTrue(math.isfinite(loss))
         self.assertEqual(criterion.shapes, (torch.Size([2]), torch.Size([2])))
+        # CPU tensors share the replay buffers; a subsequent sample is safe
+        # once the preceding optimization step has completed.
+        self.assertTrue(math.isfinite(trainer.train()))
 
 
 class TableModel(nn.Module):
@@ -131,13 +134,13 @@ class RecordingHuberLoss(nn.SmoothL1Loss):
 class TrainerCalculationTests(unittest.TestCase):
     def make_trainer(self, tau=0.25):
         # The first timestep is deliberately unlike the last. Only the final
-        # action/reward/done should contribute directly to the loss.
+        # model output should contribute directly to the loss.
         batch = ReplayBatch(
             states=np.array([[[0], [1]], [[2], [3]]], dtype=np.float32),
-            actions=np.array([[2, 0], [0, 2]], dtype=np.int64),
-            rewards=np.array([[-99, 2], [-88, 3]], dtype=np.float32),
+            actions=np.array([0, 2], dtype=np.int64),
+            rewards=np.array([2, 3], dtype=np.float32),
             next_states=np.array([[[4], [5]], [[6], [7]]], dtype=np.float32),
-            dones=np.array([[True, False], [False, True]], dtype=np.bool_),
+            dones=np.array([False, True], dtype=np.bool_),
         )
         replay = Mock(spec=ReplayMemory)
         replay.sample.return_value = batch
