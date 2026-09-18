@@ -92,22 +92,21 @@ class Trainer:
 
         self.model.train()
         predicted_all = self.model.forward_sequence(states)
-        predicted = predicted_all[:, -1, :].gather(
-            1, actions[:, -1].unsqueeze(-1)
+        predicted = predicted_all.gather(
+            1, actions.unsqueeze(-1)
         ).squeeze(-1)
 
         with torch.no_grad():
             self.model.eval()
-            online_next = self.model.forward_sequence(next_states)[:, -1, :]
+            online_next = self.model.forward_sequence(next_states)
             next_actions = online_next.argmax(dim=1, keepdim=True)
             self.model.train()
             target_all = self.target_model.forward_sequence(next_states)
-            target_next = target_all[:, -1, :].gather(
+            target_next = target_all.gather(
                 1, next_actions
             ).squeeze(-1)
             target = (
-                rewards[:, -1]
-                + self.gamma * target_next * (~dones[:, -1])
+                rewards + self.gamma * target_next * (~dones)
             )
 
         loss = self.criterion(predicted, target)
