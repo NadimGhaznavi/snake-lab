@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.database import CONFIGURATION_PATHS, configuration_values, config_hash
+from constants.DSQL import DSQL
+from snake_lab.database.DBHelper import configuration_values, config_hash
 from snake_lab.database.DbMgr import DbMgr, SqlValue
 
 if TYPE_CHECKING:
@@ -20,9 +21,13 @@ class SnakeDb:
 
     @classmethod
     def connect(cls, credentials_file: str | Path = DSnakeLab.DB_CREDENTIALS_FILE,
-                *, host: str = DSnakeLab.DB_HOST, port: int = DSnakeLab.DB_PORT) -> "SnakeDb":
+                *, host: str = DSnakeLab.DB_HOST, port: int = DSnakeLab.DB_PORT,
+                connect_timeout: int = 3, read_timeout: int = 3,
+                write_timeout: int = 3) -> "SnakeDb":
         return cls(DbMgr.connect(credentials_file=credentials_file, host=host, port=port,
-                                 user=DSnakeLab.DB_USER, database=DSnakeLab.DB_NAME))
+                                 user=DSnakeLab.DB_USER, database=DSnakeLab.DB_NAME,
+                                 connect_timeout=connect_timeout, read_timeout=read_timeout,
+                                 write_timeout=write_timeout))
 
     def recover_interrupted_runs(self) -> None:
         """Called only by the server at startup, never by a client connection."""
@@ -39,7 +44,7 @@ class SnakeDb:
             })
             self._dbmgr.insert("configurations", {
                 "run_id": run_id,
-                **dict(zip((p.replace('.', '_') for p in CONFIGURATION_PATHS),
+                **dict(zip((p.replace('.', '_') for p in DSQL.CONFIGURATION_PATHS),
                            configuration_values(config))),
             })
 
@@ -83,8 +88,31 @@ class SnakeDb:
         """Read persisted configuration without changing simulation state."""
         with self._dbmgr.transaction(read_only=True):
             return self._dbmgr.select("configurations",
-                tuple(p.replace('.', '_') for p in CONFIGURATION_PATHS),
+                tuple(p.replace('.', '_') for p in DSQL.CONFIGURATION_PATHS),
                 where={"run_id": run_id}, one=True)
+
+    def measure_and_delete_benchmark(self, run_id: str) -> tuple[int, float]:
+        """Measure and delete one completed run atomically; return steps and seconds."""
+        with self._dbmgr.transaction():
+            run = self._dbmgr.select(
+                "simulation_runs", ("status", "started_at", "completed_at"),
+                where={"run_id": run_id}, one=True, for_update=True,
+            )
+            if not run or run["status"] != "completed":
+                raise RuntimeError("Benchmark has no committed completed result")
+            started, completed = run["started_at"], run["completed_at"]
+            if started is None or completed is None:
+                raise RuntimeError("Benchmark has no positive elapsed time")
+            seconds = (completed - started).total_seconds()
+            if seconds <= 0:
+                raise RuntimeError("Benchmark has no positive elapsed time")
+            steps = int(self._dbmgr.sum(
+                "simulation_episodes", "steps", where={"run_id": run_id},
+            ))
+            # Configurations and episode results cascade from this parent row.
+            if self._dbmgr.delete("simulation_runs", where={"run_id": run_id}) != 1:
+                raise RuntimeError("Benchmark cleanup did not delete exactly one run")
+        return steps, seconds
 
     def close(self) -> None:
         self._dbmgr.close()

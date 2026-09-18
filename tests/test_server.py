@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import Mock, call, patch
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.database import MemorySimulationStore
+from snake_lab.database.MemorySimulationStore import MemorySimulationStore
 from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
 from snake_lab.zmq.Protocol import PROTOCOL_VERSION
 from snake_lab.server.SimulationRun import SimulationRun

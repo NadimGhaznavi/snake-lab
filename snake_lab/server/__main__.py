@@ -5,10 +5,8 @@ import asyncio
 import signal
 
 from constants.DSnakeLab import DSnakeLab
-from snake_lab.database import (
-    MemorySimulationStore,
-    SimulationStore,
-)
+from snake_lab.database.MemorySimulationStore import MemorySimulationStore
+from snake_lab.database.SimulationStore import SimulationStore
 from snake_lab.database.SnakeDb import SnakeDb
 from snake_lab.server.SnakeLabServer import SnakeLabServer
 

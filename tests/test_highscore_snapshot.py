@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from snake_lab.database.DbMgr import DbMgr
 from snake_lab.database.SnakeDb import SnakeDb
 from snake_lab.client.AsyncLabClient import AsyncLabClient
-from snake_lab.database import MemorySimulationStore
+from snake_lab.database.MemorySimulationStore import MemorySimulationStore
 from snake_lab.zmq.Protocol import METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, PROTOCOL_VERSION
 from snake_lab.server.SnakeLabServer import SnakeLabServer
 from snake_lab.game.BoardSnapshot import BoardSnapshot

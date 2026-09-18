@@ -3,7 +3,6 @@
 
 import argparse
 import asyncio
-import json
 import os
 from pathlib import Path
 import sys
@@ -23,21 +22,14 @@ if __name__ == "__main__":
             sys.exit(f"Installed Python environment not found: {installed_python}")
         os.execv(str(installed_python), [str(installed_python), str(Path(__file__).resolve()), *sys.argv[1:]])
 
-import pymysql
+from snake_lab.database.SnakeDb import SnakeDb
 
 from snake_lab.client.AsyncLabClient import AsyncLabClient, load_config
 from snake_lab.zmq.Protocol import METHOD_SIMULATION_STATUS
 
 
 def connect_database():
-    credentials = json.loads(Path(DSnakeLab.DB_CREDENTIALS_FILE).read_text())
-    return pymysql.connect(
-        host=DSnakeLab.DB_HOST, port=DSnakeLab.DB_PORT,
-        user=DSnakeLab.DB_USER, password=credentials["password"],
-        database=DSnakeLab.DB_NAME, charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor, autocommit=True,
-        connect_timeout=5, read_timeout=30, write_timeout=30,
-    )
+    return SnakeDb.connect(connect_timeout=5, read_timeout=30, write_timeout=30)
 
 
 def payload(response):
@@ -46,49 +38,22 @@ def payload(response):
     return response["payload"]
 
 
-def measure_and_delete(connection, run_id, verbose=False):
-    """Only delete a committed, successfully completed run, in one transaction."""
-    connection.begin()
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT status, TIMESTAMPDIFF(MICROSECOND, started_at, "
-                "completed_at) AS elapsed_us FROM simulation_runs "
-                "WHERE run_id = %s FOR UPDATE", (run_id,),
-            )
-            run = cursor.fetchone()
-            if not run or run["status"] != "completed":
-                raise RuntimeError("Benchmark has no committed completed result")
-            elapsed_us = run["elapsed_us"]
-            if elapsed_us is None or elapsed_us <= 0:
-                raise RuntimeError("Benchmark has no positive elapsed time")
-            cursor.execute(
-                "SELECT COALESCE(SUM(steps), 0) AS steps "
-                "FROM simulation_episodes WHERE run_id = %s", (run_id,),
-            )
-            steps = int(cursor.fetchone()["steps"])
-            seconds = elapsed_us / 1_000_000
-            if verbose:
-                print(f"Total steps: {steps:,}\nElapsed seconds: {seconds:.6f}\n"
-                      f"Steps/second: {steps / seconds:,.0f}", flush=True)
-            # Both configurations and simulation_episodes cascade from this row.
-            cursor.execute("DELETE FROM simulation_runs WHERE run_id = %s", (run_id,))
-            if cursor.rowcount != 1:
-                raise RuntimeError("Benchmark cleanup did not delete exactly one run")
-        connection.commit()
-    except BaseException:
-        connection.rollback()
-        raise
+def measure_and_delete(database, run_id, verbose=False):
+    """Report a benchmark after the DAL has committed its cleanup."""
+    steps, seconds = database.measure_and_delete_benchmark(run_id)
     if verbose:
+        print(f"Total steps: {steps:,}\nElapsed seconds: {seconds:.6f}\n"
+              f"Steps/second: {steps / seconds:,.0f}", flush=True)
         print(f"Deleted benchmark data for {run_id}.", flush=True)
     print(f"Snake Lab Benchmark: {steps / seconds:.0f} steps per second", flush=True)
 
 
 async def benchmark(config, verbose=False):
-    connection = connect_database()
-    client = AsyncLabClient()
+    database = connect_database()
+    client = None
     run_id = None
     try:
+        client = AsyncLabClient()
         if payload(await client.active())["run"] is not None:
             raise RuntimeError("Server must be idle before starting a benchmark")
         run_id = payload(await client.submit(config))["run_id"]
@@ -109,15 +74,18 @@ async def benchmark(config, verbose=False):
             if status["state"] in {"failed", "cancelled"}:
                 raise RuntimeError(f"Benchmark {status['state']}: {status.get('error', '')}")
             await asyncio.sleep(1)
-        measure_and_delete(connection, run_id, verbose=verbose)
+        measure_and_delete(database, run_id, verbose=verbose)
     except BaseException:
         if run_id is not None:
             print(f"Benchmark did not finish cleanly; inspect run {run_id}. "
                   "No further cleanup attempted.", file=sys.stderr)
         raise
     finally:
-        client.close()
-        connection.close()
+        try:
+            if client is not None:
+                client.close()
+        finally:
+            database.close()
 
 
 def main():
