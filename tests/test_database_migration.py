@@ -11,13 +11,11 @@ import uuid
 
 import pymysql
 
+from constants.DSQL import DSQL
 from snake_lab.database.DbMgr import DbMgr
 from snake_lab.database.SnakeDb import SnakeDb
 from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.database import (
-    CONFIGURATION_PATHS,
-    configuration_values,
-)
+from snake_lab.database.DBHelper import configuration_values
 
 
 @unittest.skipUnless(os.environ.get("SNAKELAB_TEST_DB_SOCKET"), "requires test MariaDB socket")
@@ -52,7 +50,7 @@ class ConfigurationMigrationTests(unittest.TestCase):
                     "training": {"learning_rate": 0.002123456789},
                 })
                 apply(3)
-                columns = ", ".join(p.replace(".", "_") for p in CONFIGURATION_PATHS)
+                columns = ", ".join(p.replace(".", "_") for p in DSQL.CONFIGURATION_PATHS)
                 cursor.execute(f"SELECT run_id, {columns} FROM configurations")
                 self.assertEqual(cursor.fetchall(), ())
                 apply(3)
