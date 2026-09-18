@@ -155,7 +155,7 @@ Protocol and configuration failures use this raw response shape:
   "status": "error",
   "error": {
     "code": "invalid_config",
-    "message": "$.epochs: 10 is less than the minimum of 50"
+    "message": "$.seed: -1 is less than the minimum of 0"
   }
 }
 ```
@@ -172,7 +172,7 @@ Payload fields must match the selected method exactly.
 
 | Method | Payload | Successful response payload |
 | --- | --- | --- |
-| `health` | `{}` | `{"service": "snake-lab", "project_version": "0.10.10"}` |
+| `health` | `{}` | `{"service": "snake-lab", "project_version": "1.6.8"}` |
 | `simulation.submit` | `{"config": {...}}` | `run_id`, `state: "queued"`, `queue_position` |
 | `simulation.active` | `{}` | `{"run": <run status or null>}`; active run, otherwise first queued run |
 | `simulation.status` | `{"run_id": "<run ID>"}` | Run status |
@@ -198,14 +198,15 @@ and `cancelled`. Status lookup covers runs known to the current server process.
 (number or null); and string `outcome` (`empty`, `food`, `wall`, `snake`,
 `max_moves`, or `board_filled`). `last_loss` is also a number or null.
 
-A successful raw response wraps its payload:
+A successful raw response wraps its payload. `project_version` is the running
+server release (`DSnakeLab.VERSION`), independent of the protocol version:
 
 ```json
 {
   "protocol_version": 1,
   "request_id": "request-123",
   "status": "ok",
-  "payload": {"service": "snake-lab", "project_version": "0.10.10"}
+  "payload": {"service": "snake-lab", "project_version": "1.6.8"}
 }
 ```
 

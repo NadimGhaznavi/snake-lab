@@ -21,10 +21,11 @@ JSON object with these fields:
 | `payload` | object | Fields defined for that event type |
 
 Event definitions and validation live in `snake_lab/zmq/ZMQHelper.py`.
-`event_message(event_type, payload)` validates outgoing messages;
-`parse_event(decoded_json)` validates incoming envelopes. Invalid messages
-raise `ProtocolError` (`invalid_event`, `unknown_event`, or `unsupported_protocol`).
-Unknown fields, event types, and versions are rejected by these helpers.
+`event_message(event_type, payload)` builds an outgoing envelope and copies
+its trusted internal payload without validation. `parse_event(decoded_json)`
+validates incoming envelopes, rejecting unknown fields, event types, and
+versions with `ProtocolError` (`invalid_event`, `unknown_event`, or
+`unsupported_protocol`).
 
 ## Supported Event Types
 
