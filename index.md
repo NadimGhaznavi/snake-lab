@@ -10,6 +10,17 @@ The Snake Lab Server operates as a Linux systemd service. It allows users to sub
 
 This project was created to support the [Fr3d Project](https://fr3d.osoyalce.com/) which has evolved into the [Ax3l Project](https://ax3l.osoyalce.com).
 
+## Documentation
+
+- [Installation](/pages/install.html)
+- [Architecture](/pages/architecture.html)
+- [Developer integration](/pages/developer.html)
+- [Control protocol](/pages/control-protocol.html)
+- [Event protocol](/pages/event-protocol.html)
+- [Coding guidelines](/pages/coding-guidelines.html)
+- [Driver setup](/pages/driver-setup.html)
+- [Model setup](/pages/model-setup.html)
+
 ## Components
 
 - A systemd simulation server.
@@ -26,25 +37,8 @@ on a trusted network.
 
 ## Install
 
-On Debian Trixie, install the base requirements and run the installer from a
-release checkout:
-
-```sh
-sudo apt install python3-venv mariadb-server openssl
-sudo scripts/install.sh
-```
-
-The installer creates `/opt/snake-lab`, provisions the database, builds the
-Python environment, and starts `snake-lab.service`. The environment always
-uses the CPU PyTorch runtime.
-
-```sh
-systemctl status snake-lab.service
-journalctl -u snake-lab.service -f
-tail -f /opt/snake-lab/logs/server.log
-```
-
-See [Driver Setup](/pages/driver-setup.html) for Wintermute's NVIDIA setup.
+See [Installation](/pages/install.html) for server and client setup,
+database backups, and benchmarks.
 
 ## Run a Simulation
 
@@ -66,7 +60,8 @@ the live game, run progress, score, epsilon, loss, and lifecycle events.
 Use **Display every X frames** to hold snapshots between board updates. Enter a
 positive whole number, such as `10`, to show one in every ten received frames;
 `1` displays all received frames. This client-only setting applies immediately
-and does not slow the simulation. Frames are already sampled by the server.
+and does not slow the simulation. The server offers every move while a viewer
+subscribes, but best-effort telemetry may drop messages.
 
 See [Developer Integration](/pages/developer.html) to submit simulations from
 another project or service.
@@ -95,7 +90,7 @@ results, run from a release checkout:
 
 ```sh
 sudo systemctl stop snake-lab.service
-sudo scripts/del-last-run
+sudo scripts/del-last-run.sh
 sudo systemctl start snake-lab.service
 ```
 
@@ -123,26 +118,21 @@ Do not upgrade while a simulation is running. From the new release checkout:
 sudo scripts/upgrade.sh
 ```
 
-The upgrade script replaces the software and rebuilds the virtual environment
-only when requirements change. It does not provision MariaDB or apply schema
-changes.
+The upgrade script stops the service, applies database schemas v1–v4,
+deploys the software, and restarts the service. It rebuilds the virtual
+environment only when requirements change and does not provision MariaDB.
 
-When upgrading from database schema v1 (including releases 0.9.0–0.9.2),
-stop the service and apply the schema update before upgrading. This removes
-the unique configuration constraint while preserving existing results. The
-same command also initializes the schema for pre-0.9.0 installations:
-
-```sh
-sudo systemctl stop snake-lab.service
-sudo scripts/apply-database-schema.sh
-sudo scripts/upgrade.sh
-```
-
-The schema command applies v1 followed by v2 and is safe to repeat. Fresh
-installations apply both automatically. Database changes in future releases
-will include explicit release instructions.
+Fresh installations apply the same schemas. To apply them separately while
+the service is stopped, use `sudo scripts/apply-database-schema.sh`. Schema
+application is safe to repeat; it does not backfill historical configuration
+rows or high-score snapshots. See [Configuration queries](/pages/developer.html#configuration-queries)
+for storage details and migration context.
 
 ## Development
+
+- [Architecture](/pages/architecture.html): folders, modules, and execution flow.
+- [Developer integration](/pages/developer.html): protocols and runtime behavior.
+- [Coding guidelines](/pages/coding-guidelines.html): component boundaries and conventions.
 
 ```sh
 ./scripts/rebuild-venv.sh

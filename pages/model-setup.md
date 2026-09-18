@@ -6,8 +6,10 @@ layout: single
 
 ![Fr3d]({{ '/pages/images/fr3d.png' | relative_url }})
 
-This page prepares Qwen3.5 for the future Fr3d integration. The model and
-llama.cpp are not required to install or run SnakeLab itself.
+These are optional Qwen3.5 conversion notes for the separate Fr3d setup,
+using the llama.cpp build from [Driver Setup](/pages/driver-setup.html).
+SnakeLab does not load this model or call llama.cpp. Paths, checkout details,
+and command output below record that setup.
 
 ## Create a virtual environment
 
