@@ -26,6 +26,8 @@ Run a benchmark against an idle local server from this checkout:
 sudo scripts/run-benchmark.sh -c examples/sample-config.json
 ```
 
+The launcher uses the installed virtual environment at `/opt/snake-lab/venv`,
+with the install directory defined in `scripts/deploy-common.sh`.
 The tool uses the installed credentials at `/opt/snake-lab/config/database.json`,
 reports episode progress, and calculates steps/second using the run's database
 start and completion timestamps (including simulation setup and persistence).
@@ -33,7 +35,7 @@ After reporting results, it deletes only that run and its cascading episode and
 configuration records. Failed or interrupted runs are retained, with their run
 ID printed for inspection; interrupting the tool does not cancel the simulation.
 The Python entry point is also available through
-`sudo venv/bin/python scripts/run-benchmark.py -c <config.json>`.
+`sudo /opt/snake-lab/venv/bin/python scripts/run-benchmark.py -c <config.json>`.
 
 See the [SnakeLab Homepage](https://snakelabserver.osoyalce.com) for operations,
 configuration, upgrades, development, and simulation server setup.

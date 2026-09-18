@@ -13,4 +13,4 @@ class DSnakeLab:
     PYTORCH_NUM_THREADS: Final[int] = 10
     TELEMETRY_PORT: Final[int] = 41971
     SERVER_LOG_FILE: Final[str] = "/opt/snake-lab/logs/server.log"
-    VERSION: Final[str] = "1.5.4"
+    VERSION: Final[str] = "1.5.5"
