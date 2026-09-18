@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-![Architecture](/pages/images/architecture.png)
+![Snake Lab](/pages/images/snake-lab.png)
 
 The Snake Lab Server operates as a Linux systemd service. It allows users to submit a simulation run configuration. The simulations are of an **AI Snake Game** run. The server houses the entire Snake Game and neural network machinary. Once it receives a valid config it starts a fixed number of simulation episodes. Simulation and simulation run data is stored in MariaDb.
 
@@ -22,8 +22,5 @@ This project was created to support the [Fr3d Project](https://fr3d.osoyalce.com
 - [Developer integration](/pages/developer)
 - [Control protocol](/pages/control-protocol)
 - [Event protocol](/pages/event-protocol)
-- [Driver setup](/pages/driver-setup)
-- [Model setup](/pages/model-setup)
 - [Coding guidelines](/pages/coding-guidelines)
-
 
