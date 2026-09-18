@@ -42,12 +42,39 @@ class RNNModelTests(unittest.TestCase):
             log=FakeLog(),
         )
 
-    def test_forward_sequence_preserves_batch_and_time(self) -> None:
+    def test_forward_sequence_returns_final_action_values_per_batch(self) -> None:
         states = torch.zeros(2, 4, DNetDef.INPUT_SIZE)
         self.assertEqual(
             self.model.forward_sequence(states).shape,
-            (2, 4, DNetDef.OUTPUT_SIZE),
+            (2, DNetDef.OUTPUT_SIZE),
         )
+
+    def test_final_hidden_matches_previous_outputs_and_gradients(self) -> None:
+        for layers in (1, 3):
+            model = RNNModel(
+                seed=7, hidden_size=8, dropout=0, layers=layers, log=FakeLog()
+            )
+            for shape in (
+                (DNetDef.INPUT_SIZE,), (4, DNetDef.INPUT_SIZE),
+                (2, 4, DNetDef.INPUT_SIZE),
+            ):
+                with self.subTest(layers=layers, shape=shape):
+                    states = torch.randn(shape, requires_grad=True)
+                    normalized = states.reshape(
+                        shape[0] if len(shape) == 3 else 1,
+                        shape[-2] if len(shape) > 1 else 1,
+                        DNetDef.INPUT_SIZE,
+                    )
+                    recurrent, _ = model.recurrent_layer(model.input_layer(normalized))
+                    expected = model.output_layer(recurrent)[:, -1, :]
+                    actual = model.forward_sequence(states)
+                    torch.testing.assert_close(actual, expected)
+                    torch.testing.assert_close(model(states), actual)
+                    parameters = (states, *model.parameters())
+                    expected_gradients = torch.autograd.grad(expected.sum(), parameters)
+                    actual_gradients = torch.autograd.grad(actual.sum(), parameters)
+                    for actual_grad, expected_grad in zip(actual_gradients, expected_gradients):
+                        torch.testing.assert_close(actual_grad, expected_grad)
 
     def test_forward_returns_final_timestep(self) -> None:
         state = torch.zeros(DNetDef.INPUT_SIZE)
@@ -78,7 +105,7 @@ class TrainerTests(unittest.TestCase):
                     state=state,
                     action=index % DNetDef.OUTPUT_SIZE,
                     reward=float(index),
-                    next_state=tuple(value + 0.5 for value in state),
+                    next_state=tuple(value + 1.0 for value in state),
                     done=index == 2,
                 )
             )
@@ -107,6 +134,9 @@ class TrainerTests(unittest.TestCase):
         self.assertIsNotNone(loss)
         self.assertTrue(math.isfinite(loss))
         self.assertEqual(criterion.shapes, (torch.Size([2]), torch.Size([2])))
+        # CPU tensors share the replay buffers; a subsequent sample is safe
+        # once the preceding optimization step has completed.
+        self.assertTrue(math.isfinite(trainer.train()))
 
 
 class TableModel(nn.Module):
@@ -117,7 +147,7 @@ class TableModel(nn.Module):
         self.values = nn.Parameter(torch.tensor(values, dtype=torch.float32))
 
     def forward_sequence(self, states):
-        return self.values[states[..., 0].long()]
+        return self.values[states[:, -1, 0].long()]
 
 
 class RecordingHuberLoss(nn.SmoothL1Loss):
@@ -131,13 +161,13 @@ class RecordingHuberLoss(nn.SmoothL1Loss):
 class TrainerCalculationTests(unittest.TestCase):
     def make_trainer(self, tau=0.25):
         # The first timestep is deliberately unlike the last. Only the final
-        # action/reward/done should contribute directly to the loss.
+        # model output should contribute directly to the loss.
         batch = ReplayBatch(
             states=np.array([[[0], [1]], [[2], [3]]], dtype=np.float32),
-            actions=np.array([[2, 0], [0, 2]], dtype=np.int64),
-            rewards=np.array([[-99, 2], [-88, 3]], dtype=np.float32),
+            actions=np.array([0, 2], dtype=np.int64),
+            rewards=np.array([2, 3], dtype=np.float32),
             next_states=np.array([[[4], [5]], [[6], [7]]], dtype=np.float32),
-            dones=np.array([[True, False], [False, True]], dtype=np.bool_),
+            dones=np.array([False, True], dtype=np.bool_),
         )
         replay = Mock(spec=ReplayMemory)
         replay.sample.return_value = batch
