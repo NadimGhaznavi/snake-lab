@@ -65,7 +65,7 @@ class RNNModel(nn.Module):
         )
 
     def forward_sequence(self, states: torch.Tensor) -> torch.Tensor:
-        """Return final-timestep action values as ``[B, A]``."""
+        """Return action values for every timestep as ``[B, T, A]``."""
         if states.dim() == 1:
             states = states.unsqueeze(0).unsqueeze(0)
         elif states.dim() == 2:
@@ -76,12 +76,12 @@ class RNNModel(nn.Module):
             raise ValueError(f"states must have {self.input_size} features")
 
         projected = self.input_layer(states)
-        _, hidden = self.recurrent_layer(projected)
-        return self.output_layer(hidden[-1])
+        recurrent, _ = self.recurrent_layer(projected)
+        return self.output_layer(recurrent)
 
     def forward(self, states: torch.Tensor) -> torch.Tensor:
         """Return action values for the final timestep as ``[B, A]``."""
-        return self.forward_sequence(states)
+        return self.forward_sequence(states)[:, -1, :]
 
     def reset_parameters(self) -> None:
         """Reset all trainable layers."""
