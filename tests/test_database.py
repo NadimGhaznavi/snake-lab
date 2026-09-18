@@ -5,16 +5,12 @@ from unittest.mock import MagicMock
 import pymysql
 
 from constants.DSnakeLab import DSnakeLab
+from constants.DSQL import DSQL
 from snake_lab.database.DbMgr import DbMgr, DatabaseError
 from snake_lab.database.SnakeDb import SnakeDb
 from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.database import (
-    CONFIGURATION_PATHS,
-    configuration_values,
-    MemorySimulationStore,
-    canonical_config,
-    config_hash,
-)
+from snake_lab.database.DBHelper import configuration_values, canonical_config, config_hash
+from snake_lab.database.MemorySimulationStore import MemorySimulationStore
 from snake_lab.game import Outcome
 from snake_lab.server.Simulator import EpisodeResult
 
@@ -46,6 +42,18 @@ class SimulationDatabaseTests(unittest.TestCase):
         self.assertEqual(canonical_config(first), canonical_config(second))
         self.assertEqual(config_hash(first), config_hash(second))
         self.assertEqual(len(config_hash(first)), 64)
+
+    def test_memory_store_owns_nested_configuration_snapshot(self):
+        store = MemorySimulationStore()
+        config = {"epochs": 1, "training": {"learning_rate": 0.01}}
+        digest = config_hash(config)
+        store.create_run("run-1", config, "test")
+        config["epochs"] = 2
+        config["training"]["learning_rate"] = 0.5
+        saved = store.runs["run-1"]
+        self.assertEqual(saved["config"], {"epochs": 1, "training": {"learning_rate": 0.01}})
+        self.assertEqual(saved["config_hash"], digest)
+        self.assertEqual(config_hash(saved["config"]), digest)
 
     def test_repeated_configuration_creates_independent_runs(self) -> None:
         store = MemorySimulationStore()
@@ -186,9 +194,9 @@ class SimulationDatabaseTests(unittest.TestCase):
                     leaves[path] = item
 
         flatten(config)
-        self.assertEqual(set(CONFIGURATION_PATHS), set(leaves))
-        self.assertEqual(len(CONFIGURATION_PATHS), 26)
-        self.assertEqual(configuration_values(config), tuple(leaves[p] for p in CONFIGURATION_PATHS))
+        self.assertEqual(set(DSQL.CONFIGURATION_PATHS), set(leaves))
+        self.assertEqual(len(DSQL.CONFIGURATION_PATHS), 26)
+        self.assertEqual(configuration_values(config), tuple(leaves[p] for p in DSQL.CONFIGURATION_PATHS))
 
     def test_configuration_write_preserves_resolved_values(self) -> None:
         connection = MagicMock()

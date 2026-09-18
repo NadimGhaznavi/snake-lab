@@ -26,6 +26,7 @@ class DbMgr:
         self._connection = connection
         self._lock = RLock()
         self._in_transaction = False
+        self._transaction_failure: BaseException | None = None
         self._closed = False
 
     @classmethod
@@ -89,6 +90,7 @@ class DbMgr:
             if self._in_transaction:
                 raise RuntimeError("Nested transactions are not supported")
             self._in_transaction = True
+            self._transaction_failure = None
             try:
                 if read_only:
                     with self._connection.cursor() as cursor:
@@ -96,6 +98,8 @@ class DbMgr:
                 else:
                     self._connection.begin()
                 yield self
+                if self._transaction_failure is not None:
+                    raise DatabaseError("Cannot commit a failed transaction") from self._transaction_failure
                 self._connection.commit()
             except BaseException as error:
                 try:
@@ -107,18 +111,28 @@ class DbMgr:
                 raise
             finally:
                 self._in_transaction = False
+                self._transaction_failure = None
 
     @contextmanager
     def _operation(self):
         with self._lock:
             if self._in_transaction:
-                yield
+                if self._transaction_failure is not None:
+                    raise DatabaseError("Transaction has already failed") from self._transaction_failure
+                try:
+                    yield
+                except BaseException as error:
+                    self._transaction_failure = error
+                    if isinstance(error, pymysql.Error):
+                        raise DatabaseError("MariaDB operation failed") from error
+                    raise
             else:
                 with self.transaction():
                     yield
 
     def select(self, table: str, columns: Sequence[str], *,
-               where: Mapping[str, Any] | None = None, one: bool = False):
+               where: Mapping[str, Any] | None = None, one: bool = False,
+               for_update: bool = False):
         if not columns or isinstance(columns, str):
             raise ValueError("Select requires a sequence of column names")
         sql = f"SELECT {', '.join(self._identifier(c) for c in columns)} FROM {self._identifier(table)}"
@@ -127,10 +141,27 @@ class DbMgr:
             sql += f" WHERE {clause}"
         if one:
             sql += " LIMIT 1"
+        if for_update:
+            sql += " FOR UPDATE"
+        with self._lock:
+            if for_update and not self._in_transaction:
+                raise RuntimeError("Row locking requires an explicit transaction")
+            with self._operation():
+                with self._connection.cursor() as cursor:
+                    cursor.execute(sql, tuple(parameters))
+                    return cursor.fetchone() if one else list(cursor.fetchall())
+
+    def sum(self, table: str, column: str, *, where: Mapping[str, Any]):
+        """Return a column sum, or zero when no rows match."""
+        clause, parameters = self._where(where)
+        sql = (f"SELECT COALESCE(SUM({self._identifier(column)}), 0) AS total "
+               f"FROM {self._identifier(table)}")
+        if clause:
+            sql += f" WHERE {clause}"
         with self._operation():
             with self._connection.cursor() as cursor:
                 cursor.execute(sql, tuple(parameters))
-                return cursor.fetchone() if one else list(cursor.fetchall())
+                return cursor.fetchone()["total"]
 
     def insert(self, table: str, values: Mapping[str, Any]) -> int:
         """Insert a row and return the generated ID (zero if none)."""

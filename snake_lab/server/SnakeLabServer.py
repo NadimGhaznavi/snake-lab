@@ -14,10 +14,8 @@ from snake_lab.server.Configuration import (
     ConfigurationError,
     simulation_config_template,
 )
-from snake_lab.database import (
-    MemorySimulationStore,
-    SimulationStore,
-)
+from snake_lab.database.MemorySimulationStore import MemorySimulationStore
+from snake_lab.database.SimulationStore import SimulationStore
 from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
 from snake_lab.zmq.EventsPublisher import EventsPublisher
 from snake_lab.zmq.Protocol import (

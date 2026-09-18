@@ -70,6 +70,44 @@ class DbMgrTests(unittest.TestCase):
         self.connection.commit.assert_not_called()
         self.assertFalse(self.db._in_transaction)
 
+    def test_caught_statement_failure_prevents_commit_and_further_writes(self):
+        failure = pymysql.IntegrityError(1062, "duplicate")
+        self.cursor.execute.side_effect = [1, failure]
+        with self.assertRaisesRegex(DatabaseError, "Cannot commit"):
+            with self.db.transaction():
+                self.db.insert("records", {"id": 1})
+                with self.assertRaises(DatabaseError) as raised:
+                    self.db.insert("records", {"id": 1})
+                self.assertIs(raised.exception.__cause__, failure)
+                with self.assertRaisesRegex(DatabaseError, "already failed"):
+                    self.db.insert("records", {"id": 2})
+        self.assertEqual(self.cursor.execute.call_count, 2)
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once_with()
+        self.cursor.execute.side_effect = None
+        self.db.insert("records", {"id": 3})
+        self.connection.commit.assert_called_once_with()
+
+    def test_row_locks_require_explicit_transaction(self):
+        with self.assertRaisesRegex(RuntimeError, "explicit transaction"):
+            self.db.select("records", ("id",), for_update=True)
+        self.cursor.execute.assert_not_called()
+        with self.db.transaction():
+            self.db.select("records", ("id",), where={"id": 7}, one=True, for_update=True)
+        sql, params = self.cursor.execute.call_args.args
+        self.assertTrue(sql.endswith("LIMIT 1 FOR UPDATE"))
+        self.assertEqual(params, (7,))
+
+    def test_sum_binds_conditions_and_validates_column(self):
+        self.cursor.fetchone.return_value = {"total": 0}
+        self.assertEqual(self.db.sum("records", "amount", where={"name": "x'"}), 0)
+        sql, params = self.cursor.execute.call_args.args
+        self.assertIn("COALESCE(SUM(`amount`), 0)", sql)
+        self.assertNotIn("x'", sql)
+        self.assertEqual(params, ("x'",))
+        with self.assertRaises(ValueError):
+            self.db.sum("records", "amount); DROP TABLE records", where={})
+
     def test_commit_failure_rolls_back(self):
         self.connection.commit.side_effect = pymysql.OperationalError("commit failed")
         with self.assertRaises(DatabaseError):
