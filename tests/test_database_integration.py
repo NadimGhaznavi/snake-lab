@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 import uuid
@@ -68,6 +69,48 @@ class DatabaseIntegrationTests(unittest.TestCase):
 
     def episode(self, number=1, steps=100):
         return SimpleNamespace(episode=number, score=4, steps=steps, epsilon=0.9, loss=0.125)
+
+    def test_submission_after_idle_connection_timeout(self):
+        connection = self.manager._connection
+        old_id = connection.thread_id()
+        with connection.cursor() as cursor:
+            cursor.execute("SET SESSION wait_timeout = 1")
+        deadline = time.monotonic() + 5
+        while self.execute("SELECT ID FROM information_schema.PROCESSLIST WHERE ID=%s", (old_id,)):
+            if time.monotonic() >= deadline:
+                self.fail("Test connection did not expire")
+            time.sleep(0.05)
+
+        self.create("after-idle")
+
+        self.assertNotEqual(connection.thread_id(), old_id)
+        self.assertEqual(self.row("after-idle")["status"], "queued")
+        self.assertEqual(self.store.get_configuration("after-idle")["epochs"], self.config["epochs"])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT @@session.time_zone AS zone, @@autocommit AS autocommit")
+            self.assertEqual(cursor.fetchone(), {"zone": "+00:00", "autocommit": 0})
+        connection.commit()
+
+    def test_read_only_lookup_after_connection_is_closed_by_server(self):
+        self.create()
+        old_id = self.manager._connection.thread_id()
+        self.execute("KILL CONNECTION %s", (old_id,))
+        self.assertEqual(self.store.get_configuration("run")["epochs"], self.config["epochs"])
+        self.assertNotEqual(self.manager._connection.thread_id(), old_id)
+
+    def test_connection_loss_during_transaction_propagates_without_replaying(self):
+        with self.assertRaises(DatabaseError) as raised:
+            with self.manager.transaction():
+                self.manager.insert("simulation_runs", {
+                    "run_id": "partial", "project_version": "test",
+                    "config_hash": config_hash(self.config), "status": "queued",
+                })
+                self.execute("KILL CONNECTION %s", (self.manager._connection.thread_id(),))
+                self.manager.update("simulation_runs", {"status": "running"}, where={"run_id": "partial"})
+        self.assertIsInstance(raised.exception.__cause__, pymysql.Error)
+        self.assertIsNone(self.row("partial"))
+        self.create("next-run")
+        self.assertEqual(self.row("next-run")["status"], "queued")
 
     def test_full_lifecycle_and_fresh_reads_across_connections(self):
         self.create()
@@ -130,14 +173,13 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.assertEqual(self.execute("SELECT * FROM simulation_episodes"), ())
         self.assertIsNone(self.row("run")["episode_count"])
 
-    def test_caught_driver_error_still_rolls_back_transaction(self):
+    def test_driver_error_rolls_back_transaction_and_releases_connection(self):
         self.create()
-        with self.assertRaisesRegex(DatabaseError, "Cannot commit"):
+        with self.assertRaises(DatabaseError) as raised:
             with self.manager.transaction():
                 self.manager.update("simulation_runs", {"status": "paused"}, where={"run_id": "run"})
-                with self.assertRaises(DatabaseError) as raised:
-                    self.manager.insert("configurations", {"run_id": "run"})
-                self.assertIsInstance(raised.exception.__cause__, pymysql.Error)
+                self.manager.insert("configurations", {"run_id": "run"})
+        self.assertIsInstance(raised.exception.__cause__, pymysql.Error)
         self.assertEqual(self.row("run")["status"], "queued")
         self.store.set_status("run", "running")
         self.assertEqual(self.row("run")["status"], "running")

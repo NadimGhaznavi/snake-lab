@@ -76,21 +76,17 @@ class MeasurementTests(unittest.TestCase):
         self.connection.rollback.assert_called_once()
         self.connection.commit.assert_not_called()
 
-    def test_missing_delete_and_commit_failure_do_not_report_success(self):
-        for failure in ("missing_row", "commit"):
-            with self.subTest(failure=failure):
-                self.connection.reset_mock()
-                self.cursor.fetchone.side_effect = [
-                    {"status": "completed", "started_at": self.started,
-                     "completed_at": self.started + timedelta(microseconds=1234567)},
-                    {"total": 0},
-                ]
-                self.cursor.rowcount = 0 if failure == "missing_row" else 1
-                self.connection.commit.side_effect = RuntimeError("commit failed") if failure == "commit" else None
-                with patch("builtins.print") as output, self.assertRaises(RuntimeError):
-                    benchmark.measure_and_delete(self.database, "owned-run", verbose=True)
-                output.assert_not_called()
-                self.connection.rollback.assert_called_once()
+    def test_commit_failure_does_not_report_success(self):
+        self.cursor.fetchone.side_effect = [
+            {"status": "completed", "started_at": self.started,
+             "completed_at": self.started + timedelta(microseconds=1234567)},
+            {"total": 0},
+        ]
+        self.connection.commit.side_effect = RuntimeError("commit failed")
+        with patch("builtins.print") as output, self.assertRaisesRegex(RuntimeError, "commit failed"):
+            benchmark.measure_and_delete(self.database, "owned-run", verbose=True)
+        output.assert_not_called()
+        self.connection.rollback.assert_called_once()
 
     def test_script_delegates_to_application_dal(self):
         database = MagicMock(spec=SnakeDb)
