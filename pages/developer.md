@@ -238,3 +238,29 @@ plot history is fetched. Smaller terminals can scroll the dashboard.
 
 See [Installation](/pages/install.html#start-the-client) for client startup
 and database credentials.
+
+## Development setup
+
+- [Architecture](/pages/architecture.html): folders, modules, and execution flow.
+- [Developer integration](/pages/developer.html): protocols and runtime behavior.
+- [Coding guidelines](/pages/coding-guidelines.html): component boundaries and conventions.
+
+```sh
+./scripts/rebuild-venv.sh
+venv/bin/python -m unittest discover -s tests
+```
+
+Run a development server without MariaDB in one terminal:
+
+```sh
+venv/bin/python -m snake_lab.server \
+    --address 127.0.0.1 \
+    --log-file /tmp/snake-lab.log \
+    --ephemeral
+```
+
+Start the development client in another terminal:
+
+```sh
+./client/lab-client.sh
+```

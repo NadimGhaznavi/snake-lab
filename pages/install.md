@@ -36,7 +36,7 @@ lab-client
 ```
 
 Connect to another trusted host with `lab-client --host SERVER`. See
-[Run a simulation](/#run-a-simulation) for submitting configurations and
+[Run a simulation](/pages/run-a-simulation.html) for submitting configurations and
 controlling runs.
 
 The **Configuration** panel reads the nine LLM-tuned values for the current
@@ -77,5 +77,31 @@ Before printing the final result, it deletes only that run and its cascading epi
 configuration records. Failed or interrupted runs are retained, with their run
 ID printed for inspection; interrupting the tool does not cancel the simulation.
 
-See the homepage for [upgrades](/#upgrade),
-[development setup](/#development), and [uninstallation](/#uninstall).
+See [Development setup](/pages/developer.html#development-setup) to run from a source checkout.
+
+## Upgrade
+
+Do not upgrade while a simulation is running. From the new release checkout:
+
+```sh
+sudo scripts/upgrade.sh
+```
+
+The upgrade script stops the service, applies database schemas v1–v4,
+deploys the software, and restarts the service. It rebuilds the virtual
+environment only when requirements change and does not provision MariaDB.
+
+Fresh installations apply the same schemas. To apply them separately while
+the service is stopped, use `sudo scripts/apply-database-schema.sh`. Schema
+application is safe to repeat; it does not backfill historical configuration
+rows or high-score snapshots. See [Configuration queries](/pages/developer.html#configuration-queries)
+for storage details and migration context.
+
+## Uninstall
+
+```sh
+sudo scripts/uninstall.sh
+```
+
+The uninstaller removes the service, `/opt/snake-lab`, and the configured
+MariaDB database, including all simulation history. The MariaDB user remains.
