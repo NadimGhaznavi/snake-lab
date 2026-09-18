@@ -10,7 +10,7 @@ class DSnakeLab:
     DB_USER: Final[str] = "snakelab"
     EVENTS_PORT: Final[int] = 41972
     PORT: Final[int] = 41970
-    PYTORCH_NUM_THREADS: Final[int] = 10
+    PYTORCH_NUM_THREADS: Final[int] = 5
     TELEMETRY_PORT: Final[int] = 41971
     SERVER_LOG_FILE: Final[str] = "/opt/snake-lab/logs/server.log"
-    VERSION: Final[str] = "1.5.7"
+    VERSION: Final[str] = "1.5.9"
