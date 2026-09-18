@@ -1,4 +1,4 @@
-"""Bounded plots of the live episode stream; no history or persistence."""
+"""Plots of the live episode stream; no historical catchup or persistence."""
 
 from collections import Counter, deque
 from typing import Any
@@ -41,11 +41,13 @@ class LivePlots(Widget):
     MAX_POINTS = 500
     MAX_GAMESCORE_DATA_POINTS = 200
     AVG_DIVISOR = 40
+    MAX_LOSS_DATA_POINTS = 75
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.episodes: deque[tuple[int, float, int, float | None]] = deque(maxlen=self.MAX_POINTS)
         self.game_scores: deque[tuple[int, float]] = deque(maxlen=self.MAX_GAMESCORE_DATA_POINTS)
+        self.losses: list[tuple[int, float]] = []
         # Aggregate the whole observed run, independently of the rolling plots.
         self.score_counts: Counter[float] = Counter()
         self._dirty = False
@@ -77,16 +79,30 @@ class LivePlots(Widget):
             return
         self.episodes.append((number, score, high_score, episode.get("loss")))
         self.game_scores.append((number, score))
+        loss = episode.get("loss")
+        if loss is not None:
+            self.losses.append((number, loss))
         self.score_counts[score] += 1
         self._dirty = True
 
     def reset(self) -> None:
         self.episodes.clear()
         self.game_scores.clear()
+        self.losses.clear()
         self.score_counts.clear()
         for plot in self.query(PlotWidget):
             plot.clear()
         self._dirty = False
+
+    def _loss_points(self) -> list[tuple[int, float]]:
+        # Match the legacy average bins, including its integer division and
+        # use of the first episode in each bin (not the bin midpoint).
+        step = max(1, len(self.losses) // self.MAX_LOSS_DATA_POINTS)
+        points = []
+        for start in range(0, len(self.losses), step):
+            segment = self.losses[start:start + step]
+            points.append((segment[0][0], sum(loss for _, loss in segment) / len(segment)))
+        return points
 
     def redraw(self) -> None:
         if not self._dirty:
@@ -99,6 +115,8 @@ class LivePlots(Widget):
             points = [(row[0], row[column]) for row in rows if row[column] is not None]
             if name == "scores":
                 points = list(self.game_scores)
+            elif name == "losses":
+                points = self._loss_points()
             if points:
                 plot.plot(x=[p[0] for p in points], y=[p[1] for p in points],
                           hires_mode=HiResMode.BRAILLE, line_style="green",

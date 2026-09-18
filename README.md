@@ -25,8 +25,10 @@ configuration, upgrades, development, and simulation server setup.
 
 The live client uses the legacy three-column dashboard. Game Score retains the
 latest 200 received episodes in a deque, with the legacy smoothing window of
-`max(1, retained_count // 40)` (five points when full). Record and loss plots
-retain the latest 500 received episodes. The Score Distribution
+`max(1, retained_count // 40)` (five points when full). The record plot retains
+the latest 500 received episodes. Loss retains all received non-null losses for
+the current run and plots averaged bins of `max(1, loss_count // 75)` samples,
+using the first episode in each bin, as in the legacy client. The Score Distribution
 tab uses a Textual Plot histogram to count how often each score occurs across
 all received episodes in the current run. Counts reset for each new run; no
 plot history is fetched. Smaller terminals can scroll the dashboard.
