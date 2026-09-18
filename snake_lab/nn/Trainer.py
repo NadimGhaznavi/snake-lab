@@ -56,7 +56,6 @@ class Trainer:
             log_file=log_file,
             to_console=False,
         )
-        self._losses: list[float] = []
         self._has_logged_shape = False
         self.log.info(
             f"Initialized trainer: learning_rate={learning_rate}, "
@@ -121,9 +120,7 @@ class Trainer:
         self.optimizer.step()
         self._soft_update_target()
 
-        loss_value = float(loss.item())
-        self._losses.append(loss_value)
-        return loss_value
+        return float(loss.item())
 
     def _soft_update_target(self) -> None:
         with torch.no_grad():
@@ -131,14 +128,6 @@ class Trainer:
                 self.target_model.parameters(), self.model.parameters()
             ):
                 target_parameter.lerp_(parameter, self.tau)
-
-    def get_average_loss(self) -> float | None:
-        """Return and clear the accumulated mean loss."""
-        if not self._losses:
-            return None
-        average = sum(self._losses) / len(self._losses)
-        self._losses.clear()
-        return average
 
     def reset(self) -> None:
         """Reset optimizer and target-network state."""
