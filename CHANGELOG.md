@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-09-17 @ 22:15
+
 - Retain loss data for the whole observed run and thin the Loss plot using the legacy average-binning settings (75-point target), instead of a sliding window.
 
 ## [1.5.2] - 2026-09-17 @ 17:59
