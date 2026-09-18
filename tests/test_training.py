@@ -42,14 +42,14 @@ class RNNModelTests(unittest.TestCase):
             log=FakeLog(),
         )
 
-    def test_forward_sequence_returns_final_action_values_per_batch(self) -> None:
+    def test_forward_sequence_preserves_batch_and_time(self) -> None:
         states = torch.zeros(2, 4, DNetDef.INPUT_SIZE)
         self.assertEqual(
             self.model.forward_sequence(states).shape,
-            (2, DNetDef.OUTPUT_SIZE),
+            (2, 4, DNetDef.OUTPUT_SIZE),
         )
 
-    def test_final_hidden_matches_previous_outputs_and_gradients(self) -> None:
+    def test_final_timestep_matches_hidden_outputs_and_gradients(self) -> None:
         for layers in (1, 3):
             model = RNNModel(
                 seed=7, hidden_size=8, dropout=0, layers=layers, log=FakeLog()
@@ -65,9 +65,9 @@ class RNNModelTests(unittest.TestCase):
                         shape[-2] if len(shape) > 1 else 1,
                         DNetDef.INPUT_SIZE,
                     )
-                    recurrent, _ = model.recurrent_layer(model.input_layer(normalized))
-                    expected = model.output_layer(recurrent)[:, -1, :]
-                    actual = model.forward_sequence(states)
+                    _, hidden = model.recurrent_layer(model.input_layer(normalized))
+                    expected = model.output_layer(hidden[-1])
+                    actual = model.forward_sequence(states)[:, -1, :]
                     torch.testing.assert_close(actual, expected)
                     torch.testing.assert_close(model(states), actual)
                     parameters = (states, *model.parameters())
@@ -147,7 +147,7 @@ class TableModel(nn.Module):
         self.values = nn.Parameter(torch.tensor(values, dtype=torch.float32))
 
     def forward_sequence(self, states):
-        return self.values[states[:, -1, 0].long()]
+        return self.values[states[..., 0].long()]
 
 
 class RecordingHuberLoss(nn.SmoothL1Loss):
