@@ -7,6 +7,17 @@ layout: single
 SnakeLab runs queued Snake experiments serially on CPU, stores results in
 MariaDB, and streams progress to a Textual client or external subscribers.
 
+## Components
+
+- A systemd simulation server.
+- ZeroMQ job control on TCP port 41970.
+- ZeroMQ live telemetry on TCP port 41971, with per-move frames generated
+  only while a viewer subscribes.
+- ZeroMQ simulation-ended events on TCP port 41972.
+- A Textual client for submitting configurations, watching the game, and
+  controlling a run.
+- MariaDB storage for resolved configurations, run state, and episode results.
+
 ## Application packages
 
 All runtime code lives in `snake_lab/`, with shared constants in `constants/`.
