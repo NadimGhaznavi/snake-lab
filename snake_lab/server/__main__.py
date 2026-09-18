@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import logging
 import signal
 
 from constants.DSnakeLab import DSnakeLab
@@ -59,7 +60,10 @@ async def amain() -> None:
 
 
 def main() -> None:
-    asyncio.run(amain())
+    try:
+        asyncio.run(amain())
+    finally:
+        logging.shutdown()
 
 
 if __name__ == "__main__":
