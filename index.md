@@ -28,4 +28,5 @@ This project was created to support the [Ax3l Project](https://ax3l.osoyalce.com
 - [Event protocol](/pages/event-protocol)
 - [Coding guidelines](/pages/coding-guidelines)
 - [Tech Stack and Credits](/pages/tech-stack)
+- [Snake Lab Server GitHub Repo](https://github.com/NadimGhaznavi/snake-lab)
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a link to the project's GitHub Repo.
+
 ## [1.7.10] - 2026-09-19 @ 04:39
 
 - Rewrote homepage.
