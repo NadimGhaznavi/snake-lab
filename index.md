@@ -12,13 +12,14 @@ At the heart of the AI is its [neural network](https://www.youtube.com/playlist?
 
 The Snake Lab Server accepts a simulation configuration message over the network. The message describes the neural network and training configuration, along with instructions for running the simulation. Snake Lab validates the request, executes the simulation, and stores the results in a database where clients can retrieve the data.
 
-This project was created to support the [Ax3l Project](https://ax3l.osoyalce.com), which uses a *Large Language Model* (LLM) with the Snake Lab Server to optimize the configuration and maximize the high score.
+This project was created to support the [Ax3l Project](https://ax3l.osoyalce.com), which uses a *Large Language Model* (LLM) to optimize the configuration and maximize the high score.
 
 ## User Docs
 
 - [Installation](/pages/install)
 - [Run a simulation](/pages/run-a-simulation)
 - [Sample configuration](/pages/sample-config)
+- [TUI Screenshot Gallery](/pages/gallery)
 
 ## Technical Docs
 
@@ -29,4 +30,3 @@ This project was created to support the [Ax3l Project](https://ax3l.osoyalce.com
 - [Coding guidelines](/pages/coding-guidelines)
 - [Tech Stack and Credits](/pages/tech-stack)
 - [Snake Lab Server GitHub Repo](https://github.com/NadimGhaznavi/snake-lab)
-
