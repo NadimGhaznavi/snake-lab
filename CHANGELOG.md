@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.9] - 2026-09-19 @ 03:02
+
+- Better logo.
+
 ## [1.7.8] - 2026-09-18 @ 16:52
 
 - Fix submissions and reads after MariaDB closes an idle connection. `DbMgr` reconnects once when starting a transaction reports a lost or closed connection, before application statements execute; statement and commit failures still propagate without replay. Verify idle expiry, read-only reconnection, restored session settings, and failure handling against a disposable MariaDB instance; all 55 targeted tests pass.
