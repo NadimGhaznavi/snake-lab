@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Rewrote homepage.
+- Added a *Tech Stack / Credits* page.
+
 ## [1.7.9] - 2026-09-19 @ 03:02
 
 - Better logo.
