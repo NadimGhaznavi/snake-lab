@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a gallery showing 4 screenshots of the TUI client.
+
 ## [1.7.12] - 2026-09-19 @ 08:19
 
 - Added a link to the project's GitHub Repo.
