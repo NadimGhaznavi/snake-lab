@@ -1,2 +1,0 @@
-"""SnakeLab server package."""
-

@@ -4,8 +4,8 @@ from pathlib import Path
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from snake_lab.database.DbMgr import DbMgr
-from snake_lab.database.SnakeDb import SnakeDb
+from snakelab.database.DbMgr import DbMgr
+from snakelab.database.SnakeDb import SnakeDb
 
 spec = importlib.util.spec_from_file_location(
     "run_benchmark", Path(__file__).resolve().parents[1] / "scripts/run-benchmark.py"

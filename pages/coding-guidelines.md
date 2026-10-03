@@ -6,14 +6,14 @@ layout: single
 
 [Architecture](/pages/architecture.html) · [Developer integration](/pages/developer.html)
 
-SnakeLab should be easy to navigate, understand, and maintain. Each component
+Snake Lab should be easy to navigate, understand, and maintain. Each component
 should have a clear responsibility, an obvious home, and a defined interface.
 These guidelines describe the design goals for the ongoing refactor; some
 existing modules still need to be brought into this structure.
 
 ## Organize code by responsibility
 
-Group related components under `snake_lab/`:
+Group related components under `snakelab/`:
 
 | Package | Responsibility |
 | --- | --- |
@@ -33,8 +33,8 @@ with the component they serve.
 Prefer explicit imports from the owning module, for example:
 
 ```python
-from snake_lab.game.GameState import GameState
-from snake_lab.database.SnakeDb import SnakeDb
+from snakelab.game.GameState import GameState
+from snakelab.database.SnakeDb import SnakeDb
 ```
 
 Keep presentation code with the client. `SnakeBoard` renders snapshots in the
@@ -44,7 +44,7 @@ assets, including `client.tcss`, alongside the client code.
 Keep package initializers small as the refactor progresses. Code temporarily
 held in `__init__.py` during a package conversion should be extracted into its
 own modules in subsequent steps. Use `__main__.py` for package entry points so
-existing commands such as `python -m snake_lab.server` continue to work.
+existing commands such as `python -m snakelab.server` continue to work.
 
 ## Separate application meaning from implementation mechanics
 
@@ -52,13 +52,13 @@ Application code should call an interface that expresses its intent. That
 interface translates the request into operations on a lower-level helper.
 Callers should not bypass the interface or reach into the helper's resources.
 
-Keep generic helpers independent of SnakeLab rules and schema details. Keep
-application decisions in the layer that understands SnakeLab. Use composition
+Keep generic helpers independent of Snake Lab rules and schema details. Keep
+application decisions in the layer that understands Snake Lab. Use composition
 to make that relationship explicit.
 
 ## Trust internal contracts
 
-SnakeLab's internal modules are developed and maintained together. Use clear
+Snake Lab's internal modules are developed and maintained together. Use clear
 interfaces, type annotations, and tests to establish their contracts. Do not
 add runtime type checks, attribute-existence checks, repeated validation, or
 fallback paths merely to defend against another internal module being used
@@ -93,7 +93,7 @@ Client ConfigurationReader ----^
 
 - Operations such as `create_run()`, `mark_started()`, `record_episode()`,
   `finish_run()`, and `get_configuration()`.
-- SnakeLab table names, column mappings, and application queries.
+- Snake Lab table names, column mappings, and application queries.
 - Conversion between application values and persisted representations.
 - Decisions about which operations must succeed together in one transaction.
 
@@ -114,7 +114,7 @@ report them. Handle them outside the block; do not swallow an error and
 continue issuing statements inside the same transaction. Rely on MariaDB's
 row locks and constraints rather than adding duplicate consistency checks.
 
-`DbMgr` must not know about runs, episodes, game rules, or SnakeLab tables.
+`DbMgr` must not know about runs, episodes, game rules, or Snake Lab tables.
 `SnakeDb` must not create connections through the driver, handle cursors, or
 implement a second SQL execution mechanism. Client adapters must not duplicate
 connection or query code.
@@ -132,7 +132,7 @@ Server ---> Configuration ---> JSONValidator
        ---> Simulator (resolved configuration)
 ```
 
-`Configuration` selects the SnakeLab schema, loads it, and applies the
+`Configuration` selects the Snake Lab schema, loads it, and applies the
 application rules. These include relationships between epsilon values, snake
 length and board dimensions, and replay capacity and training batch size. It
 returns a complete configuration or raises `ConfigurationError`. The server
@@ -140,7 +140,7 @@ resolves external input before creating a run; `Simulator` takes a private
 copy of that resolved configuration without validating it again.
 
 `JSONValidator` is strictly an internal helper for `Configuration`. It handles
-schema defaults, merging, and JSON Schema validation. It contains no SnakeLab
+schema defaults, merging, and JSON Schema validation. It contains no Snake Lab
 rules. Other application modules must not import or call it directly.
 
 Resolving a configuration must not mutate the caller's data or share mutable

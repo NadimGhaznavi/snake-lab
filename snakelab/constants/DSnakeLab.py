@@ -1,0 +1,18 @@
+from typing import Final
+
+
+class DSnakeLab:
+
+    DB_CREDENTIALS_FILE: Final[str] = "/opt/prod/snakelab/config/database.json"
+    DB_HOST: Final[str] = "localhost"
+    DB_NAME: Final[str] = "snakelab"
+    DB_PORT: Final[int] = 3306
+    DB_USER: Final[str] = "snakelab"
+    EVENTS_PORT: Final[int] = 41972
+    MAX_MOVE_DELAY_MS: Final[int] = 100
+    MOVE_DELAY_STEP_MS: Final[int] = 20
+    PORT: Final[int] = 41970
+    PYTORCH_NUM_THREADS: Final[int] = 5
+    TELEMETRY_PORT: Final[int] = 41971
+    SERVER_LOG_FILE: Final[str] = "/opt/prod/snakelab/logs/server.log"
+    VERSION: Final[str] = "1.8.2"

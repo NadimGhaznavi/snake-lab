@@ -10,10 +10,10 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
-from constants.DMyLog import DMyLog
-from snake_lab.server import __main__ as entrypoint
-from snake_lab.server.SnakeLabServer import SnakeLabServer
-from snake_lab.utils.MyLog import MyLog
+from snakelab.constants.DMyLog import DMyLog
+from snakelab.server import __main__ as entrypoint
+from snakelab.server.SimulationServer import SimulationServer
+from snakelab.utils.MyLog import MyLog
 
 
 class MyLogTests(unittest.TestCase):
@@ -113,7 +113,7 @@ class LoggingLifecycleTests(unittest.TestCase):
 
 class EmbeddedServerLoggingTests(unittest.IsolatedAsyncioTestCase):
     async def test_server_cleanup_does_not_close_unrelated_logging(self):
-        server = SnakeLabServer.__new__(SnakeLabServer)
+        server = SimulationServer.__new__(SimulationServer)
         server.endpoint = "unused"
         server._socket = Mock()
         server._context = Mock()

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Shared installation functions for SnakeLab lifecycle scripts.
+# Shared installation functions for Snake Lab lifecycle scripts.
 
-readonly INSTALL_DIR="/opt/snake-lab"
-readonly APP_DIR="${INSTALL_DIR}/app"
+readonly INSTALL_DIR="/opt/prod/snakelab"
+readonly APP_DIR="${INSTALL_DIR}/snakelab"
+readonly LEGACY_INSTALL_DIR="/opt/snake-lab"
 readonly UNIT_SOURCE="${PROJECT_DIR}/systemd/snake-lab.service"
 readonly UNIT_DEST="/etc/systemd/system/snake-lab.service"
 readonly CLIENT_DEST="/usr/local/bin/lab-client"
@@ -29,70 +30,72 @@ validate_release_checkout() {
     local path
     local -a required_files=(
         "client/lab-client"
-        "constants/__init__.py"
-        "constants/DModule.py"
-        "constants/DMyLog.py"
-        "constants/DNNet.py"
-        "constants/DSnakeLab.py"
-        "constants/DSQL.py"
-        "constants/DTrainer.py"
+        "snakelab/constants/__init__.py"
+        "snakelab/constants/DEpsilon.py"
+        "snakelab/constants/DGame.py"
+        "snakelab/constants/DModule.py"
+        "snakelab/constants/DMyLog.py"
+        "snakelab/constants/DNNet.py"
+        "snakelab/constants/DSnakeLab.py"
+        "snakelab/constants/DSQL.py"
+        "snakelab/constants/DTrainer.py"
         "requirements.txt"
         "requirements-torch-cpu.txt"
         "scripts/apply-database-schema.sh"
         "scripts/rebuild-venv.sh"
-        "snake_lab/__init__.py"
-        "snake_lab/client/SnakeBoard.py"
-        "snake_lab/client/__init__.py"
-        "snake_lab/client/__main__.py"
-        "snake_lab/client/client.tcss"
-        "snake_lab/client/ConfigurationReader.py"
-        "snake_lab/client/LivePlots.py"
-        "snake_lab/server/Configuration.py"
-        "snake_lab/server/JSONValidator.py"
-        "snake_lab/client/AsyncLabClient.py"
-        "snake_lab/database/__init__.py"
-        "snake_lab/database/SimulationStore.py"
-        "snake_lab/database/MemorySimulationStore.py"
-        "snake_lab/database/DbMgr.py"
-        "snake_lab/database/DBHelper.py"
-        "snake_lab/database/SnakeDb.py"
-        "snake_lab/zmq/EventsPublisher.py"
-        "snake_lab/zmq/ZMQHelper.py"
-        "snake_lab/game/__init__.py"
-        "snake_lab/game/Position.py"
-        "snake_lab/game/Direction.py"
-        "snake_lab/game/RewardConfig.py"
-        "snake_lab/game/StepResult.py"
-        "snake_lab/game/GameHelper.py"
-        "snake_lab/game/SnakeGame.py"
-        "snake_lab/game/GameState.py"
-        "snake_lab/game/BoardSnapshot.py"
-        "snake_lab/game/GameRules.py"
-        "snake_lab/nn/__init__.py"
-        "snake_lab/nn/EpsilonAlgo.py"
-        "snake_lab/nn/ReplayMemory.py"
-        "snake_lab/nn/RNNModel.py"
-        "snake_lab/zmq/Protocol.py"
-        "snake_lab/server/SimulationControl.py"
-        "snake_lab/schemas/database-v1.sql"
-        "snake_lab/schemas/database-v2.sql"
-        "snake_lab/schemas/database-v3.sql"
-        "snake_lab/schemas/database-v4.sql"
-        "snake_lab/schemas/simulation-config-v2.schema.json"
-        "snake_lab/server/__init__.py"
-        "snake_lab/server/__main__.py"
-        "snake_lab/server/SimulationRun.py"
-        "snake_lab/server/SnakeLabServer.py"
-        "snake_lab/server/Simulator.py"
-        "snake_lab/zmq/FrameTelemetry.py"
-        "snake_lab/zmq/TelemetryEnvelope.py"
-        "snake_lab/zmq/TelemetrySubscriber.py"
-        "snake_lab/zmq/__init__.py"
-        "snake_lab/zmq/TelemetryPublisher.py"
-        "snake_lab/nn/Trainer.py"
+        "snakelab/__init__.py"
+        "snakelab/client/SnakeBoard.py"
+        "snakelab/client/__init__.py"
+        "snakelab/client/__main__.py"
+        "snakelab/client/client.tcss"
+        "snakelab/client/ConfigurationReader.py"
+        "snakelab/client/LivePlots.py"
+        "snakelab/server/Configuration.py"
+        "snakelab/server/JSONValidator.py"
+        "snakelab/client/AsyncLabClient.py"
+        "snakelab/database/__init__.py"
+        "snakelab/database/SimulationStore.py"
+        "snakelab/database/MemorySimulationStore.py"
+        "snakelab/database/DbMgr.py"
+        "snakelab/database/DBHelper.py"
+        "snakelab/database/SnakeDb.py"
+        "snakelab/zmq/EventsPublisher.py"
+        "snakelab/zmq/ZMQHelper.py"
+        "snakelab/game/__init__.py"
+        "snakelab/game/Position.py"
+        "snakelab/game/Direction.py"
+        "snakelab/game/RewardConfig.py"
+        "snakelab/game/StepResult.py"
+        "snakelab/game/GameHelper.py"
+        "snakelab/game/SnakeGame.py"
+        "snakelab/game/GameState.py"
+        "snakelab/game/BoardSnapshot.py"
+        "snakelab/game/GameRules.py"
+        "snakelab/nn/__init__.py"
+        "snakelab/nn/EpsilonAlgo.py"
+        "snakelab/nn/ReplayMemory.py"
+        "snakelab/nn/RNNModel.py"
+        "snakelab/zmq/Protocol.py"
+        "snakelab/server/SimulationControl.py"
+        "snakelab/schemas/database-v1.sql"
+        "snakelab/schemas/database-v2.sql"
+        "snakelab/schemas/database-v3.sql"
+        "snakelab/schemas/database-v4.sql"
+        "snakelab/schemas/simulation-config-v2.schema.json"
+        "snakelab/server/__init__.py"
+        "snakelab/server/__main__.py"
+        "snakelab/server/SimulationRun.py"
+        "snakelab/server/SimulationServer.py"
+        "snakelab/server/Simulator.py"
+        "snakelab/zmq/FrameTelemetry.py"
+        "snakelab/zmq/TelemetryEnvelope.py"
+        "snakelab/zmq/TelemetrySubscriber.py"
+        "snakelab/zmq/__init__.py"
+        "snakelab/zmq/TelemetryPublisher.py"
+        "snakelab/nn/Trainer.py"
         "systemd/snake-lab.service"
-        "snake_lab/utils/__init__.py"
-        "snake_lab/utils/MyLog.py"
+        "snakelab/utils/__init__.py"
+        "snakelab/utils/MyLog.py"
     )
 
     for path in "${required_files[@]}"; do
@@ -105,18 +108,18 @@ apply_database_schema() {
     local db_name
 
     db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
+        'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
     [[ "${db_name}" =~ ^[A-Za-z0-9_]+$ ]] ||
         die "Invalid database name: ${db_name}"
 
     mariadb --batch "${db_name}" \
-        <"${PROJECT_DIR}/snake_lab/schemas/database-v1.sql"
+        <"${PROJECT_DIR}/snakelab/schemas/database-v1.sql"
     mariadb --batch "${db_name}" \
-        <"${PROJECT_DIR}/snake_lab/schemas/database-v2.sql"
+        <"${PROJECT_DIR}/snakelab/schemas/database-v2.sql"
     mariadb --batch "${db_name}" \
-        <"${PROJECT_DIR}/snake_lab/schemas/database-v3.sql"
+        <"${PROJECT_DIR}/snakelab/schemas/database-v3.sql"
     mariadb --batch "${db_name}" \
-        <"${PROJECT_DIR}/snake_lab/schemas/database-v4.sql"
+        <"${PROJECT_DIR}/snakelab/schemas/database-v4.sql"
 }
 
 ensure_service_account() {
@@ -128,6 +131,7 @@ ensure_service_account() {
             --shell /usr/sbin/nologin \
             snake-lab
     fi
+    usermod --home "${INSTALL_DIR}" snake-lab
 }
 
 prepare_installation_directories() {
@@ -141,13 +145,13 @@ provision_database() {
     local credentials_file db_host db_name db_password db_user
 
     credentials_file=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_CREDENTIALS_FILE)')
+        'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_CREDENTIALS_FILE)')
     db_host=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_HOST)')
+        'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_HOST)')
     db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
+        'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
     db_user=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-        'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_USER)')
+        'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_USER)')
 
     [[ "${credentials_file}" == "${INSTALL_DIR}/config/database.json" ]] ||
         die "Database credentials file must be inside ${INSTALL_DIR}/config."
@@ -190,29 +194,30 @@ deploy_application() {
     chmod 0755 "${staging_dir}"
 
     install -d -m 0755 \
-        "${staging_dir}/constants" \
-        "${staging_dir}/snake_lab" \
-        "${staging_dir}/snake_lab/schemas"
+        "${staging_dir}/snakelab/constants" \
+        "${staging_dir}/snakelab" \
+        "${staging_dir}/snakelab/schemas"
 
-    install -m 0644 "${PROJECT_DIR}/constants/"*.py \
-        "${staging_dir}/constants/"
-    install -m 0644 "${PROJECT_DIR}/snake_lab/"*.py \
-        "${staging_dir}/snake_lab/"
+    install -m 0644 "${PROJECT_DIR}/snakelab/constants/"*.py \
+        "${staging_dir}/snakelab/constants/"
+    install -m 0644 "${PROJECT_DIR}/snakelab/"*.py \
+        "${staging_dir}/snakelab/"
     install -m 0644 \
-        "${PROJECT_DIR}/snake_lab/schemas/"*.json \
-        "${PROJECT_DIR}/snake_lab/schemas/"*.sql \
-        "${staging_dir}/snake_lab/schemas/"
+        "${PROJECT_DIR}/snakelab/schemas/"*.json \
+        "${PROJECT_DIR}/snakelab/schemas/"*.sql \
+        "${staging_dir}/snakelab/schemas/"
     for package in nn game zmq utils server client database; do
-        install -d -m 0755 "${staging_dir}/snake_lab/${package}"
-        install -m 0644 "${PROJECT_DIR}/snake_lab/${package}/"*.py \
-            "${staging_dir}/snake_lab/${package}/"
+        install -d -m 0755 "${staging_dir}/snakelab/${package}"
+        install -m 0644 "${PROJECT_DIR}/snakelab/${package}/"*.py \
+            "${staging_dir}/snakelab/${package}/"
     done
 
-    install -m 0644 "${PROJECT_DIR}/snake_lab/client/"*.tcss \
-        "${staging_dir}/snake_lab/client/"
+    install -m 0644 "${PROJECT_DIR}/snakelab/client/"*.tcss \
+        "${staging_dir}/snakelab/client/"
 
     rm -rf -- "${APP_DIR}"
-    mv -- "${staging_dir}" "${APP_DIR}"
+    mv -- "${staging_dir}/snakelab" "${APP_DIR}"
+    rmdir -- "${staging_dir}"
 }
 
 deploy_runtime_files() {
@@ -232,6 +237,7 @@ remove_legacy_layout() {
     rm -rf -- \
         "${INSTALL_DIR}/client" \
         "${INSTALL_DIR}/constants" \
+        "${INSTALL_DIR}/app" \
         "${INSTALL_DIR}/snake_lab" \
         "${INSTALL_DIR}/utils"
 }

@@ -17,12 +17,12 @@ import uuid
 
 import pymysql
 
-from constants.DSQL import DSQL
-from snake_lab.client.ConfigurationReader import ConfigurationReader
-from snake_lab.database.DBHelper import config_hash, configuration_values
-from snake_lab.database.DbMgr import DatabaseError, DbMgr
-from snake_lab.database.SnakeDb import SnakeDb
-from snake_lab.server.Configuration import simulation_config_template
+from snakelab.constants.DSQL import DSQL
+from snakelab.client.ConfigurationReader import ConfigurationReader
+from snakelab.database.DBHelper import config_hash, configuration_values
+from snakelab.database.DbMgr import DatabaseError, DbMgr
+from snakelab.database.SnakeDb import SnakeDb
+from snakelab.server.Configuration import simulation_config_template
 
 
 @unittest.skipUnless(os.environ.get("SNAKELAB_TEST_DB_SOCKET"), "requires isolated MariaDB")
@@ -36,7 +36,7 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.execute(f"CREATE DATABASE `{self.database}`")
         self.addCleanup(self.execute, f"DROP DATABASE IF EXISTS `{self.database}`")
         self.admin.select_db(self.database)
-        schemas = Path(__file__).resolve().parents[1] / "snake_lab/schemas"
+        schemas = Path(__file__).resolve().parents[1] / "snakelab/schemas"
         for version in range(1, 5):
             sql = (schemas / f"database-v{version}.sql").read_text()
             sql = "\n".join(line for line in sql.splitlines() if not line.startswith("--"))

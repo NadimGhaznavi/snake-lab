@@ -7,10 +7,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from constants.DNNet import DNetDef
-from snake_lab.nn.ReplayMemory import ReplayBatch, ReplayMemory, Transition
-from snake_lab.nn.RNNModel import RNNModel
-from snake_lab.nn.Trainer import Trainer
+from snakelab.constants.DNNet import DNetDef
+from snakelab.nn.ReplayMemory import ReplayBatch, ReplayMemory, Transition
+from snakelab.nn.RNNModel import RNNModel
+from snakelab.nn.Trainer import Trainer
 
 
 class FakeLog:

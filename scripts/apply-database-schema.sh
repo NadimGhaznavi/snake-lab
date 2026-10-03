@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Explicitly apply this release's SnakeLab database schema.
+# Explicitly apply this release's Snake Lab database schema.
 
 set -Eeuo pipefail
 
@@ -14,4 +14,4 @@ require_commands python3 mariadb
 validate_release_checkout
 apply_database_schema
 
-printf '[SUCCESS] SnakeLab database schema applied.\n'
+printf '[SUCCESS] Snake Lab database schema applied.\n'

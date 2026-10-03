@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create and publish a SnakeLab release.
+# Create and publish a Snake Lab release.
 #
 # Flow: feat/* -> dev -> main, tag main, synchronize dev, then create the next
 # feature branch. The annotated tag is the authoritative project version.
@@ -12,7 +12,7 @@ readonly DEV_BRANCH="dev"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 readonly CHANGELOG="${PROJECT_DIR}/CHANGELOG.md"
-readonly CONSTANTS_FILE="${PROJECT_DIR}/constants/DSnakeLab.py"
+readonly CONSTANTS_FILE="${PROJECT_DIR}/snakelab/constants/DSnakeLab.py"
 
 CURRENT_BRANCH=""
 NEW_VERSION=""
@@ -83,7 +83,7 @@ preflight() {
     git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
         die "Not inside a Git repository."
     [[ "$(git rev-parse --show-toplevel)" == "${PROJECT_DIR}" ]] ||
-        die "Run this script from the SnakeLab repository."
+        die "Run this script from the Snake Lab repository."
     git remote get-url "${REMOTE}" >/dev/null 2>&1 ||
         die "Git remote '${REMOTE}' is not configured."
 
@@ -98,7 +98,7 @@ preflight() {
     [[ -f "${CHANGELOG}" ]] || die "CHANGELOG.md is required."
     grep -Fxq '## [Unreleased]' "${CHANGELOG}" ||
         die "CHANGELOG.md must contain an '## [Unreleased]' heading."
-    [[ -f "${CONSTANTS_FILE}" ]] || die "constants/DSnakeLab.py is required."
+    [[ -f "${CONSTANTS_FILE}" ]] || die "snakelab/constants/DSnakeLab.py is required."
     grep -Eq '^    VERSION: Final\[str\] = "[^"]+"$' "${CONSTANTS_FILE}" ||
         die "DSnakeLab.VERSION is missing or malformed."
     ref_exists "refs/heads/${MAIN_BRANCH}" || die "Local branch '${MAIN_BRANCH}' is missing."
@@ -170,7 +170,7 @@ update_changelog() {
 
 update_project_version() {
     local temp_file
-    temp_file=$(mktemp "${PROJECT_DIR}/constants/.DSnakeLab.py.XXXXXX")
+    temp_file=$(mktemp "${PROJECT_DIR}/snakelab/constants/.DSnakeLab.py.XXXXXX")
 
     awk -v version="${NEW_VERSION}" '
         /^    VERSION: Final\[str\] = "[^"]+"$/ {
@@ -185,7 +185,7 @@ update_project_version() {
 
     chmod --reference="${CONSTANTS_FILE}" "${temp_file}"
     mv -- "${temp_file}" "${CONSTANTS_FILE}"
-    git add -- constants/DSnakeLab.py
+    git add -- snakelab/constants/DSnakeLab.py
 }
 
 merge_no_ff() {

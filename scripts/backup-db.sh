@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dump the local SnakeLab database into the current directory.
+# Dump the local Snake Lab database into the current directory.
 
 set -Eeuo pipefail
 umask 077

@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from constants.DSnakeLab import DSnakeLab
+from snakelab.constants.DSnakeLab import DSnakeLab
 
 
 if __name__ == "__main__":
@@ -22,10 +22,10 @@ if __name__ == "__main__":
             sys.exit(f"Installed Python environment not found: {installed_python}")
         os.execv(str(installed_python), [str(installed_python), str(Path(__file__).resolve()), *sys.argv[1:]])
 
-from snake_lab.database.SnakeDb import SnakeDb
+from snakelab.database.SnakeDb import SnakeDb
 
-from snake_lab.client.AsyncLabClient import AsyncLabClient, load_config
-from snake_lab.zmq.Protocol import METHOD_SIMULATION_STATUS
+from snakelab.client.AsyncLabClient import AsyncLabClient, load_config
+from snakelab.zmq.Protocol import METHOD_SIMULATION_STATUS
 
 
 def connect_database():

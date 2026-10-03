@@ -33,8 +33,8 @@ The submission payload contains the configuration object itself, not a filename:
 }
 ```
 
-Partial configurations are accepted. SnakeLab applies the defaults and validates
-the result against the [JSON Schema](/snake_lab/schemas/simulation-config-v2.schema.json).
+Partial configurations are accepted. Snake Lab applies the defaults and validates
+the result against the [JSON Schema](/snakelab/schemas/simulation-config-v2.schema.json).
 
 ## Python Client Stub
 
@@ -82,15 +82,15 @@ class SnakeLabClient:
             socket.close()
 
         if not isinstance(response, dict):
-            raise RuntimeError("invalid SnakeLab response")
+            raise RuntimeError("invalid Snake Lab response")
         if response.get("protocol_version") != PROTOCOL_VERSION:
-            raise RuntimeError("unsupported SnakeLab protocol")
+            raise RuntimeError("unsupported Snake Lab protocol")
         if response.get("request_id") != request_id:
-            raise RuntimeError("SnakeLab request_id mismatch")
+            raise RuntimeError("Snake Lab request_id mismatch")
         if response.get("status") != "ok":
             error = response.get("error", {})
             code = error.get("code", "request_failed")
-            message = error.get("message", "SnakeLab request failed")
+            message = error.get("message", "Snake Lab request failed")
             raise RuntimeError(f"{code}: {message}")
         return response["payload"]
 

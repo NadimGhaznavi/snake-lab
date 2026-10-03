@@ -3,7 +3,7 @@
 from copy import deepcopy
 import unittest
 
-from snake_lab.server.Configuration import Configuration, ConfigurationError
+from snakelab.server.Configuration import Configuration, ConfigurationError
 
 
 class ConfigurationBoundaryTests(unittest.TestCase):

@@ -22,7 +22,7 @@ require_root
 require_commands python3 mariadb
 
 db_name=$(PYTHONPATH="${PROJECT_DIR}" python3 -c \
-    'from constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
+    'from snakelab.constants.DSnakeLab import DSnakeLab; print(DSnakeLab.DB_NAME)')
 [[ "${db_name}" =~ ^[A-Za-z0-9_]+$ ]] || die "Invalid database name: ${db_name}"
 
 # Keep the server stopped so workers cannot write to runs being removed.

@@ -5,10 +5,10 @@ from copy import deepcopy
 from pathlib import Path
 import unittest
 
-from constants.DGame import Outcome
-from snake_lab.game.BoardSnapshot import BoardSnapshot, BoardSnapshotError
-from snake_lab.zmq.FrameTelemetry import FrameTelemetry
-from snake_lab.zmq.Protocol import ProtocolError
+from snakelab.constants.DGame import Outcome
+from snakelab.game.BoardSnapshot import BoardSnapshot, BoardSnapshotError
+from snakelab.zmq.FrameTelemetry import FrameTelemetry
+from snakelab.zmq.Protocol import ProtocolError
 
 
 class GameBoundaryTests(unittest.TestCase):
@@ -32,9 +32,9 @@ class GameBoundaryTests(unittest.TestCase):
                 self.assertIsInstance(wire_error.exception.__cause__, BoardSnapshotError)
 
     def test_game_has_no_application_or_transport_imports(self):
-        folder = Path(__file__).resolve().parents[1] / "snake_lab/game"
-        forbidden = ("snake_lab.zmq", "snake_lab.server", "snake_lab.client",
-                     "snake_lab.database", "snake_lab.nn")
+        folder = Path(__file__).resolve().parents[1] / "snakelab/game"
+        forbidden = ("snakelab.zmq", "snakelab.server", "snakelab.client",
+                     "snakelab.database", "snakelab.nn")
         for path in folder.glob("*.py"):
             for node in ast.walk(ast.parse(path.read_text())):
                 modules = ([node.module or ""] if isinstance(node, ast.ImportFrom)

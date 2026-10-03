@@ -1,6 +1,6 @@
 import unittest
 
-from snake_lab.zmq.Protocol import PROTOCOL_VERSION, ProtocolError, Request
+from snakelab.zmq.Protocol import PROTOCOL_VERSION, ProtocolError, Request
 
 
 class RequestTests(unittest.TestCase):
