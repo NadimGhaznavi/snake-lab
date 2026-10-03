@@ -1,0 +1,2 @@
+"""Shared Snake Lab utilities."""
+

@@ -5,11 +5,11 @@ import unittest
 import zmq
 import zmq.asyncio
 
-from constants.DGame import Outcome
-from snake_lab.game.BoardSnapshot import BoardSnapshot
-from snake_lab.zmq.FrameTelemetry import FrameTelemetry
-from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
-from snake_lab.zmq.TelemetryPublisher import TelemetryPublisher
+from snakelab.constants.DGame import Outcome
+from snakelab.game.BoardSnapshot import BoardSnapshot
+from snakelab.zmq.FrameTelemetry import FrameTelemetry
+from snakelab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
+from snakelab.zmq.TelemetryPublisher import TelemetryPublisher
 
 
 class FakeSocket:

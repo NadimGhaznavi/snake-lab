@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 from textual.widgets import Label, TabbedContent
 from textual_plot import PlotWidget
-from snake_lab.client import ConfigurationReceived, SnakeLabClient
-from snake_lab.client.ConfigurationReader import ConfigurationReader, TUNED_FIELDS
-from snake_lab.client.LivePlots import LivePlots
+from snakelab.client import ConfigurationReceived, SnakeLabClient
+from snakelab.client.ConfigurationReader import ConfigurationReader, TUNED_FIELDS
+from snakelab.client.LivePlots import LivePlots
 from tests.test_client import FakeControlClient
 
 
@@ -14,8 +14,8 @@ class ConfigurationReaderTests(unittest.TestCase):
         connection = MagicMock()
         cursor = connection.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = {"training_learning_rate": 0.0021}
-        with patch("snake_lab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
-            "snake_lab.database.DbMgr.pymysql.connect", return_value=connection
+        with patch("snakelab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
+            "snakelab.database.DbMgr.pymysql.connect", return_value=connection
         ):
             result = ConfigurationReader().read("run-id")
         self.assertEqual(result, {"training_learning_rate": 0.0021})
@@ -30,8 +30,8 @@ class ConfigurationReaderTests(unittest.TestCase):
     def test_connection_closes_on_query_failure(self):
         connection = MagicMock()
         connection.cursor.return_value.__enter__.return_value.execute.side_effect = RuntimeError("offline")
-        with patch("snake_lab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
-            "snake_lab.database.DbMgr.pymysql.connect", return_value=connection
+        with patch("snakelab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
+            "snakelab.database.DbMgr.pymysql.connect", return_value=connection
         ):
             with self.assertRaises(RuntimeError):
                 ConfigurationReader().read("run-id")

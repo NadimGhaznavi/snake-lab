@@ -1,2 +1,2 @@
-"""SnakeLab tests."""
+"""Snake Lab tests."""
 

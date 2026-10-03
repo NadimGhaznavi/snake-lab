@@ -5,11 +5,11 @@ import json
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from snake_lab.server.SnakeLabServer import SnakeLabServer
-from snake_lab.zmq.Protocol import TOPIC_RUN, TOPIC_FRAME, ProtocolError
-from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
-from snake_lab.zmq.TelemetryPublisher import TelemetryPublisher
-from snake_lab.zmq.TelemetrySubscriber import TelemetrySubscriber
+from snakelab.server.SimulationServer import SimulationServer
+from snakelab.zmq.Protocol import TOPIC_RUN, TOPIC_FRAME, ProtocolError
+from snakelab.zmq.TelemetryEnvelope import TelemetryEnvelope
+from snakelab.zmq.TelemetryPublisher import TelemetryPublisher
+from snakelab.zmq.TelemetrySubscriber import TelemetrySubscriber
 from tests.test_telemetry_zmq import FakeContext, frame
 
 
@@ -100,7 +100,7 @@ class SubscriberBoundaryTests(unittest.IsolatedAsyncioTestCase):
         order = []
         self.socket.close.side_effect = lambda: order.append("socket")
         self.context.term.side_effect = lambda: order.append("context")
-        with patch("snake_lab.zmq.TelemetrySubscriber.zmq.asyncio.Context", return_value=self.context):
+        with patch("snakelab.zmq.TelemetrySubscriber.zmq.asyncio.Context", return_value=self.context):
             subscriber = TelemetrySubscriber(host="localhost", port=41971)
         subscriber.close()
         self.assertEqual(order, ["socket", "context"])
@@ -108,7 +108,7 @@ class SubscriberBoundaryTests(unittest.IsolatedAsyncioTestCase):
 
 class ServerCleanupTests(unittest.IsolatedAsyncioTestCase):
     async def test_telemetry_failure_still_closes_socket_context_and_store(self):
-        server = SnakeLabServer.__new__(SnakeLabServer)
+        server = SimulationServer.__new__(SimulationServer)
         server.endpoint = "unused"
         server._socket = Mock()
         server._context = Mock()

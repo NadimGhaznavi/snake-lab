@@ -6,7 +6,7 @@ layout: single
 
 ![Architecture](/pages/images/architecture.png)
 
-SnakeLab runs queued Snake experiments serially on CPU, stores results in
+Snake Lab runs queued Snake experiments serially on CPU, stores results in
 MariaDB, and streams progress to a Textual client or external subscribers.
 
 ## Components
@@ -22,11 +22,11 @@ MariaDB, and streams progress to a Textual client or external subscribers.
 
 ## Application packages
 
-All runtime code lives in `snake_lab/`, with shared constants in `constants/`.
+All runtime code lives in `snakelab/`, with shared constants in `snakelab/constants/`.
 
 | Folder | Main modules and responsibilities |
 | --- | --- |
-| `server/` | `SnakeLabServer` handles control requests and the FIFO run queue. `SimulationRun` holds progress; `SimulationControl` handles pause, cancellation, and delay. `Simulator` runs episodes and training. `Configuration` resolves and validates input through `JSONValidator`. |
+| `server/` | `SimulationServer` handles control requests and the FIFO run queue. `SimulationRun` holds progress; `SimulationControl` handles pause, cancellation, and delay. `Simulator` runs episodes and training. `Configuration` resolves and validates input through `JSONValidator`. |
 | `game/` | `SnakeGame` owns an episode; `GameRules` applies moves to immutable `GameState`. `Position`, `Direction`, `RewardConfig`, and `StepResult` describe game values. `BoardSnapshot` converts boards for transport; `GameHelper` places food. |
 | `nn/` | `RNNModel` predicts action values, `EpsilonAlgo` chooses exploration moves, `ReplayMemory` samples episode windows, and `Trainer` performs Double DQN updates. |
 | `database/` | `SimulationStore` defines the server's storage contract. `SnakeDb` implements it through the generic MariaDB manager `DbMgr`; `DBHelper` maps and hashes configurations. `MemorySimulationStore` supports ephemeral runs. |
@@ -37,7 +37,7 @@ All runtime code lives in `snake_lab/`, with shared constants in `constants/`.
 
 ## Execution flow
 
-1. A control request reaches `SnakeLabServer` on port **41970**. The server
+1. A control request reaches `SimulationServer` on port **41970**. The server
    resolves the configuration, stores a new run, and queues it.
 2. One worker passes the resolved configuration to `Simulator`, which combines
    game rules, policy inference, replay memory, and training on CPU.
@@ -46,8 +46,8 @@ All runtime code lives in `snake_lab/`, with shared constants in `constants/`.
 4. The server stores the terminal result before publishing `simulation_ended`
    on port **41972**. Successful runs also save their high-score board.
 
-`python -m snake_lab.server` starts the server; `--ephemeral` uses memory
-instead of MariaDB. `python -m snake_lab.client` starts the TUI. The client
+`python -m snakelab.server` starts the server; `--ephemeral` uses memory
+instead of MariaDB. `python -m snakelab.client` starts the TUI. The client
 uses ZeroMQ for control and telemetry, and a separate read-only database
 transaction for its configuration panel.
 
@@ -55,7 +55,7 @@ transaction for its configuration panel.
 
 | Folder | Purpose |
 | --- | --- |
-| `constants/` | Runtime defaults, ports, version, game values, and database configuration paths. |
+| `snakelab/constants/` | Runtime defaults, ports, version, game values, and database configuration paths. |
 | `client/` | Shell launchers for the installed and development clients. |
 | `scripts/` | Installation, upgrades, schema application, environment setup, backups, cleanup, benchmarks, and isolated database tests. |
 | `systemd/` | Service definition for the installed server. |

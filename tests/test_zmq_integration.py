@@ -12,14 +12,14 @@ from pathlib import Path
 
 import zmq
 
-from constants.DSnakeLab import DSnakeLab
-from snake_lab.client.AsyncLabClient import AsyncLabClient
-from snake_lab.zmq.ZMQHelper import (
+from snakelab.constants.DSnakeLab import DSnakeLab
+from snakelab.client.AsyncLabClient import AsyncLabClient
+from snakelab.zmq.ZMQHelper import (
     EVENT_PROTOCOL_VERSION,
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
 )
-from snake_lab.zmq.Protocol import (
+from snakelab.zmq.Protocol import (
     METHOD_HEALTH,
     METHOD_SIMULATION_CANCEL,
     METHOD_SIMULATION_PAUSE,
@@ -29,9 +29,9 @@ from snake_lab.zmq.Protocol import (
     METHOD_SIMULATION_SUBMIT,
     PROTOCOL_VERSION,
 )
-from snake_lab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
-from snake_lab.zmq.FrameTelemetry import FrameTelemetry
-from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
+from snakelab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
+from snakelab.zmq.FrameTelemetry import FrameTelemetry
+from snakelab.zmq.TelemetryEnvelope import TelemetryEnvelope
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -68,7 +68,7 @@ class SyncProtocolClient:
         )
         response = self._socket.recv_json()
         if response.get("request_id") != request_id:
-            raise ValueError("SnakeLab response request_id does not match")
+            raise ValueError("Snake Lab response request_id does not match")
         return response
 
     def health(self) -> dict:
@@ -115,7 +115,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             [
                 sys.executable,
                 "-m",
-                "snake_lab.server",
+                "snakelab.server",
                 "--address",
                 "127.0.0.1",
                 "--port",
@@ -135,7 +135,7 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         )
 
         startup_message = (
-            f"SnakeLab server listening on tcp://127.0.0.1:{self.port}"
+            f"Snake Lab server listening on tcp://127.0.0.1:{self.port}"
         )
         deadline = time.monotonic() + 10
         while True:

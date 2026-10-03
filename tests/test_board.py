@@ -2,8 +2,8 @@ import unittest
 
 from textual.app import App, ComposeResult
 
-from snake_lab.client.SnakeBoard import SnakeBoard
-from snake_lab.game.BoardSnapshot import BoardSnapshot
+from snakelab.client.SnakeBoard import SnakeBoard
+from snakelab.game.BoardSnapshot import BoardSnapshot
 
 
 class BoardTestApp(App[None]):

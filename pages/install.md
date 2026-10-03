@@ -16,14 +16,14 @@ sudo apt install python3-venv mariadb-server openssl
 sudo scripts/install.sh
 ```
 
-The installer creates `/opt/snake-lab`, provisions the database, builds the
+The installer creates `/opt/prod/snakelab`, provisions the database, builds the
 Python environment, and starts `snake-lab.service`. The environment always
 uses the CPU PyTorch runtime.
 
 ```sh
 systemctl status snake-lab.service
 journalctl -u snake-lab.service -f
-tail -f /opt/snake-lab/logs/server.log
+tail -f /opt/prod/snakelab/logs/server.log
 ```
 
 Simulation, policy inference, and training run on CPU, including on hosts
@@ -48,7 +48,7 @@ the client user, containing `password` and optionally `user` and `database`:
 client/lab-client.sh --host SERVER --db-host DATABASE_HOST --db-credentials /path/to/database.json
 ```
 
-Defaults use the existing local SnakeLab database settings. If the database
+Defaults use the existing local Snake Lab database settings. If the database
 is unavailable, telemetry continues and the panel reports configuration as
 unavailable. The client does not initialize, migrate, or update the database.
 
@@ -67,9 +67,9 @@ sudo scripts/run-benchmark.py -c examples/sample-config.json
 ```
 
 The script automatically uses the installed virtual environment at
-`/opt/snake-lab/venv`, deriving the install directory from the credential path
+`/opt/prod/snakelab/venv`, deriving the install directory from the credential path
 in `DSnakeLab.DB_CREDENTIALS_FILE`.
-The tool uses the installed credentials at `/opt/snake-lab/config/database.json`,
+The tool uses the installed credentials at `/opt/prod/snakelab/config/database.json`,
 prints `Snake Lab Benchmark: XXX steps per second`, and calculates throughput using the run's database
 start and completion timestamps (including simulation setup and persistence).
 Add `-v` for episode progress, timing, and cleanup details.
@@ -89,7 +89,27 @@ sudo scripts/upgrade.sh
 
 The upgrade script stops the service, applies database schemas v1–v4,
 deploys the software, and restarts the service. It rebuilds the virtual
-environment only when requirements change and does not provision MariaDB.
+environment when requirements change or the installation moves, and does not
+provision MariaDB.
+
+Existing `/opt/snake-lab` installations are moved to `/opt/prod/snakelab`.
+Credentials and logs move with the installation; the database name, account,
+and stored results stay the same. The virtual environment is rebuilt because
+its launchers contain absolute paths. If rebuilding fails, the service stays
+stopped; fix the reported error and rerun the upgrade. The script refuses to
+migrate when both installation directories already exist.
+
+## CMDB discovery
+
+Register **`SnakeLab`** using CMDB’s Add Application, then run Re-Scan
+Applications on the inventoried host. CMDB reads the literal version from
+`/opt/prod/snakelab/snakelab/constants/DSnakeLab.py` and records the installed
+release and host deployment. The name must be exactly `SnakeLab`; names with
+spaces or hyphens do not meet CMDB’s discovery convention. Development
+checkouts under `/opt/dev` are not discovery targets.
+
+Python entry points are now `python -m snakelab.server` and
+`python -m snakelab.client`; shared constants are in `snakelab.constants`.
 
 Fresh installations apply the same schemas. To apply them separately while
 the service is stopped, use `sudo scripts/apply-database-schema.sh`. Schema
@@ -103,5 +123,5 @@ for storage details and migration context.
 sudo scripts/uninstall.sh
 ```
 
-The uninstaller removes the service, `/opt/snake-lab`, and the configured
+The uninstaller removes the service, `/opt/prod/snakelab`, and the configured
 MariaDB database, including all simulation history. The MariaDB user remains.
