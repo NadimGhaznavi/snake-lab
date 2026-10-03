@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-03 @ 04:03
+
 - Added Patrick Loeber to the credits.
 
 ## [1.8.0] - 2026-09-19 @ 14:36
