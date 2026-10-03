@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from snake_lab.nn.EpsilonAlgo import EpsilonAlgo
+from snakelab.nn.EpsilonAlgo import EpsilonAlgo
 
 
 class FakeLog:

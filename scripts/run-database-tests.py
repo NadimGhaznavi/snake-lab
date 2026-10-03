@@ -3,7 +3,7 @@
 
 Run with: venv/bin/python scripts/run-database-tests.py
 Requires mariadb-install-db and mariadbd, plus permission to open local sockets.
-No installed SnakeLab database or credentials are used.
+No installed Snake Lab database or credentials are used.
 """
 
 import os

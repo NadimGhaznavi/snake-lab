@@ -1,17 +1,17 @@
 import random
 import unittest
 
-from constants.DGame import DGameDef
-from constants.DNNet import DNetDef
-from snake_lab.game.GameRules import GameRules
-from snake_lab.game.GameState import GameState
-from constants.DGame import Action
-from snake_lab.game.Direction import Direction
-from constants.DGame import Outcome
-from snake_lab.game.Position import Position
-from snake_lab.game.RewardConfig import RewardConfig
+from snakelab.constants.DGame import DGameDef
+from snakelab.constants.DNNet import DNetDef
+from snakelab.game.GameRules import GameRules
+from snakelab.game.GameState import GameState
+from snakelab.constants.DGame import Action
+from snakelab.game.Direction import Direction
+from snakelab.constants.DGame import Outcome
+from snakelab.game.Position import Position
+from snakelab.game.RewardConfig import RewardConfig
 
-from snake_lab.game.SnakeGame import SnakeGame
+from snakelab.game.SnakeGame import SnakeGame
 
 
 TEST_REWARDS = RewardConfig(

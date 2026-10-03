@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pymysql
 
-from snake_lab.database.DbMgr import DatabaseError, DbMgr, SqlValue
-from snake_lab.database.SnakeDb import SnakeDb
+from snakelab.database.DbMgr import DatabaseError, DbMgr, SqlValue
+from snakelab.database.SnakeDb import SnakeDb
 
 
 class DbMgrTests(unittest.TestCase):
@@ -174,8 +174,8 @@ class DbMgrTests(unittest.TestCase):
             self.db.select("records", ("id",))
 
     def test_connection_options_and_errors(self):
-        with patch("snake_lab.database.DbMgr.Path.read_text", return_value='{"password":"secret", "user":"reader"}'), patch(
-            "snake_lab.database.DbMgr.pymysql.connect", return_value=self.connection
+        with patch("snakelab.database.DbMgr.Path.read_text", return_value='{"password":"secret", "user":"reader"}'), patch(
+            "snakelab.database.DbMgr.pymysql.connect", return_value=self.connection
         ) as connect:
             db = DbMgr.connect(credentials_file="credentials", host="db", port=3307,
                                user="default", database="example")
@@ -184,8 +184,8 @@ class DbMgrTests(unittest.TestCase):
             self.assertFalse(connect.call_args.kwargs["autocommit"])
             db.close()
         failure = pymysql.OperationalError("offline")
-        with patch("snake_lab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
-            "snake_lab.database.DbMgr.pymysql.connect", side_effect=failure
+        with patch("snakelab.database.DbMgr.Path.read_text", return_value='{"password":"secret"}'), patch(
+            "snakelab.database.DbMgr.pymysql.connect", side_effect=failure
         ), self.assertRaises(DatabaseError) as raised:
             DbMgr.connect(credentials_file="credentials", host="db", port=3306,
                           user="user", database="example")
@@ -201,7 +201,7 @@ class SnakeDbBoundaryTests(unittest.TestCase):
         }, where={"run_id": "run-1"})
 
     def test_connection_does_not_recover_runs(self):
-        with patch("snake_lab.database.SnakeDb.DbMgr.connect") as connect:
+        with patch("snakelab.database.SnakeDb.DbMgr.connect") as connect:
             database = SnakeDb.connect()
             connect.return_value.update.assert_not_called()
             database.recover_interrupted_runs()

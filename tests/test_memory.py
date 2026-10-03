@@ -3,7 +3,7 @@ from random import Random
 
 import numpy as np
 
-from snake_lab.nn.ReplayMemory import ReplayMemory, Transition
+from snakelab.nn.ReplayMemory import ReplayMemory, Transition
 
 
 class FakeLog:

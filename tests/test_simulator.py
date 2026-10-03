@@ -4,17 +4,17 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from snake_lab.zmq.FrameTelemetry import FrameTelemetry
+from snakelab.zmq.FrameTelemetry import FrameTelemetry
 
 import torch
 
-from constants.DGame import DGameDef
-from constants.DSnakeLab import DSnakeLab
-from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.server.Simulator import Simulator
-from snake_lab.nn.ReplayMemory import ReplayMemory
-from constants.DGame import Action
-from constants.DGame import Outcome
+from snakelab.constants.DGame import DGameDef
+from snakelab.constants.DSnakeLab import DSnakeLab
+from snakelab.server.Configuration import simulation_config_template
+from snakelab.server.Simulator import Simulator
+from snakelab.nn.ReplayMemory import ReplayMemory
+from snakelab.constants.DGame import Action
+from snakelab.constants.DGame import Outcome
 
 
 class FakeDevice:

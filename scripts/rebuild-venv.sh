@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild only the SnakeLab Python virtual environment.
+# Rebuild only the Snake Lab Python virtual environment.
 
 set -Eeuo pipefail
 

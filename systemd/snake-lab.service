@@ -1,12 +1,12 @@
 [Unit]
-Description=SnakeLab AI simulation server
+Description=Snake Lab AI simulations
 Requires=mariadb.service
 After=network.target mariadb.service
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/snake-lab/app
-ExecStart=/opt/snake-lab/venv/bin/python -m snake_lab.server
+WorkingDirectory=/opt/prod/snakelab
+ExecStart=/opt/prod/snakelab/venv/bin/python -m snakelab.server
 Restart=on-failure
 RestartSec=5
 User=snake-lab
@@ -15,7 +15,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/snake-lab/logs
+ReadWritePaths=/opt/prod/snakelab/logs
 
 [Install]
 WantedBy=multi-user.target

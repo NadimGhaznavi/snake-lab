@@ -2,13 +2,13 @@ import asyncio
 import unittest
 from unittest.mock import Mock, call, patch
 
-from constants.DSnakeLab import DSnakeLab
-from snake_lab.database.MemorySimulationStore import MemorySimulationStore
-from snake_lab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
-from snake_lab.zmq.Protocol import PROTOCOL_VERSION
-from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.server.SimulationRun import SimulationRun
-from snake_lab.server.SnakeLabServer import SnakeLabServer
+from snakelab.constants.DSnakeLab import DSnakeLab
+from snakelab.database.MemorySimulationStore import MemorySimulationStore
+from snakelab.zmq.ZMQHelper import EVENT_SIMULATION_ENDED
+from snakelab.zmq.Protocol import PROTOCOL_VERSION
+from snakelab.server.Configuration import simulation_config_template
+from snakelab.server.SimulationRun import SimulationRun
+from snakelab.server.SimulationServer import SimulationServer
 
 
 class FakeLog:
@@ -40,7 +40,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             "capture-run", simulation_config_template().resolve({"epochs": 1})
         )
         self.server.store.create_run(run.run_id, run.config, DSnakeLab.VERSION)
-        with patch("snake_lab.server.Simulator.Simulator._select_action", return_value=0):
+        with patch("snakelab.server.Simulator.Simulator._select_action", return_value=0):
             await self.server._execute_simulation(run)
         run.state = "completed"
 
@@ -57,7 +57,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.ended.assert_called_once()
 
     async def asyncSetUp(self) -> None:
-        self.server = SnakeLabServer(
+        self.server = SimulationServer(
             address="127.0.0.1",
             port=0,
             log_file=None,

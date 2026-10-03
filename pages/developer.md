@@ -6,7 +6,7 @@ layout: single
 
 [Architecture](/pages/architecture.html) · [Coding guidelines](/pages/coding-guidelines.html)
 
-SnakeLab exposes three ZeroMQ interfaces for downstream systems. Install
+Snake Lab exposes three ZeroMQ interfaces for downstream systems. Install
 `pyzmq` for Python clients and replace `wintermute` with your server hostname.
 
 | Interface | Default endpoint | Client socket | Reference |
@@ -57,9 +57,9 @@ messages dropped before publication. Use control status for current progress
 and the database for stored results.
 
 The project's
-[control client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/client/AsyncLabClient.py)
+[control client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snakelab/client/AsyncLabClient.py)
 and
-[telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snake_lab/zmq/TelemetrySubscriber.py)
+[telemetry client](https://github.com/NadimGhaznavi/snake-lab/blob/main/snakelab/zmq/TelemetrySubscriber.py)
 are the reference implementations.
 
 ## High-score Board Snapshots
@@ -134,7 +134,7 @@ not replay simulations or reconstruct missing boards.
 
 Existing clients can continue using the control and event protocols without
 requesting snapshots. An optimizer such as AX3L can request a snapshot using
-the run ID it selects as its golden configuration; SnakeLab does not select
+the run ID it selects as its golden configuration; Snake Lab does not select
 the golden configuration itself.
 
 ## Simulation Execution
@@ -167,7 +167,7 @@ whole oldest episodes to stay within `training.replay_max_frames`. Completed
 episodes share one contiguous array for current and next observations; sampled
 batches reuse buffers and must be consumed before the next sample.
 
-The current [configuration schema](/snake_lab/schemas/simulation-config-v2.schema.json)
+The current [configuration schema](/snakelab/schemas/simulation-config-v2.schema.json)
 defines tunable ranges and fixed settings. `training.replay_min_episodes` is
 not supported.
 
@@ -197,12 +197,12 @@ GROUP BY c.training_learning_rate, c.model_hidden_size;
 
 See the changelog for the one-time v0.13.0 clean database setup.
 
-Schema `snake_lab/schemas/database-v3.sql` only creates the new table. It can
+Schema `snakelab/schemas/database-v3.sql` only creates the new table. It can
 be reapplied safely and does not backfill historical runs or delete data.
 New accepted runs receive configuration rows immediately, regardless of their
 eventual status. Deleting a run cascades to its configuration row.
 
-Schema `snake_lab/schemas/database-v4.sql` adds nullable JSON column
+Schema `snakelab/schemas/database-v4.sql` adds nullable JSON column
 `simulation_runs.high_score_snapshot` for one saved board per run. It can be
 reapplied safely without deleting existing data or backfilling old snapshots.
 NULL means no snapshot is available. See [High-score Board Snapshots](#high-score-board-snapshots)
@@ -253,7 +253,7 @@ venv/bin/python -m unittest discover -s tests
 Run a development server without MariaDB in one terminal:
 
 ```sh
-venv/bin/python -m snake_lab.server \
+venv/bin/python -m snakelab.server \
     --address 127.0.0.1 \
     --log-file /tmp/snake-lab.log \
     --ephemeral

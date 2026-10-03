@@ -11,11 +11,11 @@ import uuid
 
 import pymysql
 
-from constants.DSQL import DSQL
-from snake_lab.database.DbMgr import DbMgr
-from snake_lab.database.SnakeDb import SnakeDb
-from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.database.DBHelper import configuration_values
+from snakelab.constants.DSQL import DSQL
+from snakelab.database.DbMgr import DbMgr
+from snakelab.database.SnakeDb import SnakeDb
+from snakelab.server.Configuration import simulation_config_template
+from snakelab.database.DBHelper import configuration_values
 
 
 @unittest.skipUnless(os.environ.get("SNAKELAB_TEST_DB_SOCKET"), "requires test MariaDB socket")
@@ -27,7 +27,7 @@ class ConfigurationMigrationTests(unittest.TestCase):
             autocommit=True,
         )
         database = "configuration_test_" + uuid.uuid4().hex
-        schemas = Path(__file__).resolve().parents[1] / "snake_lab" / "schemas"
+        schemas = Path(__file__).resolve().parents[1] / "snakelab" / "schemas"
 
         def apply(version):
             sql = (schemas / f"database-v{version}.sql").read_text()

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import zmq
 
-from snake_lab.zmq.EventsPublisher import EventsPublisher
-from snake_lab.zmq.ZMQHelper import (
+from snakelab.zmq.EventsPublisher import EventsPublisher
+from snakelab.zmq.ZMQHelper import (
     EVENT_PROTOCOL_VERSION,
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,

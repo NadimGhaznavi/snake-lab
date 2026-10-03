@@ -22,11 +22,11 @@ minimal_mistakes_skin: "dark"
 # Site Settings
 locale: "en-US"
 rtl: # true, false (default) # turns direction of the page into right to left for RTL languages
-title: "Snake Lab Server"
+title: "Snake Lab"
 title_separator: "-"
 subtitle: # site tagline that appears below site title in masthead
-name: "Standalone Snake Game Server"
-description: "A server that allows users to run AI Snake Game simulations."
+name: "Snake Lab"
+description: "Run and explore AI Snake game simulations."
 url: "https://snakelabserver.osoyalce.com" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl: "" # the subpath of your site, e.g. "/blog"
 repository: NadimGhaznavi/snake-lab # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"

@@ -1,6 +1,6 @@
 import unittest
 
-from snake_lab.server.Configuration import (
+from snakelab.server.Configuration import (
     ConfigurationError,
     simulation_config_template,
 )

@@ -4,15 +4,15 @@ from unittest.mock import MagicMock
 
 import pymysql
 
-from constants.DSnakeLab import DSnakeLab
-from constants.DSQL import DSQL
-from snake_lab.database.DbMgr import DbMgr, DatabaseError
-from snake_lab.database.SnakeDb import SnakeDb
-from snake_lab.server.Configuration import simulation_config_template
-from snake_lab.database.DBHelper import configuration_values, canonical_config, config_hash
-from snake_lab.database.MemorySimulationStore import MemorySimulationStore
-from constants.DGame import Outcome
-from snake_lab.server.Simulator import EpisodeResult
+from snakelab.constants.DSnakeLab import DSnakeLab
+from snakelab.constants.DSQL import DSQL
+from snakelab.database.DbMgr import DbMgr, DatabaseError
+from snakelab.database.SnakeDb import SnakeDb
+from snakelab.server.Configuration import simulation_config_template
+from snakelab.database.DBHelper import configuration_values, canonical_config, config_hash
+from snakelab.database.MemorySimulationStore import MemorySimulationStore
+from snakelab.constants.DGame import Outcome
+from snakelab.server.Simulator import EpisodeResult
 
 
 class SimulationDatabaseTests(unittest.TestCase):

@@ -1,14 +1,14 @@
 import unittest
 
-from snake_lab.game.GameState import GameState
-from snake_lab.game.Direction import Direction
-from constants.DGame import Outcome
-from snake_lab.game.Position import Position
-from snake_lab.game.StepResult import StepResult
-from snake_lab.zmq.Protocol import ProtocolError
-from snake_lab.game.BoardSnapshot import BoardSnapshot
-from snake_lab.zmq.FrameTelemetry import FrameTelemetry
-from snake_lab.zmq.TelemetryEnvelope import TelemetryEnvelope
+from snakelab.game.GameState import GameState
+from snakelab.game.Direction import Direction
+from snakelab.constants.DGame import Outcome
+from snakelab.game.Position import Position
+from snakelab.game.StepResult import StepResult
+from snakelab.zmq.Protocol import ProtocolError
+from snakelab.game.BoardSnapshot import BoardSnapshot
+from snakelab.zmq.FrameTelemetry import FrameTelemetry
+from snakelab.zmq.TelemetryEnvelope import TelemetryEnvelope
 
 
 class TelemetryContractTests(unittest.TestCase):

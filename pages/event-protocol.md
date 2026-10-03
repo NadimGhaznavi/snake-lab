@@ -20,7 +20,7 @@ JSON object with these fields:
 | `event_type` | string | Explicit event identifier from the table below |
 | `payload` | object | Fields defined for that event type |
 
-Event definitions and validation live in `snake_lab/zmq/ZMQHelper.py`.
+Event definitions and validation live in `snakelab/zmq/ZMQHelper.py`.
 `event_message(event_type, payload)` builds an outgoing envelope and copies
 its trusted internal payload without validation. `parse_event(decoded_json)`
 validates incoming envelopes, rejecting unknown fields, event types, and
@@ -70,7 +70,7 @@ Start this subscriber before submitting work from another client:
 import json
 import zmq
 
-from snake_lab.zmq.ZMQHelper import (
+from snakelab.zmq.ZMQHelper import (
     EVENT_SIMULATION_ENDED,
     TOPIC_SIMULATION_ENDED,
     parse_event,

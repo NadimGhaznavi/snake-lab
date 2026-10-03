@@ -3,13 +3,13 @@ import json
 import unittest
 from unittest.mock import MagicMock
 
-from snake_lab.database.DbMgr import DbMgr
-from snake_lab.database.SnakeDb import SnakeDb
-from snake_lab.client.AsyncLabClient import AsyncLabClient
-from snake_lab.database.MemorySimulationStore import MemorySimulationStore
-from snake_lab.zmq.Protocol import METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, PROTOCOL_VERSION
-from snake_lab.server.SnakeLabServer import SnakeLabServer
-from snake_lab.game.BoardSnapshot import BoardSnapshot
+from snakelab.database.DbMgr import DbMgr
+from snakelab.database.SnakeDb import SnakeDb
+from snakelab.client.AsyncLabClient import AsyncLabClient
+from snakelab.database.MemorySimulationStore import MemorySimulationStore
+from snakelab.zmq.Protocol import METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, PROTOCOL_VERSION
+from snakelab.server.SimulationServer import SimulationServer
+from snakelab.game.BoardSnapshot import BoardSnapshot
 
 
 SNAPSHOT = {
@@ -46,7 +46,7 @@ class SnapshotProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.store = MemorySimulationStore()
         self.store.create_run("saved", {}, "test")
         self.store.finish_run("saved", "completed", 3, 1, high_score_snapshot=SNAPSHOT)
-        self.server = SnakeLabServer(store=self.store, log_file=None, port=0)
+        self.server = SimulationServer(store=self.store, log_file=None, port=0)
 
     async def asyncTearDown(self):
         self.server._socket.close()

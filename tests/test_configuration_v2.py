@@ -1,6 +1,6 @@
 """Server-owned v2 validation, including continuous decimal ranges."""
 import unittest
-from snake_lab.server.Configuration import Configuration, ConfigurationError, simulation_config_template
+from snakelab.server.Configuration import Configuration, ConfigurationError, simulation_config_template
 
 
 class V2ConfigurationTests(unittest.TestCase):

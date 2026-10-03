@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the SnakeLab Textual client from this checkout.
+# Run the Snake Lab Textual client from this checkout.
 
 set -Eeuo pipefail
 
@@ -12,4 +12,4 @@ readonly PYTHON="${PROJECT_DIR}/venv/bin/python"
     exit 1
 }
 
-PYTHONPATH="${PROJECT_DIR}" exec "${PYTHON}" -m snake_lab.client "$@"
+PYTHONPATH="${PROJECT_DIR}" exec "${PYTHON}" -m snakelab.client "$@"
