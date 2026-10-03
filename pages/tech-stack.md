@@ -14,4 +14,4 @@ The top level tech stack:
 - [MariaDB](https://mariadb.org/) by [Michael Widenius](https://x.com/montywi?lang=en)
 - [GitHub Pages](https://docs.github.com/en/pages), [Tom Preston-Werner](https://x.com/mojombo)'s brainchild
 
-This project was created by Nadim-Daniel Ghaznavi and is hosted on [GitHub](https://github.com/NadimGhaznavi/snake-lab).
+This project was created by Nadim-Daniel Ghaznavi and is hosted on [GitHub](https://github.com/NadimGhaznavi/snake-lab). It was inspired by [Patrick Löber's](https://www.linkedin.com/in/patrick-l%C3%B6ber-403022137/) [Train an AI to Play Snake](https://www.youtube.com/watch?v=L8ypSXwyBds&t=4s) tutorial.

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added Patrick Loeber to the credits.
+
 ## [1.8.0] - 2026-09-19 @ 14:36
 
 - Added a gallery showing 4 screenshots of the TUI client.
