@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-03 @ 06:26
+
 - Standardize the product name as Snake Lab and the Python package as `snakelab`,
   with constants inside the package and the server component named `SimulationServer`.
 - Install into `/opt/prod/snakelab` using CMDB’s `SnakeLab` discovery convention.
