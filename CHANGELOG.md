@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-05 @ 05:43
+
+- Add CMDB scanner metadata: subtype `Simulation Server`, supplier `Nadim-Daniel`,
+  and codename `Insight`.
+
 ## [1.9.2] - 2026-10-04 @ 05:58
 
 ## [1.9.1] - 2026-10-03 @ 06:33
