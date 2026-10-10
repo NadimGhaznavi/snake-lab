@@ -15,6 +15,7 @@ from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.zmq.Protocol import (
     METHOD_SIMULATION_ACTIVE,
     METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
+    METHOD_SIMULATION_HIGHSCORE_FRAMES,
     METHOD_SIMULATION_CANCEL,
     METHOD_SIMULATION_PAUSE,
     METHOD_SIMULATION_RESUME,
@@ -89,6 +90,11 @@ class AsyncLabClient:
     async def highscore_snapshot(self, run_id: str) -> dict[str, Any]:
         return await self.request(
             METHOD_SIMULATION_HIGHSCORE_SNAPSHOT, {"run_id": run_id}
+        )
+
+    async def highscore_frames(self, run_id: str) -> dict[str, Any]:
+        return await self.request(
+            METHOD_SIMULATION_HIGHSCORE_FRAMES, {"run_id": run_id}
         )
 
     async def submit(self, config: dict[str, Any]) -> dict[str, Any]:

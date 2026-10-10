@@ -1,234 +1,282 @@
 #!/usr/bin/env bash
-# Create and publish a Snake Lab release.
-#
-# Flow: feat/* -> dev -> main, tag main, synchronize dev, then create the next
-# feature branch. The annotated tag is the authoritative project version.
+# Create and publish a release: feature -> development -> main.
 
 set -Eeuo pipefail
 
-readonly REMOTE="origin"
-readonly MAIN_BRANCH="main"
-readonly DEV_BRANCH="dev"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
-readonly CHANGELOG="${PROJECT_DIR}/CHANGELOG.md"
-readonly CONSTANTS_FILE="${PROJECT_DIR}/snakelab/constants/DSnakeLab.py"
+# Project settings: keep adaptations to other Python projects in this block.
+readonly project_name="SnakeLab"
+readonly version_file="snakelab/constants/DSnakeLab.py"
+readonly version_constant="VERSION"
+readonly codename_constant="CMDB_CODENAME"
+readonly changelog_file="CHANGELOG.md"
+readonly remote="origin"
+readonly dev_branch="dev"
+readonly main_branch="main"
+readonly feature_prefix="feat/maint-"
+readonly python_command="python3"
 
-CURRENT_BRANCH=""
-NEW_VERSION=""
-RELEASE_DESCRIPTION=""
-RELEASE_MESSAGE=""
-NEXT_FEATURE_BRANCH=""
-TAG_NAME=""
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
-info() { printf '[INFO] %s\n' "$*"; }
-success() { printf '[SUCCESS] %s\n' "$*"; }
-warn() { printf '[WARNING] %s\n' "$*"; }
-die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
+version_number='(0|[1-9][0-9]*)'
+prerelease_identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+version_pattern="^${version_number}\.${version_number}\.${version_number}(-${prerelease_identifier}(\.${prerelease_identifier})*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
+active_step="initialization"
+
+status() {
+    local label=$1 color="" reset=""
+    shift
+    if [[ -t 1 && -z ${NO_COLOR+x} && ${TERM:-} != dumb ]]; then
+        case ${label} in
+            PASSED) color=$'\033[32m' ;;
+            FAIL) color=$'\033[31m' ;;
+            WARNING) color=$'\033[33m' ;;
+        esac
+        reset=$'\033[0m'
+    fi
+    printf '[ %s%s%s ] %s\n' "${color}" "${label}" "${reset}" "$*"
+}
+
+fail() {
+    status FAIL "$*" >&2
+    exit 1
+}
+
+on_error() {
+    local code=$1
+    status FAIL "Stopped during ${active_step} (exit ${code}). Inspect the Git state before retrying." >&2
+    exit "${code}"
+}
+trap 'on_error "$?"' ERR
+
+step() {
+    active_step=$1
+    shift
+    "$@"
+    status PASSED "${active_step}"
+}
+
+# Read literal constants without importing project code. Update only their values,
+# preserving annotations, comments, indentation, and the rest of the file.
+project_metadata() {
+    "${python_command}" - "${version_file}" "${version_constant}" "${codename_constant}" "$@" <<'PY'
+import ast
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+keys = sys.argv[2:4]
+mode = sys.argv[4]
+source = path.read_bytes()
+tree = ast.parse(source, filename=str(path))
+values = []
+for key in keys:
+    matches = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        elif isinstance(node, ast.Assign):
+            targets = node.targets
+        else:
+            continue
+        if any(isinstance(target, ast.Name) and target.id == key for target in targets):
+            if len(targets) != 1:
+                sys.exit(f"{key} must have its own assignment.")
+            matches.append(node.value)
+    if len(matches) != 1:
+        sys.exit(f"{path} must contain exactly one {key} assignment.")
+    value = matches[0]
+    if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+        sys.exit(f"{key} must be a literal string.")
+    if value.lineno != value.end_lineno:
+        sys.exit(f"{key} must be a single-line literal string.")
+    values.append(value)
+
+if mode == "read":
+    print(values[0].value)
+elif mode == "update":
+    lines = source.splitlines(keepends=True)
+    # Work backwards so replacements on the same line retain their offsets.
+    replacements = sorted(zip(values, sys.argv[5:7]), key=lambda item: (
+        item[0].lineno, item[0].col_offset), reverse=True)
+    for node, text in replacements:
+        index = node.lineno - 1
+        literal = json.dumps(text, ensure_ascii=False).encode("utf-8")
+        lines[index] = lines[index][:node.col_offset] + literal + lines[index][node.end_col_offset:]
+    updated = b"".join(lines)
+    ast.parse(updated, filename=str(path))
+    path.write_bytes(updated)
+else:
+    sys.exit(f"Unknown metadata operation: {mode}")
+PY
+}
+
+current_version() {
+    local value
+    value=$(project_metadata read) || fail "Cannot read ${project_name} release constants."
+    [[ ${value} =~ ${version_pattern} ]] || fail "Cannot read a single valid ${project_name} version."
+    printf '%s\n' "${value}"
+}
 
 usage() {
-    local current_version=""
-    local likely_version="0.1.0"
-
-    if [[ -f "${CONSTANTS_FILE}" ]]; then
-        current_version=$(sed -nE 's/^    VERSION: Final\[str\] = "([^"]+)"$/\1/p' "${CONSTANTS_FILE}")
+    local branch likely_version major minor patch next_version installed_version
+    branch=$(git branch --show-current)
+    if [[ ${branch} =~ (^|[/_-])v?([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?)$ ]]; then
+        likely_version=${BASH_REMATCH[2]}
+    else
+        installed_version=$(current_version) || return 1
+        IFS=. read -r major minor patch <<< "${installed_version%%[-+]*}"
+        likely_version="${major}.${minor}.$((10#${patch} + 1))"
     fi
-    if [[ "${current_version}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-        local major=${BASH_REMATCH[1]}
-        local minor=${BASH_REMATCH[2]}
-        local release_patch=$((10#${BASH_REMATCH[3]} + 1))
-        likely_version="${major}.${minor}.${release_patch}"
-    fi
+    IFS=. read -r major minor patch <<< "${likely_version%%[-+]*}"
+    next_version="${major}.${minor}.$((10#${patch} + 1))"
 
-    cat <<EOF
-Usage: $(basename -- "$0") <version> <message>
+    cat <<HELP
+Usage: $(basename -- "$0") <version> <message> [next-feature-branch]
 
+Current branch: ${branch}
 Likely next version: ${likely_version}
 
 Example:
   $(basename -- "$0") ${likely_version} "Maintenance release"
 
-Run this from a clean feat/* or feature/* branch. The script updates the
-changelog, merges the feature through dev to main, creates an annotated vX.Y.Z
-tag, pushes the release atomically, and creates the next local feature branch.
-The next branch is feat/maint-X.Y.Z, using the release version with its patch
-number incremented by one (for example, 1.2.3 creates feat/maint-1.2.4).
-EOF
-}
+Next feature branch: ${feature_prefix}${next_version}
 
-ref_exists() {
-    git show-ref --verify --quiet "$1"
+Run from a clean feature branch with local ${dev_branch} and ${main_branch} up to date.
+Use a version without a leading v. The next branch defaults to
+${feature_prefix}<version with patch incremented>.
+
+After interactive confirmation, updates ${version_constant}, ${codename_constant}
+in ${version_file} and ${changelog_file}, merges through ${dev_branch} to
+${main_branch}, tags and pushes the release, then creates the next local feature
+branch. The message becomes the codename. Requires Git and ${python_command}.
+HELP
 }
 
 validate_arguments() {
-    [[ $# -eq 2 ]] || { usage >&2; exit 2; }
-
-    NEW_VERSION=$1
-    RELEASE_DESCRIPTION=$2
-    RELEASE_MESSAGE="Release ${NEW_VERSION}: ${RELEASE_DESCRIPTION}"
-    TAG_NAME="v${NEW_VERSION}"
-
-    [[ "${NEW_VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z][0-9A-Za-z.-]*)?(\+[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] ||
-        die "Version must be a semantic version without a leading v."
-    NEXT_FEATURE_BRANCH="feat/maint-${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((10#${BASH_REMATCH[3]} + 1))"
-    [[ -n "${RELEASE_DESCRIPTION}" ]] || die "Release message must not be empty."
-    [[ "${NEXT_FEATURE_BRANCH}" == feat/* || "${NEXT_FEATURE_BRANCH}" == feature/* ]] ||
-        die "Next feature branch must start with feat/ or feature/."
-    git check-ref-format --branch "${NEXT_FEATURE_BRANCH}" >/dev/null ||
-        die "Invalid feature branch name: ${NEXT_FEATURE_BRANCH}"
+    version=$1
+    [[ ${version} =~ ${version_pattern} ]] || fail "Use a version such as 0.0.1, without a leading v."
+    [[ -n ${2//[[:space:]]/} ]] || fail "A release message is required."
+    description=$2
+    message="Release ${version}: ${description}"
+    tag="v${version}"
+    local major minor patch
+    IFS=. read -r major minor patch <<< "${version%%[-+]*}"
+    next_branch=${3:-"${feature_prefix}${major}.${minor}.$((10#${patch} + 1))"}
 }
 
-preflight() {
-    command -v git >/dev/null 2>&1 || die "Required command not found: git"
-    git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
-        die "Not inside a Git repository."
-    [[ "$(git rev-parse --show-toplevel)" == "${PROJECT_DIR}" ]] ||
-        die "Run this script from the Snake Lab repository."
-    git remote get-url "${REMOTE}" >/dev/null 2>&1 ||
-        die "Git remote '${REMOTE}' is not configured."
-
-    CURRENT_BRANCH=$(git branch --show-current)
-    [[ "${CURRENT_BRANCH}" == feat/* || "${CURRENT_BRANCH}" == feature/* ]] ||
-        die "Run this from a feature branch (currently '${CURRENT_BRANCH:-detached HEAD}')."
-    [[ -z "$(git status --porcelain)" ]] || {
-        git status --short >&2
-        die "Working tree is not clean; commit or stash changes first."
-    }
-
-    [[ -f "${CHANGELOG}" ]] || die "CHANGELOG.md is required."
-    grep -Fxq '## [Unreleased]' "${CHANGELOG}" ||
-        die "CHANGELOG.md must contain an '## [Unreleased]' heading."
-    [[ -f "${CONSTANTS_FILE}" ]] || die "snakelab/constants/DSnakeLab.py is required."
-    grep -Eq '^    VERSION: Final\[str\] = "[^"]+"$' "${CONSTANTS_FILE}" ||
-        die "DSnakeLab.VERSION is missing or malformed."
-    ref_exists "refs/heads/${MAIN_BRANCH}" || die "Local branch '${MAIN_BRANCH}' is missing."
-    ref_exists "refs/heads/${DEV_BRANCH}" || die "Local branch '${DEV_BRANCH}' is missing."
-
-    info "Fetching refs from ${REMOTE}..."
-    git fetch --prune --tags "${REMOTE}"
-
-    ref_exists "refs/remotes/${REMOTE}/${MAIN_BRANCH}" ||
-        die "Remote branch '${REMOTE}/${MAIN_BRANCH}' is missing."
-    [[ "$(git rev-parse "${MAIN_BRANCH}")" == "$(git rev-parse "${REMOTE}/${MAIN_BRANCH}")" ]] ||
-        die "Local and remote '${MAIN_BRANCH}' differ; reconcile them first."
-
-    if ref_exists "refs/remotes/${REMOTE}/${DEV_BRANCH}"; then
-        [[ "$(git rev-parse "${DEV_BRANCH}")" == "$(git rev-parse "${REMOTE}/${DEV_BRANCH}")" ]] ||
-            die "Local and remote '${DEV_BRANCH}' differ; reconcile them first."
-    else
-        warn "Remote '${REMOTE}/${DEV_BRANCH}' is absent and will be created."
+check_changelog() {
+    [[ $(grep -c '^## \[Unreleased\]$' "${changelog_file}") == 1 ]] ||
+        fail "${changelog_file} must contain exactly one ## [Unreleased] heading."
+    if grep -Fq "## [${version}]" "${changelog_file}"; then
+        fail "Version ${version} is already in ${changelog_file}."
     fi
+}
 
-    git merge-base --is-ancestor "${MAIN_BRANCH}" "${DEV_BRANCH}" ||
-        die "'${DEV_BRANCH}' does not contain '${MAIN_BRANCH}'."
-    ! ref_exists "refs/tags/${TAG_NAME}" || die "Tag '${TAG_NAME}' already exists."
-    ! ref_exists "refs/heads/${NEXT_FEATURE_BRANCH}" ||
-        die "Local branch '${NEXT_FEATURE_BRANCH}' already exists."
-    ! ref_exists "refs/remotes/${REMOTE}/${NEXT_FEATURE_BRANCH}" ||
-        die "Remote branch '${REMOTE}/${NEXT_FEATURE_BRANCH}' already exists."
+preflight_local() {
+    source_branch=$(git branch --show-current)
+    [[ -n ${source_branch} && ${source_branch} != "${dev_branch}" && ${source_branch} != "${main_branch}" ]] ||
+        fail "Run from a feature branch."
+    [[ -z $(git status --porcelain) ]] || fail "Commit or stash all changes before releasing."
+    git remote get-url "${remote}" >/dev/null || fail "Missing Git remote ${remote}."
+    git check-ref-format --branch "${next_branch}" >/dev/null || fail "Invalid next feature branch."
+    [[ ${next_branch} != -* && ${next_branch} != '@{-'* ]] || fail "Use a literal next feature branch name."
+    if git show-ref --verify --quiet "refs/heads/${next_branch}"; then
+        fail "Next feature branch already exists."
+    fi
+    local branch
+    for branch in "${dev_branch}" "${main_branch}"; do
+        git show-ref --verify --quiet "refs/heads/${branch}" || fail "Missing local ${branch} branch."
+    done
+    git ls-files --error-unmatch "${version_file}" "${changelog_file}" >/dev/null ||
+        fail "The release constants and changelog files must be committed."
+    current_version >/dev/null
+    check_changelog
+}
+
+preflight_remote() {
+    if git show-ref --verify --quiet "refs/tags/${tag}"; then
+        fail "Tag ${tag} already exists."
+    fi
+    if git show-ref --verify --quiet "refs/remotes/${remote}/${next_branch}"; then
+        fail "Next feature branch already exists on ${remote}."
+    fi
+    local branch
+    for branch in "${dev_branch}" "${main_branch}"; do
+        if git show-ref --verify --quiet "refs/remotes/${remote}/${branch}"; then
+            git merge-base --is-ancestor "${remote}/${branch}" "${branch}" ||
+                fail "Local ${branch} is behind or diverged from ${remote}/${branch}; update it first."
+        else
+            status WARNING "Remote ${remote}/${branch} is absent and will be created."
+        fi
+    done
+    git merge-base --is-ancestor "${main_branch}" "${dev_branch}" || fail "Merge ${main_branch} into ${dev_branch} before releasing."
+    git merge-base --is-ancestor "${dev_branch}" "${source_branch}" || fail "Merge ${dev_branch} into the feature branch before releasing."
 }
 
 confirm_release() {
-    printf '\nRelease summary:\n'
-    printf '  Source:       %s\n' "${CURRENT_BRANCH}"
-    printf '  Tag:          %s\n' "${TAG_NAME}"
-    printf '  Message:      %s\n' "${RELEASE_MESSAGE}"
-    printf '  Next branch:  %s\n' "${NEXT_FEATURE_BRANCH}"
-    printf '  Remote:       %s\n\n' "$(git remote get-url "${REMOTE}")"
+    printf '\n%s release summary:\n' "${project_name}"
+    printf '  Source:       %s\n' "${source_branch}"
+    printf '  Tag:          %s\n' "${tag}"
+    printf '  Message:      %s\n' "${message}"
+    printf '  Codename:     %s\n' "${description}"
+    printf '  Next branch:  %s\n' "${next_branch}"
+    printf '  Remote:       %s\n\n' "$(git remote get-url "${remote}")"
 
-    [[ -t 0 ]] || die "Confirmation requires an interactive terminal."
-    read -r -p "Create and push this release? [y/N] " reply
-    [[ "${reply}" == y || "${reply}" == Y ]] || {
-        warn "Release cancelled."
+    [[ -t 0 ]] || fail "Confirmation requires an interactive terminal."
+    local reply
+    if ! read -r -p "Create and push this release? [y/N] " reply; then
+        reply=""
+    fi
+    if [[ ${reply} != y && ${reply} != Y ]]; then
+        status WARNING "Release cancelled."
         exit 0
-    }
+    fi
 }
 
-update_changelog() {
-    local release_date temp_file
+update_release_files() {
+    current_version >/dev/null
+    check_changelog
+    project_metadata update "${version}" "${description}"
+    local release_date
     release_date=$(date '+%Y-%m-%d @ %H:%M')
-    temp_file=$(mktemp "${PROJECT_DIR}/.CHANGELOG.md.XXXXXX")
-
-    awk -v heading="## [${NEW_VERSION}] - ${release_date}" '
-        /^## \[Unreleased\]$/ {
-            print
-            print ""
-            print heading
-            next
-        }
-        { print }
-    ' "${CHANGELOG}" >"${temp_file}" || {
-        rm -f -- "${temp_file}"
-        die "Failed to update CHANGELOG.md."
-    }
-
-    chmod --reference="${CHANGELOG}" "${temp_file}"
-    mv -- "${temp_file}" "${CHANGELOG}"
-    git add -- CHANGELOG.md
-    git commit -m "Update changelog for ${TAG_NAME}"
-}
-
-update_project_version() {
-    local temp_file
-    temp_file=$(mktemp "${PROJECT_DIR}/snakelab/constants/.DSnakeLab.py.XXXXXX")
-
-    awk -v version="${NEW_VERSION}" '
-        /^    VERSION: Final\[str\] = "[^"]+"$/ {
-            print "    VERSION: Final[str] = \"" version "\""
-            next
-        }
-        { print }
-    ' "${CONSTANTS_FILE}" >"${temp_file}" || {
-        rm -f -- "${temp_file}"
-        die "Failed to update DSnakeLab.VERSION."
-    }
-
-    chmod --reference="${CONSTANTS_FILE}" "${temp_file}"
-    mv -- "${temp_file}" "${CONSTANTS_FILE}"
-    git add -- snakelab/constants/DSnakeLab.py
-}
-
-merge_no_ff() {
-    local source=$1 message=$2
-    info "Merging '${source}' into '$(git branch --show-current)'..."
-    git merge --no-ff "${source}" -m "${message}"
-}
-
-create_release() {
-    git switch "${DEV_BRANCH}"
-    merge_no_ff "${CURRENT_BRANCH}" "Merge ${CURRENT_BRANCH} for ${TAG_NAME}"
-    update_project_version
-    update_changelog
-
-    git switch "${MAIN_BRANCH}"
-    merge_no_ff "${DEV_BRANCH}" "${RELEASE_MESSAGE}"
-    git tag -a "${TAG_NAME}" -m "${RELEASE_MESSAGE}"
-
-    git switch "${DEV_BRANCH}"
-    git merge --ff-only "${MAIN_BRANCH}"
-
-    info "Pushing release refs atomically..."
-    git push --atomic "${REMOTE}" \
-        "refs/heads/${MAIN_BRANCH}:refs/heads/${MAIN_BRANCH}" \
-        "refs/heads/${DEV_BRANCH}:refs/heads/${DEV_BRANCH}" \
-        "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
-
-    git switch -c "${NEXT_FEATURE_BRANCH}"
+    sed -i "/^## \[Unreleased\]$/a\\
+\\
+## [${version}] - ${release_date}" "${changelog_file}"
+    git add -- "${version_file}" "${changelog_file}"
+    git commit -m "${message}"
 }
 
 main() {
-    cd -- "${PROJECT_DIR}"
+    command -v git >/dev/null || fail "Required command not found: git"
+    command -v "${python_command}" >/dev/null || fail "Required command not found: ${python_command}"
     if [[ ${1:-} == -h || ${1:-} == --help ]]; then
         usage
         exit 0
     fi
-    validate_arguments "$@"
-    preflight
-    confirm_release
-    create_release
-
-    success "Release ${TAG_NAME} was published successfully."
-    success "Now on new feature branch: ${NEXT_FEATURE_BRANCH}"
+    if [[ $# -lt 2 || $# -gt 3 ]]; then
+        usage >&2
+        exit 2
+    fi
+    step "Validate release arguments" validate_arguments "$@"
+    step "Check local release prerequisites" preflight_local
+    step "Fetch refs from ${remote}" git fetch --prune --tags "${remote}"
+    step "Check remote refs and branch ancestry" preflight_remote
+    step "Confirm release" confirm_release
+    step "Switch to ${dev_branch}" git switch "${dev_branch}"
+    step "Merge ${source_branch} into ${dev_branch}" git merge --no-ff "${source_branch}" -m "Merge ${source_branch} for ${tag}"
+    step "Update release constants and changelog" update_release_files
+    step "Switch to ${main_branch}" git switch "${main_branch}"
+    step "Merge ${dev_branch} into ${main_branch}" git merge --no-ff "${dev_branch}" -m "${message}"
+    step "Create annotated tag ${tag}" git tag -a "${tag}" -m "${message}"
+    step "Switch to ${dev_branch}" git switch "${dev_branch}"
+    step "Advance ${dev_branch} to ${main_branch}" git merge --ff-only "${main_branch}"
+    step "Push release refs atomically" git push --atomic "${remote}" \
+        "refs/heads/${main_branch}:refs/heads/${main_branch}" \
+        "refs/heads/${dev_branch}:refs/heads/${dev_branch}" \
+        "refs/tags/${tag}:refs/tags/${tag}"
+    step "Create next feature branch ${next_branch}" git switch -c "${next_branch}"
+    status PASSED "${project_name} release ${tag} published successfully."
 }
 
 main "$@"

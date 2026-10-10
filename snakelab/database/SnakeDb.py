@@ -69,13 +69,37 @@ class SnakeDb:
 
     def finish_run(self, run_id: str, status: str, episode_count: int, high_score: int,
                    error_message: str | None = None,
-                   high_score_snapshot: dict[str, Any] | None = None) -> None:
-        self._dbmgr.update("simulation_runs", {
-            "status": status, "episode_count": episode_count, "high_score": high_score,
-            "high_score_snapshot": json.dumps(high_score_snapshot, separators=(",", ":"), allow_nan=False)
-                if high_score_snapshot is not None else None,
-            "completed_at": SqlValue.CURRENT_TIMESTAMP, "error_message": error_message,
-        }, where={"run_id": run_id})
+                   high_score_snapshot: dict[str, Any] | None = None,
+                   high_score_frames: list[dict[str, Any]] | None = None) -> None:
+        with self._dbmgr.transaction():
+            if status == "completed" and high_score_frames is not None:
+                self._dbmgr.delete("simulation_high_score_frames", where={"run_id": run_id})
+                for frame in high_score_frames:
+                    self._dbmgr.insert("simulation_high_score_frames", {
+                        "run_id": run_id, "step": frame["step"], "episode": frame["episode"],
+                        "frame": json.dumps(frame, separators=(",", ":"), allow_nan=False),
+                    })
+            self._dbmgr.update("simulation_runs", {
+                "status": status, "episode_count": episode_count, "high_score": high_score,
+                "high_score_snapshot": json.dumps(high_score_snapshot, separators=(",", ":"), allow_nan=False)
+                    if high_score_snapshot is not None else None,
+                "completed_at": SqlValue.CURRENT_TIMESTAMP, "error_message": error_message,
+            }, where={"run_id": run_id})
+
+    def get_high_score_frames(self, run_id: str) -> dict[str, Any] | None:
+        """Retrieve historical capture only after completion has committed."""
+        with self._dbmgr.transaction(read_only=True):
+            run = self._dbmgr.select("simulation_runs", ("run_id", "status"),
+                                     where={"run_id": run_id}, one=True)
+            if run is None:
+                return None
+            frames = None
+            if run["status"] == "completed":
+                rows = self._dbmgr.select("simulation_high_score_frames", ("step", "frame"),
+                                          where={"run_id": run_id})
+                if rows:
+                    frames = [json.loads(row["frame"]) for row in sorted(rows, key=lambda row: row["step"])]
+            return {"run_id": run_id, "frames": frames}
 
     def get_high_score_snapshot(self, run_id: str) -> dict[str, Any] | None:
         row = self._dbmgr.select("simulation_runs", ("run_id", "high_score_snapshot"),

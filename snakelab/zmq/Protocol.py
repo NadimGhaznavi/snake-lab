@@ -13,6 +13,7 @@ METHOD_SIMULATION_RESUME = "simulation.resume"
 METHOD_SIMULATION_SET_MOVE_DELAY = "simulation.set_move_delay"
 METHOD_SIMULATION_STATUS = "simulation.status"
 METHOD_SIMULATION_HIGHSCORE_SNAPSHOT = "simulation.highscore_snapshot"
+METHOD_SIMULATION_HIGHSCORE_FRAMES = "simulation.highscore_frames"
 METHOD_SIMULATION_SUBMIT = "simulation.submit"
 
 

@@ -60,7 +60,7 @@ class EpisodeResult:
 
 @dataclass(frozen=True, slots=True)
 class HighScoreSnapshot:
-    """First board to achieve the best score of a completed episode."""
+    """A board at one move, also used for the episode's high-score snapshot."""
 
     episode: int
     board: GameState
@@ -87,6 +87,7 @@ class SimulationState:
     last_loss: float | None = None
     episodes: list[EpisodeResult] = field(default_factory=list)
     high_score_snapshot: HighScoreSnapshot | None = None
+    high_score_frames: list[HighScoreSnapshot] = field(default_factory=list)
 
     def record(self, result: EpisodeResult) -> None:
         self.episodes.append(result)
@@ -248,6 +249,7 @@ class Simulator:
     async def _run_episode(self, episode: int) -> EpisodeResult:
         game = self._new_game(episode)
         current_board = game.state
+        frames = [HighScoreSnapshot(episode, current_board)]
         observation = game.observe()
         history: deque[tuple[float, ...]] = deque(
             [observation] * self.config["training"]["sequence_length"],
@@ -259,6 +261,7 @@ class Simulator:
         while True:
             action = self._select_action(history)
             step = game.step(action)
+            frames.append(HighScoreSnapshot(episode, step.new_state))
             if step.new_state.score > current_board.score:
                 current_board = step.new_state
             self.replay.append(
@@ -310,9 +313,10 @@ class Simulator:
         self.epsilon.episode_completed()
         if (
             self.state.high_score_snapshot is None
-            or result.score > self.state.high_score
+            or result.score >= self.state.high_score
         ):
             self.state.high_score_snapshot = HighScoreSnapshot(episode, current_board)
+            self.state.high_score_frames = frames
         return result
 
     async def run(self) -> SimulationState:

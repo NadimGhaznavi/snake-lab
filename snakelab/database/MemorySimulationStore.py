@@ -36,6 +36,7 @@ class MemorySimulationStore:
             "episode_count": None,
             "high_score": None,
             "high_score_snapshot": None,
+            "high_score_frames": None,
             "error_message": None,
         }
         self.episodes[run_id] = []
@@ -65,16 +66,27 @@ class MemorySimulationStore:
         high_score: int,
         error_message: str | None = None,
         high_score_snapshot: dict[str, Any] | None = None,
+        high_score_frames: list[dict[str, Any]] | None = None,
     ) -> None:
+        snapshot = json.loads(json.dumps(high_score_snapshot, allow_nan=False))
+        frames = json.loads(json.dumps(high_score_frames, allow_nan=False))
         run = self.runs[run_id]
         run["status"] = status
         run["episode_count"] = episode_count
         run["high_score"] = high_score
         run["error_message"] = error_message
-        run["high_score_snapshot"] = (
-            json.loads(json.dumps(high_score_snapshot, allow_nan=False))
-            if high_score_snapshot is not None else None
-        )
+        run["high_score_snapshot"] = snapshot
+        run["high_score_frames"] = frames if status == "completed" else None
+
+    def get_high_score_frames(self, run_id: str) -> dict[str, Any] | None:
+        run = self.runs.get(run_id)
+        if run is None:
+            return None
+        return {
+            "run_id": run_id,
+            "frames": deepcopy(run["high_score_frames"])
+                if run["status"] == "completed" else None,
+        }
 
     def get_high_score_snapshot(self, run_id: str) -> dict[str, Any] | None:
         run = self.runs.get(run_id)

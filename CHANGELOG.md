@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-10 @ 10:38
+
+The **Nalini** release is dedicated to [Nalini Anantharaman](https://en.wikipedia.org/wiki/Nalini_Anantharaman).
+- Capture every frame of each simulation's highest-scoring game, choosing the
+  most recent game on ties, and persist it atomically with run completion.
+- Add `simulation.highscore_frames` ZMQ retrieval by run ID and schema v5.
+- Update the `scripts/new-release.sh` script.
+
 ## [1.10.0] - 2026-10-05 @ 05:43
 
 - Add CMDB scanner metadata: subtype `Simulation Server`, supplier `Nadim-Daniel`,
