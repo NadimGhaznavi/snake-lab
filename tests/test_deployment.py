@@ -87,6 +87,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertTrue(version)
         self.assertTrue((self.target / 'snakelab/client/client.tcss').is_file())
         self.assertTrue((self.target / 'snakelab/schemas/database-v4.sql').is_file())
+        self.assertTrue((self.target / 'snakelab/schemas/database-v5.sql').is_file())
         self.assertTrue((self.target / 'snakelab/server/SimulationServer.py').is_file())
         self.assertFalse((self.target / 'app').exists())
         loaded = subprocess.run(

@@ -227,8 +227,9 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
 
         first = await episode(1, 1)
         self.assertIs(simulator.state.high_score_snapshot.board, first)
-        await episode(2, 1)
-        self.assertIs(simulator.state.high_score_snapshot.board, first)
+        latest = await episode(2, 1)
+        self.assertIs(simulator.state.high_score_snapshot.board, latest)
+        self.assertEqual(simulator.state.high_score_snapshot.episode, 2)
         best = await episode(3, 2)
         snapshot = simulator.state.high_score_snapshot
         self.assertIs(snapshot.board, best)

@@ -67,8 +67,8 @@ are the reference implementations.
 Every successfully completed simulation saves one board: the first position
 where it achieved its final high score. Each episode retains its highest-scoring
 immutable board by reference, then replaces the simulation's best board only
-if its completed score is higher. Ties keep the earlier board. A simulation
-that never scores saves the first completed episode's starting board.
+if its completed score is at least as high. Ties select the most recent game.
+A simulation that never scores saves the last completed episode's starting board.
 
 Capture works without a viewer or telemetry subscription. There are no board
 copies or database writes in the capture hot loop. The server saves the winning
@@ -207,6 +207,19 @@ Schema `snakelab/schemas/database-v4.sql` adds nullable JSON column
 reapplied safely without deleting existing data or backfilling old snapshots.
 NULL means no snapshot is available. See [High-score Board Snapshots](#high-score-board-snapshots)
 for capture behavior and the retrieval API.
+
+Schema `snakelab/schemas/database-v5.sql` adds `simulation_high_score_frames`,
+with one JSON frame per `(run_id, step)`. It includes the initial board and
+every move of the most recent game tied for the run's highest score. Capture
+retains immutable states in memory during simulation and saves only the final
+winner, atomically with completion. Deleting a run cascades to its frames.
+The migration is safe to reapply and does not backfill old runs.
+
+Retrieve frames over ZMQ with `simulation.highscore_frames` and
+`{"run_id": "..."}`, or `await client.highscore_frames(run_id)`. The response
+payload contains `run_id` and `frames` in move order. Availability is guaranteed
+after completion. See [Captured high-score games](/pages/control-protocol.html#captured-high-score-games)
+for frame fields and errors.
 
 `scripts/upgrade.sh` applies the migration while the service is stopped,
 before deploying and starting the application. To apply the schema separately:
