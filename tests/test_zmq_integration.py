@@ -26,6 +26,7 @@ from snakelab.zmq.Protocol import (
     METHOD_SIMULATION_RESUME,
     METHOD_SIMULATION_SET_MOVE_DELAY,
     METHOD_SIMULATION_STATUS,
+    METHOD_SIMULATION_HIGHSCORE_FRAMES,
     METHOD_SIMULATION_SUBMIT,
     PROTOCOL_VERSION,
 )
@@ -280,6 +281,27 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             "[Simulator] Simulation running on CPU",
             self.log_file.read_text(encoding="utf-8"),
         )
+
+    def test_completed_run_returns_snapshot_series(self) -> None:
+        response = self.client.submit({
+            "epochs": 2, "seed": 7, "model": {"hidden_size": 64},
+            "training": {"sequence_length": 4, "batch_size": 8},
+        })
+        self.assertEqual(response["status"], "ok")
+        run_id = response["payload"]["run_id"]
+        self.assert_ended_event(run_id, "completed")
+        capture = self.client.request(METHOD_SIMULATION_HIGHSCORE_FRAMES, {"run_id": run_id})
+        self.assertEqual(capture["status"], "ok")
+        frames = capture["payload"]["frames"]
+        self.assertGreater(len(frames), 1)
+        self.assertEqual([frame["step"] for frame in frames], list(range(len(frames))))
+        for frame in frames:
+            self.assertEqual(set(frame), {"version", "episode", "step", "board"})
+            self.assertEqual(frame["version"], 1)
+        status = self.client.status(run_id)["payload"]
+        self.assertEqual(frames[-1]["board"]["score"], status["high_score"])
+        if status["last_episode"]["score"] == status["high_score"]:
+            self.assertEqual(frames[-1]["episode"], 2)
 
     def test_submit_uses_default_config(self) -> None:
         response = self.client.submit({})

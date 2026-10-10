@@ -177,6 +177,7 @@ Payload fields must match the selected method exactly.
 | `simulation.active` | `{}` | `{"run": <run status or null>}`; active run, otherwise first queued run |
 | `simulation.status` | `{"run_id": "<run ID>"}` | Run status |
 | `simulation.highscore_snapshot` | `{"run_id": "<run ID>"}` | `run_id` and saved `snapshot`; includes historical runs in the database |
+| `simulation.highscore_frames` | `{"run_id": "<run ID>"}` | `run_id` and ordered `frames` for the highest-scoring game of a completed run |
 | `simulation.pause` | `{"run_id": "<run ID>"}` | Run status; accepts running or already paused runs |
 | `simulation.resume` | `{"run_id": "<run ID>"}` | Run status; accepts paused or already running runs |
 | `simulation.cancel` | `{"run_id": "<run ID>"}` | Run status; accepts queued, running, paused, cancelling, or cancelled runs |
@@ -218,6 +219,7 @@ server release (`DSnakeLab.VERSION`), independent of the protocol version:
 | `invalid_config` | Configuration failed validation |
 | `run_not_found` | Run is unknown to this server process, or absent from the database for snapshot lookup |
 | `snapshot_unavailable` | Run exists but has no saved snapshot (unfinished, failed, cancelled, or completed before capture was implemented) |
+| `frames_unavailable` | Run exists but has no saved game frames (unfinished, failed, cancelled, or predates game capture) |
 | `invalid_run_state` | Operation is unavailable in the run's current state |
 
 For invalid requests, `request_id` may be null if it was unavailable.
@@ -255,9 +257,31 @@ This illustrative board is smaller than the current simulation configuration.
 count (0 for the initial-board fallback). Coordinates are zero-based `[x, y]`,
 with x increasing rightward and y downward. Body positions are ordered from
 neck to tail and exclude the head. `direction` is `[dx, dy]`; `food` is null
-when the board is full. Equal high scores retain the first occurrence.
+when the board is full. Equal high scores select the most recent completed game;
+the snapshot is its first board to reach that score.
 
 Clients can call `await client.highscore_snapshot(run_id)` on `AsyncLabClient`
 to receive the full response envelope. The `board` object is compatible with
 `BoardSnapshot.from_dict()`. Clients own display and image export; the server
 returns raw JSON only. A missing snapshot is not reconstructed or replayed.
+
+## Captured high-score games
+
+Send `simulation.highscore_frames` with only `run_id` in the payload, or call
+`await client.highscore_frames(run_id)` on `AsyncLabClient`. The normal response
+envelope contains `payload: {"run_id": "...", "frames": [...]}`. Frames are
+available after the simulation completes, including for historical runs after
+a server restart. No telemetry subscription is required.
+
+The captured game has the highest final score; ties select the most recent
+completed game. The server stores its frames and completed status in one
+transaction before publishing the simulation-ended event.
+
+Each frame has exactly the same format as `simulation_runs.high_score_snapshot`:
+`version`, `episode`, `step`, and `board`. The board uses the snapshot format
+above. Frames are returned in ascending move order, from initial frame 0
+through the terminal move, without telemetry sampling.
+
+The server returns the complete game in one response. Clients own replay,
+display, and export. Unknown run IDs return `run_not_found`; runs without a
+capture return `frames_unavailable`. Old runs are not backfilled.

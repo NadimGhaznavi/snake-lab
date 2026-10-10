@@ -51,10 +51,16 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(snapshot["board"]["score"], saved["high_score"])
             self.assertEqual(snapshot["episode"], 1)
             self.assertEqual(snapshot["version"], 1)
+            frames = self.server.store.get_high_score_frames(run.run_id)["frames"]
+            self.assertEqual([frame["step"] for frame in frames], list(range(run.total_steps + 1)))
+            self.assertEqual(frames[0]["board"]["score"], 0)
+            self.assertEqual(set(frames[-1]), {"version", "episode", "step", "board"})
+            self.assertEqual(frames[-1]["board"]["score"], saved["high_score"])
 
         self.ended.side_effect = check_saved
         self.server._finish_run(run)
         self.ended.assert_called_once()
+        self.assertEqual(run.high_score_frames, [])
 
     async def asyncSetUp(self) -> None:
         self.server = SimulationServer(

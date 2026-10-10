@@ -37,7 +37,7 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.addCleanup(self.execute, f"DROP DATABASE IF EXISTS `{self.database}`")
         self.admin.select_db(self.database)
         schemas = Path(__file__).resolve().parents[1] / "snakelab/schemas"
-        for version in range(1, 5):
+        for version in range(1, 6):
             sql = (schemas / f"database-v{version}.sql").read_text()
             sql = "\n".join(line for line in sql.splitlines() if not line.startswith("--"))
             for statement in sql.split(";"):
@@ -137,6 +137,25 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.assertEqual(reader.get_high_score_snapshot("run")["high_score_snapshot"], snapshot)
         self.assertEqual(self.row("run")["status"], "completed")
         self.assertIsInstance(self.row("run")["completed_at"], datetime)
+
+    def test_winning_frames_completion_rollback_and_cascade(self):
+        self.create()
+        reader = SnakeDb(self.new_manager())
+        self.assertIsNone(reader.get_high_score_frames("absent"))
+        self.assertIsNone(reader.get_high_score_frames("run")["frames"])
+        frames = [{"episode": 2, "step": step, "board": {"score": 4}} for step in range(3)]
+        self.execute("CREATE TRIGGER reject_frame BEFORE INSERT ON simulation_high_score_frames "
+                     "FOR EACH ROW BEGIN IF NEW.step = 2 THEN "
+                     "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'reject frame'; END IF; END")
+        with self.assertRaises(DatabaseError):
+            self.store.finish_run("run", "completed", 2, 4, high_score_frames=frames)
+        self.assertEqual(self.row("run")["status"], "queued")
+        self.assertEqual(self.execute("SELECT * FROM simulation_high_score_frames"), ())
+        self.execute("DROP TRIGGER reject_frame")
+        self.store.finish_run("run", "completed", 2, 4, high_score_frames=frames)
+        self.assertEqual(reader.get_high_score_frames("run"), {"run_id": "run", "frames": frames})
+        self.manager.delete("simulation_runs", where={"run_id": "run"})
+        self.assertEqual(self.execute("SELECT * FROM simulation_high_score_frames"), ())
 
     def test_recovery_changes_only_interrupted_runs(self):
         for state in ("queued", "running", "paused", "cancelling", "completed", "failed", "cancelled"):
