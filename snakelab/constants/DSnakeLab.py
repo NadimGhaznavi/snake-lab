@@ -13,10 +13,10 @@ class DSnakeLab:
     PYTORCH_NUM_THREADS: Final[int] = 5
     SERVER_LOG_FILE: Final[str] = "/opt/prod/snakelab/logs/server.log"
     NETWORK_CONFIG_FILE: Final[str] = "/opt/prod/snakelab/conf/snakelab.json"
-    VERSION: Final[str] = "2.0.0"
+    VERSION: Final[str] = "2.1.0"
     CMDB_SUBTYPE: Final[str] = "Simulation Server"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Nalini"
+    CMDB_CODENAME: Final[str] = "Zond"
     CMDB_TYPE: Final[str] = "application"
     CMDB_DATABASES: Final[tuple[tuple[str, str], ...]] = (("Snake Lab", "snakelab"),)
     CMDB_COMPONENTS: Final[tuple[tuple[str, str], ...]] = (("Logs", "logs"),)
