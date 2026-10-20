@@ -27,6 +27,7 @@ This project was created to support the [Ax3l Project](https://ax3l.osoyalce.com
 - [Developer integration](/pages/developer)
 - [Control protocol](/pages/control-protocol)
 - [Event protocol](/pages/event-protocol)
+- [CMDB metadata and discovery](/pages/app-discovery)
 - [Coding guidelines](/pages/coding-guidelines)
 - [Tech Stack and Credits](/pages/tech-stack)
 - [Snake Lab GitHub Repo](https://github.com/NadimGhaznavi/snake-lab)

@@ -8,6 +8,7 @@ from typing import Any
 import zmq
 import zmq.asyncio
 
+from snakelab.Network import Network
 from snakelab.constants.DModule import DModule
 from snakelab.constants.DMyLog import DMyLogDef
 from snakelab.constants.DSnakeLab import DSnakeLab
@@ -47,14 +48,19 @@ class SimulationServer:
 
     def __init__(
         self,
-        address: str = "*",
-        port: int = DSnakeLab.PORT,
-        telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
+        address: str | None = None,
+        port: int | None = None,
+        telemetry_port: int | None = None,
         log_file: str | None = DSnakeLab.SERVER_LOG_FILE,
         store: SimulationStore | None = None,
-        events_port: int = DSnakeLab.EVENTS_PORT,
+        events_port: int | None = None,
     ) -> None:
-        self.endpoint = f"tcp://{address}:{port}"
+        control_address, control_default = Network.binding("control")
+        telemetry_address, telemetry_default = Network.binding("telemetry")
+        events_address, events_default = Network.binding("events")
+        control_address = address if address is not None else control_address
+        port = port if port is not None else control_default
+        self.endpoint = f"tcp://{control_address}:{port}"
         self._log_file = log_file
         self._context = zmq.asyncio.Context()
         self._socket = self._context.socket(zmq.REP)
@@ -67,13 +73,13 @@ class SimulationServer:
         self._worker_task: asyncio.Task[None] | None = None
         self.telemetry = TelemetryPublisher(
             context=self._context,
-            address=address,
-            port=telemetry_port,
+            address=address if address is not None else telemetry_address,
+            port=telemetry_port if telemetry_port is not None else telemetry_default,
         )
         self.events = EventsPublisher(
             context=self._context,
-            address=address,
-            port=events_port,
+            address=address if address is not None else events_address,
+            port=events_port if events_port is not None else events_default,
         )
         self.log = MyLog(
             client_id=DModule.SERVER,

@@ -40,6 +40,8 @@ for requirements_file in \
     fi
 done
 
+validate_network_configuration "${source_dir}"
+
 systemctl stop snake-lab.service
 if [[ "${relocating}" == true ]]; then
     install -d -m 0755 /opt/prod
@@ -51,6 +53,7 @@ fi
 apply_database_schema
 ensure_service_account
 prepare_installation_directories
+prepare_network_configuration
 deploy_application
 deploy_runtime_files
 remove_legacy_layout

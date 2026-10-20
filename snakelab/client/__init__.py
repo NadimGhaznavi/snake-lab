@@ -19,6 +19,7 @@ from textual.widgets import Button, Checkbox, Input, Label, RichLog, Select
 from snakelab.client.LivePlots import LivePlots
 from snakelab.client.ConfigurationReader import ConfigurationReader, TUNED_FIELDS
 
+from snakelab.Network import Network
 from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.client.SnakeBoard import SnakeBoard
 from snakelab.client.AsyncLabClient import AsyncLabClient, load_config
@@ -201,18 +202,21 @@ class SnakeLabClient(App[None]):
     def __init__(
         self,
         *,
-        host: str = "127.0.0.1",
-        control_port: int = DSnakeLab.PORT,
-        telemetry_port: int = DSnakeLab.TELEMETRY_PORT,
+        host: str | None = None,
+        control_port: int | None = None,
+        telemetry_port: int | None = None,
         control_client: AsyncLabClient | None = None,
         configuration_reader: ConfigurationReader | None = None,
     ) -> None:
         super().__init__()
         self._configuration_reader = configuration_reader or ConfigurationReader()
         self._config_task: asyncio.Task[Any] | None = None
-        self._host = host
-        self._control_port = control_port
-        self._telemetry_port = telemetry_port
+        control_host, default_control_port = Network.destination("control")
+        telemetry_host, default_telemetry_port = Network.destination("telemetry")
+        self._host = host if host is not None else control_host
+        self._telemetry_host = host if host is not None else telemetry_host
+        self._control_port = control_port if control_port is not None else default_control_port
+        self._telemetry_port = telemetry_port if telemetry_port is not None else default_telemetry_port
         self._subscriber: TelemetrySubscriber | None = None
         self._control_client = control_client
         self._listen_task: asyncio.Task[None] | None = None
@@ -297,7 +301,7 @@ class SnakeLabClient(App[None]):
         self.query_one("#controls-panel").border_title = "Controls"
         self.query_one("#event-log").border_title = "Events"
         self._subscriber = TelemetrySubscriber(
-            host=self._host,
+            host=self._telemetry_host,
             port=self._telemetry_port,
         )
         if self._control_client is None:
@@ -787,17 +791,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Submit, view, and control Snake Lab simulations"
     )
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host")
     parser.add_argument(
-        "--control-port", type=int, default=DSnakeLab.PORT
+        "--control-port", type=int, default=None
     )
     parser.add_argument(
-        "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
+        "--telemetry-port", type=int, default=None
     )
     parser.add_argument("--db-host", default=DSnakeLab.DB_HOST)
     parser.add_argument("--db-port", type=int, default=DSnakeLab.DB_PORT)
     parser.add_argument("--db-credentials", default=DSnakeLab.DB_CREDENTIALS_FILE)
     args = parser.parse_args()
+    try:
+        Network.configuration()
+    except ValueError as error:
+        parser.error(str(error))
     SnakeLabClient(
         host=args.host,
         control_port=args.control_port,
