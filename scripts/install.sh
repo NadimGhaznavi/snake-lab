@@ -22,6 +22,7 @@ validate_release_checkout
 
 ensure_service_account
 prepare_installation_directories
+prepare_network_configuration
 provision_database
 deploy_application
 deploy_runtime_files
@@ -32,7 +33,6 @@ systemctl enable snake-lab.service
 systemctl start snake-lab.service
 
 printf '[SUCCESS] Snake Lab installed in %s\n' "${INSTALL_DIR}"
-printf '[INFO] ZeroMQ server: tcp://127.0.0.1:41970\n'
-printf '[INFO] Live telemetry: tcp://127.0.0.1:41971\n'
-printf '[INFO] Simulation events: tcp://127.0.0.1:41972\n'
+PYTHONPATH="${PROJECT_DIR}" python3 -m snakelab.NetworkConfiguration \
+    --path "${INSTALL_DIR}/conf/snakelab.json" --show
 printf '[INFO] Run the client with: lab-client\n'

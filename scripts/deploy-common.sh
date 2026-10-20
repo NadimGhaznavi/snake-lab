@@ -43,6 +43,9 @@ validate_release_checkout() {
         "requirements-torch-cpu.txt"
         "scripts/apply-database-schema.sh"
         "scripts/rebuild-venv.sh"
+        "snakelab/Network.py"
+        "snakelab/NetworkConfiguration.py"
+        "scripts/restart.sh"
         "snakelab/__init__.py"
         "snakelab/client/SnakeBoard.py"
         "snakelab/client/__init__.py"
@@ -140,6 +143,7 @@ ensure_service_account() {
 prepare_installation_directories() {
     install -d -m 0755 "${INSTALL_DIR}"
     install -d -m 0755 "${INSTALL_DIR}/scripts"
+    install -d -m 0755 "${INSTALL_DIR}/conf"
     install -d -o root -g snake-lab -m 0750 "${INSTALL_DIR}/config"
     install -d -o snake-lab -g snake-lab -m 0750 "${INSTALL_DIR}/logs"
 }
@@ -191,6 +195,16 @@ SQL
     apply_database_schema
 }
 
+validate_network_configuration() {
+    PYTHONPATH="${PROJECT_DIR}" python3 -m snakelab.NetworkConfiguration \
+        --path "$1/conf/snakelab.json"
+}
+
+prepare_network_configuration() {
+    PYTHONPATH="${PROJECT_DIR}" python3 -m snakelab.NetworkConfiguration \
+        --path "${INSTALL_DIR}/conf/snakelab.json" --create
+}
+
 deploy_application() {
     local staging_dir package
     staging_dir=$(mktemp -d "${INSTALL_DIR}/.app.XXXXXX")
@@ -231,6 +245,8 @@ deploy_runtime_files() {
         "${INSTALL_DIR}/"
     install -m 0755 "${PROJECT_DIR}/scripts/rebuild-venv.sh" \
         "${INSTALL_DIR}/scripts/rebuild-venv.sh"
+    install -m 0755 "${PROJECT_DIR}/scripts/restart.sh" \
+        "${INSTALL_DIR}/scripts/restart.sh"
     install -m 0755 "${PROJECT_DIR}/client/lab-client" "${CLIENT_DEST}"
     rm -f -- "${LEGACY_VIEWER_DEST}"
     install -m 0644 "${UNIT_SOURCE}" "${UNIT_DEST}"

@@ -15,6 +15,12 @@ Snake Lab exposes three ZeroMQ interfaces for downstream systems. Install
 | Events | `tcp://wintermute:41972` | `SUB` | [Event protocol](/pages/event-protocol.html) |
 | Telemetry | `tcp://wintermute:41971` | `SUB` | [Live telemetry](#live-telemetry) |
 
+These defaults come from `DSnakeLab.CMDB_NETWORK`. Production overrides and
+CLI arguments may change them; see [network configuration](/pages/install.html#network-configuration).
+Local Python integrations can use `Network.destination("control")`,
+`Network.destination("telemetry")`, or `Network.destination("events")` from
+`snakelab.Network` to resolve each address and port from the same settings.
+
 1. Establish an event subscription before submitting work.
 2. Call `simulation.submit` on the control port with a configuration object.
 3. Save the returned `run_id`; the reply confirms the run is queued.

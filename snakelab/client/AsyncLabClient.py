@@ -11,7 +11,7 @@ from typing import Any
 import zmq
 import zmq.asyncio
 
-from snakelab.constants.DSnakeLab import DSnakeLab
+from snakelab.Network import Network
 from snakelab.zmq.Protocol import (
     METHOD_SIMULATION_ACTIVE,
     METHOD_SIMULATION_HIGHSCORE_SNAPSHOT,
@@ -53,10 +53,13 @@ class AsyncLabClient:
 
     def __init__(
         self,
-        host: str = "127.0.0.1",
-        port: int = DSnakeLab.PORT,
+        host: str | None = None,
+        port: int | None = None,
         timeout_ms: int = 3000,
     ) -> None:
+        default_host, default_port = Network.destination("control")
+        host = host if host is not None else default_host
+        port = port if port is not None else default_port
         self.endpoint = f"tcp://{host}:{port}"
         self._timeout = timeout_ms / 1000
         self._context = zmq.asyncio.Context()

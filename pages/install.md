@@ -29,6 +29,52 @@ tail -f /opt/prod/snakelab/logs/server.log
 Simulation, policy inference, and training run on CPU, including on hosts
 with an NVIDIA GPU. No NVIDIA driver or CUDA toolkit is required.
 
+## Network configuration
+
+`DSnakeLab.CMDB_NETWORK` is the single source of listener defaults:
+
+| Use | Bind interface | TCP port |
+| --- | --- | --- |
+| `control` | `0.0.0.0` | 41970 |
+| `telemetry` | `0.0.0.0` | 41971 |
+| `events` | `0.0.0.0` | 41972 |
+
+Installation creates `/opt/prod/snakelab/conf/snakelab.json` from the declaration
+when missing. Upgrade preserves existing settings and validates them before
+stopping the service. A missing file uses defaults; partial settings inherit
+omitted uses and fields. For example:
+
+```json
+{
+  "network": {
+    "control": {"interface": "127.0.0.1", "port": 42970}
+  }
+}
+```
+
+Only known uses, `interface` (an IPv4 address), and `port` (an integer 1–65535)
+are accepted. Invalid files fail with the file path and setting in the error.
+No credentials belong in this file.
+
+After editing, validate and restart with:
+
+```sh
+sudo /opt/prod/snakelab/scripts/restart.sh
+```
+
+Each process reads configuration once. Restart clients and benchmark processes
+to pick up edits too. Local clients use the configured destination for each
+listener, translating `0.0.0.0` into `127.0.0.1`. Remote clients need their local
+configuration or explicit CLI arguments matching the server's ports.
+
+Server `--address`, `--port`, `--telemetry-port`, and `--events-port` override
+resolved defaults for that invocation; `--address` applies to all three
+listeners. Client `--host`, `--control-port`, and `--telemetry-port` override
+client destinations; `--host` applies to both client connections.
+Database connection settings remain separate from listener configuration.
+See [CMDB_NETWORK](/pages/cmdb-network.html) for the declaration standard and
+[CMDB metadata](/pages/app-discovery.html) for all supported declarations.
+
 ## Start the client
 
 ```sh
@@ -87,7 +133,7 @@ Do not upgrade while a simulation is running. From the new release checkout:
 sudo scripts/upgrade.sh
 ```
 
-The upgrade script stops the service, applies database schemas v1–v4,
+The upgrade script stops the service, applies database schemas v1–v5,
 deploys the software, and restarts the service. It rebuilds the virtual
 environment when requirements change or the installation moves, and does not
 provision MariaDB.
