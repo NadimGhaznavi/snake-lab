@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import pwd
 import grp
+import json
 import shlex
 import subprocess
 import sys
@@ -28,6 +29,9 @@ class DeploymentTests(unittest.TestCase):
         self.bin.mkdir()
         for command in ('systemctl', 'mariadb', 'getent', 'usermod', 'useradd'):
             self.executable(self.bin / command, '#!/bin/sh\nexit 0\n')
+        self.service_log = self.root / 'systemctl.log'
+        self.executable(self.bin / 'systemctl',
+                        '#!/bin/sh\nprintf "%s\\n" "$*" >>"${SERVICE_LOG}"\n')
         rebuild = self.root / 'rebuild.sh'
         self.executable(rebuild, '#!/bin/sh\nset -e\n'
                         'test ! -f "${FAIL_REBUILD_FILE}"\n'
@@ -55,6 +59,7 @@ class DeploymentTests(unittest.TestCase):
                                   'install -d -m 0755 ' + shlex.quote(str(self.target.parent)))
         (scripts / 'upgrade.sh').write_text(upgrade)
         self.env = dict(os.environ, PATH=str(self.bin) + ':' + os.environ['PATH'],
+                        SERVICE_LOG=str(self.service_log),
                         REBUILD_FILE=str(self.root / 'rebuilt'),
                         FAIL_REBUILD_FILE=str(self.root / 'fail'))
         self.upgrade = scripts / 'upgrade.sh'
@@ -90,6 +95,9 @@ class DeploymentTests(unittest.TestCase):
         self.assertTrue((self.target / 'snakelab/schemas/database-v5.sql').is_file())
         self.assertTrue((self.target / 'snakelab/server/SimulationServer.py').is_file())
         self.assertFalse((self.target / 'app').exists())
+        self.assertTrue((self.target / 'scripts/restart.sh').is_file())
+        network = json.loads((self.target / 'conf/snakelab.json').read_text())
+        self.assertEqual(set(network['network']), {'control', 'telemetry', 'events'})
         loaded = subprocess.run(
             [sys.executable, '-c',
              'from snakelab.constants.DSnakeLab import DSnakeLab; '
@@ -139,3 +147,51 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.root / 'rebuilt').exists())
         self.assertFalse((self.target / '.venv-needs-rebuild').exists())
+
+    def test_upgrade_preserves_network_settings(self):
+        self.installation(self.target)
+        (self.target / 'conf').mkdir()
+        config = self.target / 'conf/snakelab.json'
+        original = '{"network": {"control": {"port": 42970}}}\n'
+        config.write_text(original)
+        result = self.run_upgrade()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(config.read_text(), original)
+
+    def test_invalid_network_configuration_does_not_stop_service(self):
+        self.installation(self.legacy)
+        (self.legacy / 'conf').mkdir()
+        config = self.legacy / 'conf/snakelab.json'
+        config.write_text('{"network": {"control": {"port": true}}}')
+        result = self.run_upgrade()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(str(config), result.stderr)
+        self.assertIn('network.control.port', result.stderr)
+        self.assertFalse(self.service_log.exists())
+        self.assertTrue(self.legacy.exists())
+        self.assertFalse(self.target.exists())
+
+    def test_restart_validates_before_touching_service(self):
+        self.installation(self.target)
+        result = self.run_upgrade()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.service_log.unlink()
+        restart = (ROOT / 'scripts/restart.sh').read_text().replace(
+            '/opt/prod/snakelab', str(self.target))
+        restart = restart.replace('"${INSTALL_DIR}/venv/bin/python"', shlex.quote(sys.executable))
+        restart = '\n'.join(line for line in restart.splitlines()
+                            if not line.startswith('[[ ${EUID}'))
+        script = self.root / 'restart.sh'
+        script.write_text(restart)
+        config = self.target / 'conf/snakelab.json'
+        config.write_text('{')
+        result = subprocess.run(['bash', str(script)], env=self.env,
+                                capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(str(config), result.stderr)
+        self.assertFalse(self.service_log.exists())
+        config.write_text('{"network": {"events": {"port": 42972}}}')
+        result = subprocess.run(['bash', str(script)], env=self.env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.service_log.read_text().strip(), 'restart snake-lab.service')

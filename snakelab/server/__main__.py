@@ -5,6 +5,7 @@ import asyncio
 import logging
 import signal
 
+from snakelab.Network import Network
 from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.database.MemorySimulationStore import MemorySimulationStore
 from snakelab.database.SimulationStore import SimulationStore
@@ -14,13 +15,13 @@ from snakelab.server.SimulationServer import SimulationServer
 
 async def amain() -> None:
     parser = argparse.ArgumentParser(description="Run the Snake Lab server")
-    parser.add_argument("--address", default="*")
-    parser.add_argument("--port", type=int, default=DSnakeLab.PORT)
+    parser.add_argument("--address", default=None)
+    parser.add_argument("--port", type=int, default=None)
     parser.add_argument(
-        "--telemetry-port", type=int, default=DSnakeLab.TELEMETRY_PORT
+        "--telemetry-port", type=int, default=None
     )
     parser.add_argument(
-        "--events-port", type=int, default=DSnakeLab.EVENTS_PORT
+        "--events-port", type=int, default=None
     )
     parser.add_argument("--log-file", default=DSnakeLab.SERVER_LOG_FILE)
     parser.add_argument(
@@ -29,6 +30,11 @@ async def amain() -> None:
         help="keep simulation results in memory instead of MariaDB",
     )
     args = parser.parse_args()
+
+    try:
+        Network.configuration()
+    except ValueError as error:
+        parser.error(str(error))
 
     store: SimulationStore
     if args.ephemeral:
