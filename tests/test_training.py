@@ -149,6 +149,9 @@ class TableModel(nn.Module):
     def forward_sequence(self, states):
         return self.values[states[..., 0].long()]
 
+    def forward(self, states):
+        return self.forward_sequence(states)[:, -1]
+
 
 class RecordingHuberLoss(nn.SmoothL1Loss):
     def forward(self, predicted, target):

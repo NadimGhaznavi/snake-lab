@@ -159,7 +159,7 @@ class GameRulesTests(unittest.TestCase):
         self.assertTrue(result.done)
         self.assertEqual(result.outcome, Outcome.BOARD_FILLED)
         self.assertIsNone(result.new_state.food_position)
-        self.assertEqual(result.observation[-2:], (0.0, 0.0))
+        self.assertEqual(result.observation[10:16], (0.0,) * 6)
 
     def test_maximum_move_budget_is_terminal(self) -> None:
         state = make_state(move_count=300)
@@ -183,7 +183,7 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(len(observation), DGameDef.OBSERVATION_SIZE)
         self.assertEqual(len(observation), DNetDef.INPUT_SIZE)
 
-    def test_observation_is_egocentric(self) -> None:
+    def test_heading_and_food_use_fixed_board_axes(self) -> None:
         facing_right = make_state(
             head=Position(3, 3),
             body=(Position(2, 3),),
@@ -199,30 +199,60 @@ class ObservationTests(unittest.TestCase):
             grid_size=(7, 7),
         )
 
-        self.assertEqual(
-            facing_right.observation(),
-            facing_down.observation(),
-        )
+        self.assertEqual(facing_right.observation()[6:10], (0., 1., 0., 0.))
+        self.assertEqual(facing_down.observation()[6:10], (0., 0., 0., 1.))
+        self.assertEqual(facing_right.observation()[10:16], (0., 1., 0., 0., 0., 1.))
+        self.assertEqual(facing_down.observation()[10:16], (0., 0., 0., 1., 1., 0.))
 
-    def test_observation_marks_wall_body_and_food(self) -> None:
+    def test_exact_hydra_feature_order(self) -> None:
+        self.assertEqual(make_state().observation(), (
+            0., 0., 0.,  # body danger: left, straight, right
+            0., 0., 0.,  # wall danger: left, straight, right
+            0., 1., 0., 0.,  # heading: left, right, up, down
+            0., 1., 0., 0., 0., 1.,  # food directions, same X, same Y
+            0., 0., 0., 0., 0., 1., 1.,  # length 3, big-endian
+        ))
+
+    def test_separate_body_and_wall_danger(self) -> None:
         state = make_state(
-            head=Position(1, 1),
-            body=(Position(0, 1),),
+            head=Position(0, 0),
+            body=(Position(0, 1), Position(1, 1)),
             direction=Direction(1, 0),
-            food=Position(2, 1),
+            food=Position(1, 0),
             grid_size=(4, 4),
         )
-        observation = state.observation()
-        width = DGameDef.OBSERVATION_RADIUS * 2 + 1
-        center = DGameDef.OBSERVATION_RADIUS
+        self.assertEqual(state.observation()[:6], (0., 0., 1., 1., 0., 0.))
 
-        def value(local_x: int, local_y: int) -> float:
-            return observation[(center + local_y) * width + center + local_x]
+    def test_danger_matches_actual_moves_for_every_heading(self) -> None:
+        for direction in (Direction.left(), Direction.right(), Direction.up(), Direction.down()):
+            for head in (Position(0, 0), Position(2, 2), Position(4, 4)):
+                state = make_state(
+                    head=head, body=(Position(2, 1), Position(1, 1), Position(1, 2)),
+                    direction=direction, food=Position(3, 3),
+                )
+                observation = state.observation()
+                for action in Action:
+                    with self.subTest(direction=direction, head=head, action=action):
+                        result = step(state, action)
+                        self.assertEqual(observation[action], float(result.outcome is Outcome.SNAKE))
+                        self.assertEqual(observation[3 + action], float(result.outcome is Outcome.WALL))
 
-        self.assertEqual(value(0, -1), 1.0)
-        self.assertEqual(value(0, 1), 0.5)
-        self.assertEqual(value(-2, 0), -0.5)
-        self.assertEqual(observation[-2:], (0.0, -1.0))
+    def test_vacating_tail_is_not_marked_as_danger(self) -> None:
+        state = make_state(
+            body=(Position(2, 1), Position(1, 1), Position(1, 2)),
+            direction=Direction.down(), food=Position(4, 4),
+        )
+        self.assertEqual(state.observation()[Action.RIGHT], 0.)
+        self.assertFalse(step(state, Action.RIGHT).is_collision)
+
+    def test_length_saturates_instead_of_wrapping(self) -> None:
+        for length in (1, 3, 127, 128, 400):
+            state = make_state(body=tuple(Position(0, index) for index in range(length - 1)))
+            expected = tuple(float(bit) for bit in f'{min(length, 127):07b}')
+            self.assertEqual(state.observation()[16:], expected)
+
+    def test_no_food_has_no_food_features(self) -> None:
+        self.assertEqual(make_state(food=None).observation()[10:16], (0.,) * 6)
 
 
 class SnakeGameTests(unittest.TestCase):

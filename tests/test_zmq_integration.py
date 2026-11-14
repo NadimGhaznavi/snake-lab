@@ -194,23 +194,14 @@ class ZeroMQIntegrationTests(unittest.TestCase):
 
         response = self.client.submit(
             {
-                "epochs": 100,
+                "epochs": 8,
                 "seed": 7,
-                "game": {
-                    "board_width": 4,
-                    "board_height": 1,
-                    "initial_snake_length": 3,
-                    "max_moves_multiplier": 1,
-                },
                 "model": {
-                    "hidden_size": 8,
-                    "layers": 1,
-                    "dropout": 0,
+                    "hidden_size": 64,
                 },
                 "training": {
-                    "sequence_length": 1,
-                    "batch_size": 2,
-                    "replay_max_frames": 100,
+                    "sequence_length": 4,
+                    "batch_size": 8,
                 },
             }
         )
@@ -254,11 +245,11 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         telemetry_socket.close()
         telemetry_context.term()
 
-        self.assertEqual(status["payload"]["epochs"], 100)
-        self.assertEqual(status["payload"]["completed_epochs"], 100)
-        self.assertEqual(status["payload"]["total_steps"], 100)
+        self.assertEqual(status["payload"]["epochs"], 8)
+        self.assertEqual(status["payload"]["completed_epochs"], 8)
+        self.assertGreaterEqual(status["payload"]["total_steps"], 8)
         self.assertGreaterEqual(status["payload"]["high_score"], 0)
-        self.assertEqual(status["payload"]["last_episode"]["episode"], 100)
+        self.assertEqual(status["payload"]["last_episode"]["episode"], 8)
         self.assertIsInstance(status["payload"]["last_episode"]["seed"], int)
         self.assert_ended_event(run_id, "completed")
         self.assertFalse(self.events_socket.poll(timeout=100))
@@ -272,11 +263,11 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             for topic, envelope in telemetry_messages
             if topic == TOPIC_FRAME
         ]
-        self.assertLess(len(frame_messages), 100)
+        self.assertLessEqual(len(frame_messages), status["payload"]["total_steps"])
         frame_envelope = frame_messages[0]
         frame = FrameTelemetry.from_dict(frame_envelope.payload)
-        self.assertEqual(frame.board.width, 4)
-        self.assertEqual(frame.board.height, 1)
+        self.assertEqual(frame.board.width, 20)
+        self.assertEqual(frame.board.height, 20)
         self.assertIn(
             "[Simulator] Simulation running on CPU",
             self.log_file.read_text(encoding="utf-8"),
@@ -309,10 +300,10 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         run_id = response["payload"]["run_id"]
 
         status = self.client.status(run_id)
-        self.assertEqual(status["payload"]["epochs"], 100)
+        self.assertEqual(status["payload"]["epochs"], 500)
 
     def test_invalid_config_is_rejected(self) -> None:
-        response = self.client.submit({"epochs": 49})
+        response = self.client.submit({"epochs": "49"})
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["error"]["code"], "invalid_config")
 
@@ -321,24 +312,16 @@ class ZeroMQIntegrationTests(unittest.TestCase):
             {
                 "epochs": 100,
                 "seed": 17,
-                "game": {
-                    "board_width": 8,
-                    "board_height": 8,
-                    "initial_snake_length": 3,
-                    "max_moves_multiplier": 10,
-                },
                 "model": {
-                    "hidden_size": 8,
-                    "layers": 1,
-                    "dropout": 0,
+                    "hidden_size": 64,
                 },
                 "training": {
-                    "sequence_length": 1,
-                    "batch_size": 2,
-                    "replay_max_frames": 100,
+                    "sequence_length": 4,
+                    "batch_size": 8,
                 },
             }
         )
+        self.assertEqual(submitted["status"], "ok")
         run_id = submitted["payload"]["run_id"]
 
         delayed = self.client.set_move_delay(run_id, 40)
@@ -399,16 +382,11 @@ class ZeroMQIntegrationTests(unittest.TestCase):
 
     def test_repeated_configuration_completes_as_two_distinct_runs(self) -> None:
         config = {
-            "epochs": 50,
+            "epochs": 2,
             "seed": 7,
-            "game": {
-                "board_width": 4, "board_height": 1,
-                "initial_snake_length": 3, "max_moves_multiplier": 1,
-            },
-            "model": {"hidden_size": 8, "layers": 1, "dropout": 0},
+            "model": {"hidden_size": 64},
             "training": {
-                "sequence_length": 1, "batch_size": 2,
-                "replay_max_frames": 100,
+                "sequence_length": 4, "batch_size": 8,
             },
         }
         run_ids = []
@@ -424,7 +402,22 @@ class ZeroMQIntegrationTests(unittest.TestCase):
         for run_id in run_ids:
             status = self.client.status(run_id)["payload"]
             self.assertEqual(status["state"], "completed")
-            self.assertEqual(status["completed_epochs"], 50)
+            self.assertEqual(status["completed_epochs"], 2)
+
+    def test_transformer_configuration_completes_over_zmq(self):
+        submitted = self.client.submit({
+            "epochs": 2, "seed": 7,
+            "model": {"type": "transformer", "hidden_size": 64, "heads": 4},
+            "training": {"sequence_length": 4, "batch_size": 8},
+            "epsilon_nice": {"probability": 0},
+        })
+        self.assertEqual(submitted["status"], "ok")
+        run_id = submitted["payload"]["run_id"]
+        self.assert_ended_event(run_id, "completed")
+        status = self.client.status(run_id)["payload"]
+        self.assertEqual(status["completed_epochs"], 2)
+        self.assertEqual(status["epsilon_nice_injections"], 0)
+        self.assertIn("epsilon_nice_injections", status["last_episode"])
 
     def assert_ended_event(self, run_id: str, state: str) -> None:
         self.assertTrue(self.events_socket.poll(timeout=3000), "No ended event")

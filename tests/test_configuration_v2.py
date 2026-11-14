@@ -7,7 +7,7 @@ class V2ConfigurationTests(unittest.TestCase):
     def test_v2_default_and_continuous_learning_rate(self):
         template = simulation_config_template()
         default = template.resolve({})
-        self.assertEqual(default['epochs'], 1500)
+        self.assertEqual(default['epochs'], 500)
         self.assertEqual(default['training']['learning_rate'], .0021)
         for value in (.0005, .005, .002123456):
             self.assertEqual(template.resolve({'training': {'learning_rate': value}})['training']['learning_rate'], value)

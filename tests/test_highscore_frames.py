@@ -24,7 +24,7 @@ class CaptureTests(unittest.IsolatedAsyncioTestCase):
         simulator.config["game"].update(board_width=8, board_height=8)
         simulator._setup()
         simulator.trainer.train = Mock(return_value=None)
-        simulator._select_action = Mock(return_value=int(Action.STRAIGHT))
+        simulator.policy.select_action = Mock(return_value=int(Action.STRAIGHT))
         result = await simulator._run_episode(1)
         frames = [frame.to_dict() for frame in simulator.state.high_score_frames]
         self.assertGreater(result.steps, 1)
@@ -43,7 +43,7 @@ class CaptureTests(unittest.IsolatedAsyncioTestCase):
         simulator._setup()
         simulator.trainer.train = Mock(return_value=None)
         for episode, action in ((1, Action.STRAIGHT), (2, Action.STRAIGHT), (3, Action.LEFT)):
-            simulator._select_action = Mock(return_value=int(action))
+            simulator.policy.select_action = Mock(return_value=int(action))
             result = await simulator._run_episode(episode)
             simulator.state.record(result)
         frames = [frame.to_dict() for frame in simulator.state.high_score_frames]
@@ -59,7 +59,7 @@ class CaptureTests(unittest.IsolatedAsyncioTestCase):
     async def test_zero_score_tie_retains_latest_terminal_move(self):
         simulator = simulator_tests.SimulationLoopTests.capture_simulator()
         simulator._setup()
-        simulator._select_action = Mock(return_value=int(Action.LEFT))
+        simulator.policy.select_action = Mock(return_value=int(Action.LEFT))
         for episode in (1, 2):
             result = await simulator._run_episode(episode)
             simulator.state.record(result)
@@ -116,7 +116,7 @@ class FrameProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.store.create_run("saved", {}, "test")
         simulator = simulator_tests.SimulationLoopTests.capture_simulator()
         simulator._setup()
-        simulator._select_action = Mock(return_value=int(Action.STRAIGHT))
+        simulator.policy.select_action = Mock(return_value=int(Action.STRAIGHT))
         await simulator._run_episode(1)
         self.frames = [frame.to_dict() for frame in simulator.state.high_score_frames]
         self.store.finish_run("saved", "completed", 1, 1, high_score_frames=self.frames)

@@ -340,6 +340,7 @@ class SimulationServer:
             run.high_score = state.high_score
             run.total_reward = state.total_reward
             run.epsilon_injections = state.total_epsilon_injections
+            run.epsilon_nice_injections = state.total_epsilon_nice_injections
             run.last_loss = state.last_loss
             run.last_episode = episode
             self.store.record_episode(
@@ -484,6 +485,7 @@ class SimulationServer:
             "high_score": run.high_score,
             "total_reward": run.total_reward,
             "epsilon_injections": run.epsilon_injections,
+            "epsilon_nice_injections": run.epsilon_nice_injections,
             "last_loss": run.last_loss,
             "move_delay_ms": run.control.move_delay_ms,
         }

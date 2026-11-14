@@ -76,6 +76,10 @@ validate_release_checkout() {
         "snakelab/game/GameRules.py"
         "snakelab/nn/__init__.py"
         "snakelab/nn/EpsilonAlgo.py"
+        "snakelab/nn/EpsilonNiceAlgo.py"
+        "snakelab/nn/ActionPolicy.py"
+        "snakelab/nn/SequenceModel.py"
+        "snakelab/nn/TransformerModel.py"
         "snakelab/nn/ReplayMemory.py"
         "snakelab/nn/RNNModel.py"
         "snakelab/zmq/Protocol.py"
@@ -85,6 +89,7 @@ validate_release_checkout() {
         "snakelab/schemas/database-v3.sql"
         "snakelab/schemas/database-v4.sql"
         "snakelab/schemas/database-v5.sql"
+        "snakelab/schemas/database-v6.sql"
         "snakelab/schemas/simulation-config-v2.schema.json"
         "snakelab/server/__init__.py"
         "snakelab/server/__main__.py"
@@ -126,6 +131,8 @@ apply_database_schema() {
         <"${PROJECT_DIR}/snakelab/schemas/database-v4.sql"
     mariadb --batch "${db_name}" \
         <"${PROJECT_DIR}/snakelab/schemas/database-v5.sql"
+    mariadb --batch "${db_name}" \
+        <"${PROJECT_DIR}/snakelab/schemas/database-v6.sql"
 }
 
 ensure_service_account() {
