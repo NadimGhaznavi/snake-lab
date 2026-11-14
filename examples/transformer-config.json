@@ -1,0 +1,11 @@
+{
+  "model": {
+    "type": "transformer",
+    "hidden_size": 224,
+    "heads": 4
+  },
+  "epsilon_nice": {
+    "probability": 0.005,
+    "steps": 20
+  }
+}

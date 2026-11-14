@@ -37,7 +37,7 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.addCleanup(self.execute, f"DROP DATABASE IF EXISTS `{self.database}`")
         self.admin.select_db(self.database)
         schemas = Path(__file__).resolve().parents[1] / "snakelab/schemas"
-        for version in range(1, 6):
+        for version in range(1, 7):
             sql = (schemas / f"database-v{version}.sql").read_text()
             sql = "\n".join(line for line in sql.splitlines() if not line.startswith("--"))
             for statement in sql.split(";"):
@@ -68,7 +68,8 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.store.create_run(run_id, self.config, "integration")
 
     def episode(self, number=1, steps=100):
-        return SimpleNamespace(episode=number, score=4, steps=steps, epsilon=0.9, loss=0.125)
+        return SimpleNamespace(episode=number, score=4, steps=steps, epsilon=0.9, loss=0.125,
+                               epsilon_nice_injections=2)
 
     def test_submission_after_idle_connection_timeout(self):
         connection = self.manager._connection
@@ -132,6 +133,8 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.assertEqual(self.row("run")["episode_count"], 1)
         self.assertEqual(self.row("run")["high_score"], 4)
         self.assertEqual(self.execute("SELECT loss FROM simulation_episodes")[0]["loss"], 0.125)
+        self.assertEqual(self.execute("SELECT epsilon_nice_injections FROM simulation_episodes")[0]
+                         ["epsilon_nice_injections"], 2)
         snapshot = {"episode": 1, "board": {"score": 4}}
         self.store.finish_run("run", "completed", 1, 4, high_score_snapshot=snapshot)
         self.assertEqual(reader.get_high_score_snapshot("run")["high_score_snapshot"], snapshot)

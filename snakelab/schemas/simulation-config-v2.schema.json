@@ -123,10 +123,22 @@
       ]
     },
     "model": {
-      "title": "Recurrent model",
+      "title": "Sequence model",
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["rnn", "transformer"],
+          "default": "rnn",
+          "description": "Sequence-model architecture used for action values."
+        },
+        "heads": {
+          "type": "integer",
+          "enum": [1, 2, 4, 8],
+          "default": 4,
+          "description": "Attention heads per Transformer layer; unused by the RNN."
+        },
         "hidden_size": {
           "type": "integer",
           "default": 224,
@@ -134,23 +146,25 @@
           "maximum": 384,
           "multipleOf": 16,
           "x-snakelab-unit": "neurons",
-          "description": "Number of neurons in each recurrent hidden layer."
+          "description": "Hidden width of the RNN or Transformer."
         },
         "layers": {
           "type": "integer",
           "const": 4,
           "default": 4,
-          "description": "Number of recurrent model layers."
+          "description": "Number of recurrent or Transformer encoder layers."
         },
         "dropout": {
           "type": "number",
           "const": 0.1,
           "default": 0.1,
           "x-snakelab-unit": "probability",
-          "description": "Dropout probability between recurrent layers."
+          "description": "Dropout probability in the selected sequence model."
         }
       },
       "required": [
+        "type",
+        "heads",
         "hidden_size",
         "layers",
         "dropout"
@@ -222,6 +236,29 @@
         "max_gradient_norm"
       ]
     },
+    "epsilon_nice": {
+      "title": "Safe exploration bursts",
+      "description": "Safe alternative moves after ordinary epsilon has expired.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "probability": {
+          "type": "number",
+          "default": 0.005,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Probability per eligible move of starting a detour on the next move; zero disables it."
+        },
+        "steps": {
+          "type": "integer",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Number of moves in a detour; detours reset at episode boundaries."
+        }
+      },
+      "required": ["probability", "steps"]
+    },
     "epsilon": {
       "title": "Epsilon-greedy exploration",
       "description": "Episode-based epsilon-greedy exploration schedule.",
@@ -265,6 +302,7 @@
     "game",
     "model",
     "training",
-    "epsilon"
+    "epsilon",
+    "epsilon_nice"
   ]
 }

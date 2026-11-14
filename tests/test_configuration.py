@@ -10,7 +10,7 @@ class ConfigTemplateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.template = simulation_config_template()
         self.defaults = {
-            "epochs": 1500,
+            "epochs": 500,
             "seed": 1970,
             "game": {
                 "board_width": 20,
@@ -28,6 +28,8 @@ class ConfigTemplateTests(unittest.TestCase):
                 },
             },
             "model": {
+                "type": "rnn",
+                "heads": 4,
                 "hidden_size": 224,
                 "layers": 4,
                 "dropout": 0.1,
@@ -46,24 +48,16 @@ class ConfigTemplateTests(unittest.TestCase):
                 "minimum": 0.0,
                 "decay": 0.97,
             },
+            "epsilon_nice": {"probability": 0.005, "steps": 20},
         }
 
     def test_default_epochs_are_applied(self) -> None:
         self.assertEqual(self.template.resolve({}), self.defaults)
 
-    def test_submitted_fixed_epochs_are_accepted(self) -> None:
-        self.assertEqual(self.template.resolve({"epochs": 1500}), self.defaults)
-
-    def test_other_epoch_counts_are_rejected(self) -> None:
-        for epochs in (50, 2500, 5000):
-            with self.subTest(epochs=epochs), self.assertRaises(ConfigurationError):
-                self.template.resolve({"epochs": epochs})
-
-    def test_epochs_outside_range_are_rejected(self) -> None:
-        for epochs in (49, 5001):
+    def test_submitted_episode_counts_are_preserved(self) -> None:
+        for epochs in (50, 500, 1500, 2500, 5000):
             with self.subTest(epochs=epochs):
-                with self.assertRaises(ConfigurationError):
-                    self.template.resolve({"epochs": epochs})
+                self.assertEqual(self.template.resolve({"epochs": epochs})["epochs"], epochs)
 
     def test_non_integer_epochs_are_rejected(self) -> None:
         for epochs in (100.5, True, "100"):
@@ -144,6 +138,28 @@ class ConfigTemplateTests(unittest.TestCase):
                     }
                 }
             )
+
+    def test_model_selection_and_nice_settings_resolve_from_partial_input(self):
+        resolved = self.template.resolve({
+            "model": {"type": "transformer", "heads": 8},
+            "epsilon_nice": {"probability": 0},
+        })
+        self.assertEqual(resolved["model"]["type"], "transformer")
+        self.assertEqual(resolved["model"]["heads"], 8)
+        self.assertEqual(resolved["model"]["hidden_size"], 224)
+        self.assertEqual(resolved["epsilon_nice"], {"probability": 0, "steps": 20})
+
+    def test_invalid_new_settings_are_rejected_at_configuration_boundary(self):
+        for submitted in (
+            {"model": {"type": "invalid"}}, {"model": {"heads": 0}},
+            {"model": {"heads": 3}}, {"model": {"heads": True}},
+            {"epsilon_nice": {"probability": -.01}},
+            {"epsilon_nice": {"probability": 1.01}},
+            {"epsilon_nice": {"steps": 0}}, {"epsilon_nice": {"steps": 1.5}},
+            {"epsilon_nice": {"steps": True}}, {"epsilon_nice": {"unknown": 1}},
+        ):
+            with self.subTest(submitted=submitted), self.assertRaises(ConfigurationError):
+                self.template.resolve(submitted)
 
 
 if __name__ == "__main__":

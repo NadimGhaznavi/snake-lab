@@ -153,7 +153,7 @@ class SimulationDatabaseTests(unittest.TestCase):
         self.assertEqual(cursor.execute.call_count, 2)
         self.assertEqual(
             cursor.execute.call_args_list[0].args[1],
-            ("run-1", 8, 4, 27, 0.8, 0.125),
+            ("run-1", 8, 4, 27, 0.8, 0.125, 0),
         )
         self.assertEqual(
             cursor.execute.call_args_list[1].args[1], (8, 6, "run-1")
@@ -195,7 +195,7 @@ class SimulationDatabaseTests(unittest.TestCase):
 
         flatten(config)
         self.assertEqual(set(DSQL.CONFIGURATION_PATHS), set(leaves))
-        self.assertEqual(len(DSQL.CONFIGURATION_PATHS), 26)
+        self.assertEqual(len(DSQL.CONFIGURATION_PATHS), 30)
         self.assertEqual(configuration_values(config), tuple(leaves[p] for p in DSQL.CONFIGURATION_PATHS))
 
     def test_configuration_write_preserves_resolved_values(self) -> None:
@@ -215,7 +215,7 @@ class SimulationDatabaseTests(unittest.TestCase):
         self.assertEqual(row["seed"], 2024)
         self.assertEqual(row["game_rewards_further_from_food"], -3)
         self.assertEqual(row["training_learning_rate"], 0.002123456)
-        self.assertEqual(len(row), 27)
+        self.assertEqual(len(row), 31)
         connection.commit.assert_called_once_with()
         connection.rollback.assert_not_called()
 

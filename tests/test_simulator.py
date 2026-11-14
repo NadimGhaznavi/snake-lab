@@ -1,6 +1,8 @@
 import unittest
+import math
 from collections import deque
 from dataclasses import replace
+from random import Random
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -13,6 +15,8 @@ from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.server.Configuration import simulation_config_template
 from snakelab.server.Simulator import Simulator
 from snakelab.nn.ReplayMemory import ReplayMemory
+from snakelab.nn.ActionPolicy import ActionPolicy
+from snakelab.nn.EpsilonNiceAlgo import EpsilonNiceAlgo
 from snakelab.constants.DGame import Action
 from snakelab.constants.DGame import Outcome
 
@@ -83,6 +87,8 @@ class FakeLog:
 
 
 class GreedyEpsilon:
+    current = 0.0
+
     @staticmethod
     def maybe_random_action() -> None:
         return None
@@ -166,8 +172,10 @@ class SimulatorTests(unittest.TestCase):
             simulation_config_template().resolve({"epochs": 100}), log=FakeLog()
         )
         model = CapturingModel()
-        simulator.model = model
-        simulator.epsilon = GreedyEpsilon()
+        policy = ActionPolicy(
+            model=model, epsilon=GreedyEpsilon(), device=torch.device("cpu"),
+            epsilon_nice=EpsilonNiceAlgo(rng=Random(7), probability=0, steps=2, log=FakeLog()),
+        )
         history = deque(
             [
                 tuple([float(index)] * DGameDef.OBSERVATION_SIZE)
@@ -176,7 +184,7 @@ class SimulatorTests(unittest.TestCase):
             maxlen=4,
         )
 
-        action = simulator._select_action(history)
+        action = policy.select_action(history, simulator._new_game(1).state)
 
         self.assertEqual(action, 1)
         self.assertEqual(
@@ -186,6 +194,27 @@ class SimulatorTests(unittest.TestCase):
 
 
 class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
+    async def test_both_models_train_with_features_and_nice_detours(self):
+        for model_type in ("rnn", "transformer"):
+            with self.subTest(model_type=model_type):
+                config = self.small_config()
+                config["epochs"] = 12
+                config["model"]["type"] = model_type
+                # Bound this real training smoke test and start after epsilon decay.
+                config["game"].update(board_width=4, board_height=4, max_moves_multiplier=3)
+                config["epsilon"]["initial"] = 0.
+                config["epsilon_nice"].update(probability=1., steps=2)
+                simulator = Simulator(config, log=FakeLog())
+                state = await simulator.run()
+                self.assertEqual(state.completed_epochs, 12)
+                self.assertEqual(simulator.replay.state_size, 23)
+                self.assertIsNotNone(state.last_loss)
+                self.assertTrue(math.isfinite(state.last_loss))
+                self.assertGreater(state.total_epsilon_nice_injections, 0)
+                self.assertEqual(state.total_epsilon_injections, 0)
+                self.assertEqual(state.summary()["epsilon_nice_injections"],
+                                 sum(episode.epsilon_nice_injections for episode in state.episodes))
+
     @staticmethod
     def capture_simulator():
         simulator = Simulator(simulation_config_template().resolve({}), log=FakeLog())
@@ -200,7 +229,7 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
         simulator = self.capture_simulator()
         simulator._setup()
         simulator.trainer.train = Mock(return_value=None)
-        simulator._select_action = Mock(return_value=0)
+        simulator.policy.select_action = Mock(return_value=0)
         initial_game = simulator._new_game(1)
         initial = initial_game.state
         observation = initial_game.observe()
@@ -246,7 +275,7 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(action=action):
                 simulator = self.capture_simulator()
                 simulator._setup()
-                simulator._select_action = Mock(return_value=int(action))
+                simulator.policy.select_action = Mock(return_value=int(action))
                 initial = simulator._new_game(1).state
                 result = await simulator._run_episode(1)
                 snapshot = simulator.state.high_score_snapshot

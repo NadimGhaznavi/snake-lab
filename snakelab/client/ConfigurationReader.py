@@ -9,6 +9,8 @@ from snakelab.constants.DSnakeLab import DSnakeLab
 # The whole-config LLM searches these fields; seed, run length and schema
 # constants are deliberately excluded. Paired values are displayed separately.
 TUNED_FIELDS = (
+    ("model_type", "Model"),
+    ("model_heads", "Attention heads (Transformer)"),
     ("model_hidden_size", "Hidden size"),
     ("training_sequence_length", "Sequence length"),
     ("training_batch_size", "Batch size"),
@@ -16,6 +18,8 @@ TUNED_FIELDS = (
     ("training_gamma", "Gamma"),
     ("epsilon_initial", "Epsilon initial"),
     ("epsilon_decay", "Epsilon decay"),
+    ("epsilon_nice_probability", "Nice probability"),
+    ("epsilon_nice_steps", "Nice steps"),
     ("game_rewards_closer_to_food", "Closer reward"),
     ("game_rewards_further_from_food", "Further reward"),
 )

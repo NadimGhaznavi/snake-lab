@@ -17,6 +17,8 @@
     }
   },
   "model": {
+    "type": "rnn",
+    "heads": 4,
     "hidden_size": 224,
     "layers": 4,
     "dropout": 0.1
@@ -29,6 +31,10 @@
     "gamma": 0.96,
     "tau": 0.001,
     "max_gradient_norm": 1.0
+  },
+  "epsilon_nice": {
+    "probability": 0.005,
+    "steps": 20
   },
   "epsilon": {
     "initial": 0.96,

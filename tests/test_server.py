@@ -40,7 +40,7 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
             "capture-run", simulation_config_template().resolve({"epochs": 1})
         )
         self.server.store.create_run(run.run_id, run.config, DSnakeLab.VERSION)
-        with patch("snakelab.server.Simulator.Simulator._select_action", return_value=0):
+        with patch("snakelab.nn.ActionPolicy.ActionPolicy.select_action", return_value=0):
             await self.server._execute_simulation(run)
         run.state = "completed"
 

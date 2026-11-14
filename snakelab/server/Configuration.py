@@ -68,6 +68,15 @@ class Configuration:
             )
 
         training = resolved.get("training", {})
+        model = resolved.get("model", {})
+        if model.get("type") == "transformer":
+            hidden_size, heads = model.get("hidden_size"), model.get("heads")
+            if isinstance(hidden_size, int) and isinstance(heads, int) and (
+                heads <= 0 or hidden_size % heads
+            ):
+                raise ConfigurationError(
+                    "$.model.heads: must be positive and divide hidden_size"
+                )
         sequence_length = training.get("sequence_length")
         batch_size = training.get("batch_size")
         replay_max_frames = training.get("replay_max_frames")

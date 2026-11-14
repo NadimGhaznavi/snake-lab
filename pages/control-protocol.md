@@ -189,13 +189,13 @@ and later reaches `cancelled`. Pause, resume, cancel, and move delay are runtime
 controls, separate from the experiment configuration.
 
 Run status contains `run_id`, `state`, `epochs`, `completed_epochs`, `total_steps`,
-`high_score`, `total_reward`, `epsilon_injections`, `last_loss`, `move_delay_ms`,
+`high_score`, `total_reward`, `epsilon_injections`, `epsilon_nice_injections`, `last_loss`, `move_delay_ms`,
 and `last_episode` (an episode object or null). `error` is included when present.
 States are `queued`, `running`, `paused`, `cancelling`, `completed`, `failed`,
 and `cancelled`. Status lookup covers runs known to the current server process.
 
 `last_episode`, when present, contains integer `episode`, `seed`, `score`,
-`steps`, and `epsilon_injections`; numeric `reward` and `epsilon`; `loss`
+`steps`, `epsilon_injections`, and `epsilon_nice_injections`; numeric `reward` and `epsilon`; `loss`
 (number or null); and string `outcome` (`empty`, `food`, `wall`, `snake`,
 `max_moves`, or `board_filled`). `last_loss` is also a number or null.
 

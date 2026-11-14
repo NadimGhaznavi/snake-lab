@@ -16,8 +16,8 @@ Screen { background: black; color: #31b8e6; }
 #controls-panel { height: 14; }
 #board-panel { width: 46; height: 26; align: center middle; border-subtitle-color: #5fc442; }
 SnakeBoard { width: 40; height: 20; background: black; }
-#status-panel { height: 15; color: #afa73e; }
-#highscores-panel { height: 11; }
+#status-panel { height: 16; color: #afa73e; }
+#highscores-panel { height: 10; }
 #highscores { height: 1fr; color: #afa73e; }
 .table-heading { color: #3e99af; text-style: bold; }
 #control-buttons { height: 3; }

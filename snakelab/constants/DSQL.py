@@ -6,7 +6,7 @@ from typing import Final
 class DSQL:
     """Constants for mapping application configurations to SQL columns."""
 
-    # Stable SQL column order, matching database-v3.sql.
+    # Stable SQL column order; new fields are appended by database-v6.sql.
     CONFIGURATION_PATHS: Final[tuple[str, ...]] = (
         "epochs",
         "seed",
@@ -34,4 +34,8 @@ class DSQL:
         "epsilon.initial",
         "epsilon.minimum",
         "epsilon.decay",
+        "model.type",
+        "model.heads",
+        "epsilon_nice.probability",
+        "epsilon_nice.steps",
     )
