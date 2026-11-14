@@ -17,12 +17,16 @@ from snakelab.constants.DModule import DModule
 from snakelab.constants.DMyLog import DMyLogDef
 from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.nn.EpsilonAlgo import EpsilonAlgo
+from snakelab.nn.EpsilonNiceAlgo import EpsilonNiceAlgo
+from snakelab.nn.ActionPolicy import ActionPolicy
 from snakelab.game.GameState import GameState
 from snakelab.constants.DGame import Outcome
 from snakelab.game.RewardConfig import RewardConfig
 from snakelab.game.SnakeGame import SnakeGame
 from snakelab.nn.ReplayMemory import ReplayMemory, Transition
 from snakelab.nn.RNNModel import RNNModel
+from snakelab.nn.SequenceModel import SequenceModel
+from snakelab.nn.TransformerModel import TransformerModel
 from snakelab.server.SimulationControl import SimulationControl
 from snakelab.game.BoardSnapshot import BoardSnapshot
 from snakelab.zmq.FrameTelemetry import FrameTelemetry
@@ -43,6 +47,7 @@ class EpisodeResult:
     epsilon: float
     epsilon_injections: int
     loss: float | None
+    epsilon_nice_injections: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +60,7 @@ class EpisodeResult:
             "epsilon": self.epsilon,
             "epsilon_injections": self.epsilon_injections,
             "loss": self.loss,
+            "epsilon_nice_injections": self.epsilon_nice_injections,
         }
 
 
@@ -84,6 +90,7 @@ class SimulationState:
     high_score: int = 0
     total_reward: float = 0.0
     total_epsilon_injections: int = 0
+    total_epsilon_nice_injections: int = 0
     last_loss: float | None = None
     episodes: list[EpisodeResult] = field(default_factory=list)
     high_score_snapshot: HighScoreSnapshot | None = None
@@ -96,6 +103,7 @@ class SimulationState:
         self.high_score = max(self.high_score, result.score)
         self.total_reward += result.reward
         self.total_epsilon_injections += result.epsilon_injections
+        self.total_epsilon_nice_injections += result.epsilon_nice_injections
         self.last_loss = result.loss
 
     def summary(self) -> dict[str, Any]:
@@ -106,6 +114,7 @@ class SimulationState:
             "high_score": self.high_score,
             "total_reward": self.total_reward,
             "epsilon_injections": self.total_epsilon_injections,
+            "epsilon_nice_injections": self.total_epsilon_nice_injections,
             "last_loss": self.last_loss,
         }
 
@@ -156,10 +165,12 @@ class Simulator:
         self._location = "CPU"
 
         self.state = SimulationState(total_epochs=self.config["epochs"])
-        self.model: RNNModel | None = None
+        self.model: SequenceModel | None = None
         self.replay: ReplayMemory | None = None
         self.trainer: Trainer | None = None
         self.epsilon: EpsilonAlgo | None = None
+        self.epsilon_nice: EpsilonNiceAlgo | None = None
+        self.policy: ActionPolicy | None = None
         self._started = False
 
     @property
@@ -189,13 +200,18 @@ class Simulator:
         epsilon = self.config["epsilon"]
         log_args = self._component_log_args()
 
-        self.model = RNNModel(
+        model_args = dict(
             seed=_derived_seed(master_seed, "model"),
-            hidden_size=model_config["hidden_size"],
-            dropout=model_config["dropout"],
-            layers=model_config["layers"],
-            **log_args,
+            hidden_size=model_config["hidden_size"], dropout=model_config["dropout"],
+            layers=model_config["layers"], **log_args,
         )
+        if model_config["type"] == "transformer":
+            self.model = TransformerModel(
+                **model_args, heads=model_config["heads"],
+                max_sequence_length=training["sequence_length"],
+            )
+        else:
+            self.model = RNNModel(**model_args)
         self.replay = ReplayMemory(
             state_size=DGameDef.OBSERVATION_SIZE,
             sequence_length=training["sequence_length"],
@@ -221,6 +237,14 @@ class Simulator:
             decay=epsilon["decay"],
             **log_args,
         )
+        self.epsilon_nice = EpsilonNiceAlgo(
+            rng=random.Random(_derived_seed(master_seed, "epsilon_nice")),
+            **self.config["epsilon_nice"], **log_args,
+        )
+        self.policy = ActionPolicy(
+            model=self.model, epsilon=self.epsilon, epsilon_nice=self.epsilon_nice,
+            device=self.device,
+        )
 
     def _new_game(self, episode: int) -> SnakeGame:
         game = self.config["game"]
@@ -234,18 +258,6 @@ class Simulator:
             rewards=RewardConfig(**reward_values),
         )
 
-    def _select_action(self, history: deque[tuple[float, ...]]) -> int:
-        random_action = self.epsilon.maybe_random_action()
-        if random_action is not None:
-            return random_action
-
-        states = self._torch.as_tensor(
-            tuple(history), dtype=self._torch.float32, device=self.device
-        )
-        self.model.eval()
-        with self._torch.no_grad():
-            return int(self.model(states).argmax(dim=1).item())
-
     async def _run_episode(self, episode: int) -> EpisodeResult:
         game = self._new_game(episode)
         current_board = game.state
@@ -257,9 +269,10 @@ class Simulator:
         )
         episode_reward = 0.0
         episode_epsilon = self.epsilon.current
+        self.epsilon_nice.reset_episode()
 
         while True:
-            action = self._select_action(history)
+            action = self.policy.select_action(history, game.state)
             step = game.step(action)
             frames.append(HighScoreSnapshot(episode, step.new_state))
             if step.new_state.score > current_board.score:
@@ -309,6 +322,7 @@ class Simulator:
             epsilon=episode_epsilon,
             epsilon_injections=self.epsilon.episode_injections,
             loss=loss,
+            epsilon_nice_injections=self.epsilon_nice.episode_injections,
         )
         self.epsilon.episode_completed()
         if (
@@ -340,6 +354,7 @@ class Simulator:
                     f"Completed epoch {episode}/{self.config['epochs']}: "
                     f"score={result.score}, high_score={self.state.high_score}"
                 )
+                self.log.info(f"EpsilonNice statistics: {self.epsilon_nice.get_stats()}")
             if episode < self.config["epochs"]:
                 await self.runtime_control.checkpoint()
 

@@ -280,6 +280,7 @@ class SnakeLabClient(App[None]):
                         yield Label("Outcome: --", id="outcome")
                         yield Label("Total steps: 0", id="total-steps")
                         yield Label("Epsilon injections: 0", id="injections")
+                        yield Label("Nice overrides: 0", id="nice-injections")
                     with Vertical(id="highscores-panel"):
                         yield Label("Episode  Score  Received", classes="table-heading")
                         yield RichLog(id="highscores", max_lines=200, wrap=False)
@@ -408,6 +409,7 @@ class SnakeLabClient(App[None]):
             self.query_one("#configuration-values", Label).update("Configuration unavailable for this run")
             for selector, value in (("reward", "Reward: --"), ("outcome", "Outcome: --"),
                                     ("epsilon", "Epsilon: --"), ("loss", "Loss: --"),
+                                    ("nice-injections", "Nice overrides: 0"),
                                     ("total-steps", "Total steps: 0"), ("injections", "Epsilon injections: 0")):
                 self.query_one(f"#{selector}", Label).update(value)
             self._frames_until_display = 0
@@ -546,6 +548,7 @@ class SnakeLabClient(App[None]):
         for field, selector, label in (
             ("total_steps", "total-steps", "Total steps"),
             ("epsilon_injections", "injections", "Epsilon injections"),
+            ("epsilon_nice_injections", "nice-injections", "Nice overrides"),
         ):
             if field in payload:
                 self.query_one(f"#{selector}", Label).update(f"{label}: {payload[field]}")

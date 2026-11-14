@@ -19,6 +19,7 @@ class SimulationRun:
     high_score_frames: list[dict[str, Any]] = field(default_factory=list)
     total_reward: float = 0.0
     epsilon_injections: int = 0
+    epsilon_nice_injections: int = 0
     last_loss: float | None = None
     last_episode: EpisodeResult | None = None
     error: str | None = None

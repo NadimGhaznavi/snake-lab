@@ -66,21 +66,17 @@ class GameRules:
             state.snake_head.x + direction.dx,
             state.snake_head.y + direction.dy,
         )
-        if not state.contains(new_head):
+        collision = state.collision_at(new_head)
+        if collision is not None:
             new_state = replace(state, move_count=move_count)
             return GameRules._result(
-                new_state, rewards.wall, Outcome.WALL, True
+                new_state,
+                rewards.wall if collision is Outcome.WALL else rewards.snake,
+                collision,
+                True,
             )
 
         ate_food = new_head == state.food_position
-        occupied_body = (
-            state.snake_body if ate_food else state.snake_body[:-1]
-        )
-        if new_head in occupied_body:
-            new_state = replace(state, move_count=move_count)
-            return GameRules._result(
-                new_state, rewards.snake, Outcome.SNAKE, True
-            )
 
         if ate_food:
             body = (state.snake_head,) + state.snake_body
@@ -143,13 +139,7 @@ class GameRules:
             state.snake_head.x + direction.dx,
             state.snake_head.y + direction.dy,
         )
-        if not state.contains(new_head):
-            return True
-        ate_food = new_head == state.food_position
-        occupied_body = (
-            state.snake_body if ate_food else state.snake_body[:-1]
-        )
-        return new_head in occupied_body
+        return state.collision_at(new_head) is not None
 
     @staticmethod
     def _food_distance(head: Position, food: Position) -> int:

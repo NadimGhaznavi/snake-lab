@@ -1,4 +1,4 @@
-"""Batched recurrent Double DQN training for Snake Lab."""
+"""Batched sequence-model Double DQN training for Snake Lab."""
 
 from copy import deepcopy
 
@@ -9,17 +9,17 @@ from snakelab.constants.DMyLog import DMyLogDef
 from snakelab.constants.DSnakeLab import DSnakeLab
 from snakelab.constants.DTrainer import DTrainer
 from snakelab.nn.ReplayMemory import ReplayMemory
-from snakelab.nn.RNNModel import RNNModel
+from snakelab.nn.SequenceModel import SequenceModel
 from snakelab.utils.MyLog import MyLog
 
 
 class Trainer:
-    """Train an RNN model from dense replay-memory batches."""
+    """Train a sequence model from dense replay-memory batches."""
 
     def __init__(
         self,
         *,
-        model: RNNModel,
+        model: SequenceModel,
         replay: ReplayMemory,
         device: torch.device,
         learning_rate: float,
@@ -91,18 +91,16 @@ class Trainer:
         )
 
         self.model.train()
-        predicted_all = self.model.forward_sequence(states)
-        predicted = predicted_all[:, -1, :].gather(
+        predicted = self.model(states).gather(
             1, actions.unsqueeze(-1)
         ).squeeze(-1)
 
         with torch.no_grad():
             self.model.eval()
-            online_next = self.model.forward_sequence(next_states)[:, -1, :]
+            online_next = self.model(next_states)
             next_actions = online_next.argmax(dim=1, keepdim=True)
             self.model.train()
-            target_all = self.target_model.forward_sequence(next_states)
-            target_next = target_all[:, -1, :].gather(
+            target_next = self.target_model(next_states).gather(
                 1, next_actions
             ).squeeze(-1)
             target = (

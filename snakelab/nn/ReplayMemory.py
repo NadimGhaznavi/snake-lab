@@ -1,4 +1,4 @@
-"""Fixed-shape, episode-aware replay memory for recurrent training."""
+"""Fixed-shape, episode-aware replay memory for sequence-model training."""
 
 from bisect import bisect_right
 from collections import deque
