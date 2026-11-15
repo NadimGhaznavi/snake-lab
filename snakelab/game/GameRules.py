@@ -44,11 +44,8 @@ class GameRules:
         *,
         rng: random.Random,
         rewards: RewardConfig,
-        max_moves_multiplier: int,
     ) -> StepResult:
         """Apply an action deterministically for the supplied RNG state."""
-        if type(max_moves_multiplier) is not int or max_moves_multiplier <= 0:
-            raise ValueError("max_moves_multiplier must be a positive integer")
         if state.food_position is None:
             raise RuntimeError("cannot step a completed game state")
 
@@ -56,7 +53,7 @@ class GameRules:
         direction = _next_direction(state.direction, normalized)
         move_count = state.move_count + 1
 
-        if move_count > max_moves_multiplier * state.snake_length:
+        if move_count > state.move_limit:
             new_state = replace(state, move_count=move_count)
             return GameRules._result(
                 new_state, rewards.max_moves, Outcome.MAX_MOVES, True

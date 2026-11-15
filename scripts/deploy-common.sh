@@ -30,6 +30,12 @@ validate_release_checkout() {
     local path
     local -a required_files=(
         "client/lab-client"
+        "examples/sample-config.json"
+        "examples/transformer-config.json"
+        "examples/rnn-epsilon.json"
+        "examples/rnn-epsilon-nice.json"
+        "examples/transformer-epsilon.json"
+        "examples/transformer-epsilon-nice.json"
         "snakelab/constants/__init__.py"
         "snakelab/constants/DEpsilon.py"
         "snakelab/constants/DGame.py"
@@ -90,6 +96,7 @@ validate_release_checkout() {
         "snakelab/schemas/database-v4.sql"
         "snakelab/schemas/database-v5.sql"
         "snakelab/schemas/database-v6.sql"
+        "snakelab/schemas/database-v7.sql"
         "snakelab/schemas/simulation-config-v2.schema.json"
         "snakelab/server/__init__.py"
         "snakelab/server/__main__.py"
@@ -133,6 +140,8 @@ apply_database_schema() {
         <"${PROJECT_DIR}/snakelab/schemas/database-v5.sql"
     mariadb --batch "${db_name}" \
         <"${PROJECT_DIR}/snakelab/schemas/database-v6.sql"
+    mariadb --batch "${db_name}" \
+        <"${PROJECT_DIR}/snakelab/schemas/database-v7.sql"
 }
 
 ensure_service_account() {
@@ -245,6 +254,8 @@ deploy_application() {
 }
 
 deploy_runtime_files() {
+    install -d -m 0755 "${INSTALL_DIR}/examples"
+    install -m 0644 "${PROJECT_DIR}/examples/"*.json "${INSTALL_DIR}/examples/"
     install -m 0644 "${PROJECT_DIR}/requirements.txt" \
         "${INSTALL_DIR}/requirements.txt"
     install -m 0644 \

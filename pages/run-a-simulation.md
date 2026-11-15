@@ -21,6 +21,11 @@ lab-client --host wintermute
 Choose **Submit config**, select a JSON file, and submit it. The client displays
 the live game, run progress, score, epsilon, loss, and lifecycle events.
 
+Four [sample configurations](/pages/sample-config.html) are installed in
+`/opt/prod/snakelab/examples/`, covering RNN and Transformer models with ordinary
+epsilon, each with EpsilonNice enabled or disabled. In **Submit config**, enter
+a full path such as `/opt/prod/snakelab/examples/transformer-epsilon-nice.json`.
+
 Use **Display every X frames** to hold snapshots between board updates. Enter a
 positive whole number, such as `10`, to show one in every ten received frames;
 `1` displays all received frames. This client-only setting applies immediately

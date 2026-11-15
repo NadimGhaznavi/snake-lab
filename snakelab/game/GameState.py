@@ -22,10 +22,15 @@ class GameState:
     grid_size: tuple[int, int]
     seed: int
     episode_id: int
+    max_moves_multiplier: int
 
     @property
     def snake_length(self) -> int:
         return len(self.snake_body) + 1
+
+    @property
+    def move_limit(self) -> int:
+        return self.max_moves_multiplier * self.snake_length
 
     def contains(self, position: Position) -> bool:
         """Return whether a position is within the board."""
@@ -43,11 +48,12 @@ class GameState:
         return None
 
     def observation(self) -> tuple[float, ...]:
-        """Return Hydra's 23 features: danger, heading, food, length bits.
+        """Return Hydra's 23 features followed by the remaining move budget.
 
         Danger is ordered left/straight/right, separately for body and wall.
         Heading and food use fixed board axes, ordered left/right/up/down.
         Length is big-endian and saturates at 127 instead of wrapping.
+        The final value is the unused fraction of the current move limit.
         """
         directions = (
             self.direction.turn_left(), self.direction, self.direction.turn_right(),
@@ -79,4 +85,5 @@ class GameState:
             )),
             *map(float, food_features),
             *(float((length >> bit) & 1) for bit in range(bits - 1, -1, -1)),
+            max(0.0, 1.0 - self.move_count / self.move_limit),
         )

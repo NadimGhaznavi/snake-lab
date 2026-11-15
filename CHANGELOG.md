@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-14 @ 19:25
+
+- Persist each episode's total reward, termination outcome, and ordinary
+  epsilon injection count atomically with episode results and run progress.
+  Include database schema v7 in installation and deployment.
+- Append the normalized remaining move budget to the shared feature vector
+  so both RNN and Transformer models can observe the move-limit state.
+  The compact observation now contains 24 values; the original 23 retain
+  their order. Earlier model input dimensions are incompatible.
+- Reject zero and negative episode counts while retaining the default of 500.
+- Allow finite fractional reward values and configurable food/collision/move
+  rewards with sign constraints. Retain distance shaping bounds and use
+  smaller balanced defaults of +1/-1. Document EpsilonNice activation at
+  episode 227 under the default schedule.
+- Add complete 500-episode samples for RNN and Transformer, each with ordinary
+  epsilon and with EpsilonNice enabled or disabled. Refresh the original sample
+  files to match the defaults and bundle all examples during installation.
+- Resolve the TUI's initial sample path from the application directory so it
+  works when the client is launched from another directory.
+
 ## [3.0.0] - 2026-11-14 @ 18:51
 
 ## [2.1.1] - 2026-11-05 @ 19:21

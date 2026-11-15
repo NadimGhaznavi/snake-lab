@@ -12,6 +12,8 @@ from snakelab.zmq.Protocol import TOPIC_EPISODE, TOPIC_FRAME, TOPIC_RUN
 from snakelab.zmq.FrameTelemetry import FrameTelemetry
 from snakelab.zmq.TelemetryEnvelope import TelemetryEnvelope
 from snakelab.client import SnakeLabClient, TelemetryReceived
+from snakelab.client.AsyncLabClient import load_config
+from snakelab.server.Configuration import simulation_config_template
 
 
 class FakeControlClient:
@@ -319,6 +321,34 @@ class SnakeLabClientTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(app._run_state, "queued")
 
         self.assertTrue(control.closed)
+
+    async def test_sample_configs_load_and_submit_through_the_tui(self) -> None:
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        template = simulation_config_template()
+        for architecture in ("rnn", "transformer"):
+            for nice in (False, True):
+                name = f"{architecture}-epsilon{'-nice' if nice else ''}.json"
+                with self.subTest(config=name):
+                    path = examples / name
+                    config = load_config(path)
+                    self.assertEqual(template.resolve(config), config)
+                    self.assertEqual(config["model"]["type"], architecture)
+                    self.assertEqual(config["epsilon_nice"]["probability"], .005 if nice else 0)
+                    self.assertEqual(config["epochs"], 500)
+                    control = FakeControlClient()
+                    app = SnakeLabClient(telemetry_port=59999, control_client=control)
+                    self.assertEqual(Path(app._last_config_path), examples / "sample-config.json")
+                    async with app.run_test(size=(120, 40)) as pilot:
+                        await pilot.pause()
+                        self.assertTrue(await pilot.click("#submit-config"))
+                        await pilot.pause()
+                        app.screen.query_one("#config-path", Input).value = str(path)
+                        await pilot.click("#config-submit")
+                        for _ in range(3):
+                            await pilot.pause()
+                        self.assertIn(("submit", config), control.operations)
+                        self.assertEqual(app._run_state, "queued")
+                    self.assertTrue(control.closed)
 
     async def test_live_messages_update_board_and_status_panes(self) -> None:
         control = FakeControlClient()

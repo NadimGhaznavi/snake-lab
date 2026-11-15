@@ -11,6 +11,7 @@
       "description": "Number of complete Snake episodes to execute.",
       "type": "integer",
       "default": 500,
+      "minimum": 1,
       "x-snakelab-unit": "episodes"
     },
     "seed": {
@@ -57,49 +58,47 @@
           "additionalProperties": false,
           "properties": {
             "food": {
-              "type": "integer",
-              "const": 10,
+              "type": "number",
+              "minimum": 0,
               "default": 10,
               "description": "Reward for eating food."
             },
             "wall": {
-              "type": "integer",
-              "const": -10,
+              "type": "number",
+              "maximum": 0,
               "default": -10,
               "description": "Penalty for colliding with a wall."
             },
             "snake": {
-              "type": "integer",
-              "const": -10,
+              "type": "number",
+              "maximum": 0,
               "default": -10,
               "description": "Penalty for colliding with the snake."
             },
             "max_moves": {
-              "type": "integer",
-              "const": -10,
+              "type": "number",
+              "maximum": 0,
               "default": -10,
               "description": "Penalty when the maximum move limit is reached."
             },
             "empty": {
-              "type": "integer",
-              "const": 0,
+              "type": "number",
+              "maximum": 0,
               "default": 0,
               "description": "Reward for a normal move that does not eat food."
             },
             "closer_to_food": {
-              "type": "integer",
-              "default": 2,
+              "type": "number",
+              "default": 1,
               "minimum": 0,
               "maximum": 6,
-              "multipleOf": 1,
               "description": "Reward for moving closer to the food."
             },
             "further_from_food": {
-              "type": "integer",
-              "default": -2,
+              "type": "number",
+              "default": -1,
               "minimum": -6,
               "maximum": 0,
-              "multipleOf": 1,
               "description": "Penalty for moving farther from the food."
             }
           },

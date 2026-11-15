@@ -153,7 +153,7 @@ class SimulationDatabaseTests(unittest.TestCase):
         self.assertEqual(cursor.execute.call_count, 2)
         self.assertEqual(
             cursor.execute.call_args_list[0].args[1],
-            ("run-1", 8, 4, 27, 0.8, 0.125, 0),
+            ("run-1", 8, 4, 27, 0.8, 0.125, 0, 3.5, "wall", 5),
         )
         self.assertEqual(
             cursor.execute.call_args_list[1].args[1], (8, 6, "run-1")

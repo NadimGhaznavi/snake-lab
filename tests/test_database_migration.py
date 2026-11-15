@@ -68,6 +68,7 @@ class ConfigurationMigrationTests(unittest.TestCase):
                     "VALUES ('legacy', 1, 3, 100)"
                 )
                 apply(6)
+                apply(7)
                 cursor.execute(
                     "SELECT model_type, model_heads, epsilon_nice_probability, epsilon_nice_steps "
                     "FROM configurations WHERE run_id = 'legacy'"
@@ -75,12 +76,15 @@ class ConfigurationMigrationTests(unittest.TestCase):
                 self.assertEqual(cursor.fetchone(), ("rnn", 4, 0., 20))
                 cursor.execute("SELECT epsilon_nice_injections FROM simulation_episodes")
                 self.assertEqual(cursor.fetchone(), (0,))
+                cursor.execute("SELECT reward, outcome, epsilon_injections FROM simulation_episodes")
+                self.assertEqual(cursor.fetchone(), (None, None, None))
                 cursor.execute("DELETE FROM simulation_runs WHERE run_id = 'legacy'")
                 columns = ", ".join(p.replace(".", "_") for p in DSQL.CONFIGURATION_PATHS)
                 cursor.execute(f"SELECT run_id, {columns} FROM configurations")
                 self.assertEqual(cursor.fetchall(), ())
                 apply(3)
                 apply(6)
+                apply(7)
                 cursor.execute("SELECT COUNT(*) FROM configurations")
                 self.assertEqual(cursor.fetchone()[0], 0)
 
@@ -92,6 +96,7 @@ class ConfigurationMigrationTests(unittest.TestCase):
                 self.assertEqual(cursor.fetchone(), configuration_values(config))
                 apply(3)
                 apply(6)
+                apply(7)
                 cursor.execute("SELECT COUNT(*) FROM configurations")
                 self.assertEqual(cursor.fetchone()[0], 2)
                 cursor.execute("DELETE FROM simulation_runs WHERE run_id = 'new-1'")

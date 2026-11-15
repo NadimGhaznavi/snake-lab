@@ -94,11 +94,16 @@ class DeploymentTests(unittest.TestCase):
         self.assertTrue((self.target / 'snakelab/schemas/database-v4.sql').is_file())
         self.assertTrue((self.target / 'snakelab/schemas/database-v5.sql').is_file())
         self.assertTrue((self.target / 'snakelab/schemas/database-v6.sql').is_file())
+        self.assertTrue((self.target / 'snakelab/schemas/database-v7.sql').is_file())
         for module in ('SequenceModel', 'TransformerModel', 'ActionPolicy', 'EpsilonNiceAlgo'):
             self.assertTrue((self.target / f'snakelab/nn/{module}.py').is_file())
         self.assertTrue((self.target / 'snakelab/server/SimulationServer.py').is_file())
         self.assertFalse((self.target / 'app').exists())
         self.assertTrue((self.target / 'scripts/restart.sh').is_file())
+        for sample in (ROOT / 'examples').glob('*.json'):
+            installed = self.target / 'examples' / sample.name
+            self.assertEqual(json.loads(installed.read_text()), json.loads(sample.read_text()))
+            self.assertEqual(installed.stat().st_mode & 0o777, 0o644)
         network = json.loads((self.target / 'conf/snakelab.json').read_text())
         self.assertEqual(set(network['network']), {'control', 'telemetry', 'events'})
         loaded = subprocess.run(
