@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Profiled in DEV looks good.
+
 ## [3.0.1] - 2026-11-14 @ 19:25
 
 - Persist each episode's total reward, termination outcome, and ordinary
