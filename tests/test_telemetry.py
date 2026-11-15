@@ -54,6 +54,7 @@ class TelemetryContractTests(unittest.TestCase):
             grid_size=(7, 5),
             seed=7,
             episode_id=3,
+            max_moves_multiplier=100,
         )
         result = StepResult(
             new_state=state,

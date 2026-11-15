@@ -9,7 +9,7 @@ class DGameDef:
 
     ACTION_COUNT: Final[int] = 3
     STATE_LENGTH_BITS: Final[int] = 7
-    OBSERVATION_SIZE: Final[int] = 16 + STATE_LENGTH_BITS
+    OBSERVATION_SIZE: Final[int] = 16 + STATE_LENGTH_BITS + 1
 
 
 class Action(IntEnum):

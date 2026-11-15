@@ -207,7 +207,7 @@ class SimulationLoopTests(unittest.IsolatedAsyncioTestCase):
                 simulator = Simulator(config, log=FakeLog())
                 state = await simulator.run()
                 self.assertEqual(state.completed_epochs, 12)
-                self.assertEqual(simulator.replay.state_size, 23)
+                self.assertEqual(simulator.replay.state_size, DGameDef.OBSERVATION_SIZE)
                 self.assertIsNotNone(state.last_loss)
                 self.assertTrue(math.isfinite(state.last_loss))
                 self.assertGreater(state.total_epsilon_nice_injections, 0)

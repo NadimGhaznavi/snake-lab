@@ -1,5 +1,6 @@
 import random
 import unittest
+from dataclasses import replace
 
 from snakelab.constants.DGame import DGameDef
 from snakelab.constants.DNNet import DNetDef
@@ -44,6 +45,7 @@ def make_state(
     food: Position | None = Position(4, 2),
     grid_size: tuple[int, int] = (5, 5),
     move_count: int = 0,
+    max_moves_multiplier: int = 100,
 ) -> GameState:
     return GameState(
         snake_head=head,
@@ -55,6 +57,7 @@ def make_state(
         grid_size=grid_size,
         seed=7,
         episode_id=1,
+        max_moves_multiplier=max_moves_multiplier,
     )
 
 
@@ -64,7 +67,6 @@ def step(state: GameState, action: Action | int):
         action,
         rng=random.Random(7),
         rewards=TEST_REWARDS,
-        max_moves_multiplier=100,
     )
 
 
@@ -168,7 +170,6 @@ class GameRulesTests(unittest.TestCase):
             Action.STRAIGHT,
             rng=random.Random(7),
             rewards=TEST_REWARDS,
-            max_moves_multiplier=100,
         )
 
         self.assertTrue(result.done)
@@ -204,13 +205,14 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(facing_right.observation()[10:16], (0., 1., 0., 0., 0., 1.))
         self.assertEqual(facing_down.observation()[10:16], (0., 0., 0., 1., 1., 0.))
 
-    def test_exact_hydra_feature_order(self) -> None:
+    def test_exact_feature_order(self) -> None:
         self.assertEqual(make_state().observation(), (
             0., 0., 0.,  # body danger: left, straight, right
             0., 0., 0.,  # wall danger: left, straight, right
             0., 1., 0., 0.,  # heading: left, right, up, down
             0., 1., 0., 0., 0., 1.,  # food directions, same X, same Y
             0., 0., 0., 0., 0., 1., 1.,  # length 3, big-endian
+            1.,  # remaining move budget
         ))
 
     def test_separate_body_and_wall_danger(self) -> None:
@@ -249,7 +251,35 @@ class ObservationTests(unittest.TestCase):
         for length in (1, 3, 127, 128, 400):
             state = make_state(body=tuple(Position(0, index) for index in range(length - 1)))
             expected = tuple(float(bit) for bit in f'{min(length, 127):07b}')
-            self.assertEqual(state.observation()[16:], expected)
+            self.assertEqual(state.observation()[16:23], expected)
+
+    def test_move_budget_distinguishes_otherwise_identical_observations(self):
+        fresh = make_state(max_moves_multiplier=10)
+        halfway = replace(fresh, move_count=15)
+        expired = replace(fresh, move_count=30)
+        self.assertEqual(fresh.observation()[:-1], expired.observation()[:-1])
+        self.assertEqual(fresh.observation()[-1], 1.)
+        self.assertEqual(halfway.observation()[-1], .5)
+        self.assertEqual(expired.observation()[-1], 0.)
+        self.assertEqual(replace(expired, move_count=31).observation()[-1], 0.)
+        result = GameRules.step(
+            expired, Action.STRAIGHT, rng=random.Random(7), rewards=TEST_REWARDS,
+        )
+        self.assertEqual(result.outcome, Outcome.MAX_MOVES)
+        self.assertEqual(result.observation[-1], 0.)
+
+    def test_growth_updates_budget_using_the_actual_snake_length(self):
+        state = make_state(food=Position(3, 2), move_count=150)
+        result = step(state, Action.STRAIGHT)
+        self.assertEqual(state.observation()[-1], .5)
+        self.assertAlmostEqual(result.observation[-1], 1 - 151 / 400)
+
+    def test_reset_restores_the_configured_budget(self):
+        game = make_game(max_moves_multiplier=7)
+        self.assertEqual(game.state.move_limit, 21)
+        self.assertAlmostEqual(game.step(Action.STRAIGHT).observation[-1], 20 / 21)
+        self.assertEqual(game.reset()[-1], 1.)
+        self.assertEqual(game.state.move_limit, 21)
 
     def test_no_food_has_no_food_features(self) -> None:
         self.assertEqual(make_state(food=None).observation()[10:16], (0.,) * 6)

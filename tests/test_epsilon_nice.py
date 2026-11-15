@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import torch
 
-from snakelab.constants.DGame import Action
+from snakelab.constants.DGame import Action, DGameDef
 from snakelab.game.Direction import Direction
 from snakelab.game.GameRules import GameRules
 from snakelab.game.Position import Position
@@ -103,7 +103,7 @@ class ActionPolicyTests(unittest.TestCase):
         policy = ActionPolicy(model=model, epsilon=epsilon, epsilon_nice=nice, device=torch.device('cpu'))
         state = make_state()
         self.assertEqual(policy.select_action(deque([state.observation()] * 4), state), 2)
-        self.assertEqual(model.call_args.args[0].shape, (4, 23))
+        self.assertEqual(model.call_args.args[0].shape, (4, DGameDef.OBSERVATION_SIZE))
         nice.select_action.assert_called_once_with(1, state, 0.)
 
 

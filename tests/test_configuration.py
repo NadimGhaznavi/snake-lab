@@ -23,8 +23,8 @@ class ConfigTemplateTests(unittest.TestCase):
                     "snake": -10.0,
                     "max_moves": -10.0,
                     "empty": 0.0,
-                    "closer_to_food": 2,
-                    "further_from_food": -2,
+                    "closer_to_food": 1,
+                    "further_from_food": -1,
                 },
             },
             "model": {
@@ -64,6 +64,27 @@ class ConfigTemplateTests(unittest.TestCase):
             with self.subTest(epochs=epochs):
                 with self.assertRaises(ConfigurationError):
                     self.template.resolve({"epochs": epochs})
+
+    def test_non_positive_epochs_are_rejected(self):
+        for epochs in (0, -1):
+            with self.subTest(epochs=epochs):
+                with self.assertRaisesRegex(ConfigurationError, r'\$\.epochs'):
+                    self.template.resolve({"epochs": epochs})
+        self.assertEqual(self.template.resolve({"epochs": 1})["epochs"], 1)
+
+    def test_fractional_reward_configuration_preserves_submitted_values(self):
+        rewards = dict(food=12.5, wall=-15.5, snake=-11.25, max_moves=-4.5,
+                       empty=-.01, closer_to_food=.1, further_from_food=-.1)
+        resolved = self.template.resolve({"game": {"rewards": rewards}})
+        self.assertEqual(resolved["game"]["rewards"], rewards)
+
+    def test_reward_signs_types_and_finiteness_are_validated(self):
+        for name in self.defaults["game"]["rewards"]:
+            wrong_sign = -1 if name in ("food", "closer_to_food") else 1
+            for value in (wrong_sign, True, "1", float('nan'), float('inf'), -float('inf')):
+                with self.subTest(name=name, value=value):
+                    with self.assertRaisesRegex(ConfigurationError, rf'\$\.game\.rewards\.{name}'):
+                        self.template.resolve({"game": {"rewards": {name: value}}})
 
     def test_unknown_field_is_rejected(self) -> None:
         with self.assertRaises(ConfigurationError):

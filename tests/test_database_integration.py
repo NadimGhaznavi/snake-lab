@@ -18,6 +18,7 @@ import uuid
 import pymysql
 
 from snakelab.constants.DSQL import DSQL
+from snakelab.constants.DGame import Outcome
 from snakelab.client.ConfigurationReader import ConfigurationReader
 from snakelab.database.DBHelper import config_hash, configuration_values
 from snakelab.database.DbMgr import DatabaseError, DbMgr
@@ -37,7 +38,7 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.addCleanup(self.execute, f"DROP DATABASE IF EXISTS `{self.database}`")
         self.admin.select_db(self.database)
         schemas = Path(__file__).resolve().parents[1] / "snakelab/schemas"
-        for version in range(1, 7):
+        for version in range(1, 8):
             sql = (schemas / f"database-v{version}.sql").read_text()
             sql = "\n".join(line for line in sql.splitlines() if not line.startswith("--"))
             for statement in sql.split(";"):
@@ -69,7 +70,8 @@ class DatabaseIntegrationTests(unittest.TestCase):
 
     def episode(self, number=1, steps=100):
         return SimpleNamespace(episode=number, score=4, steps=steps, epsilon=0.9, loss=0.125,
-                               epsilon_nice_injections=2)
+                               epsilon_nice_injections=2, reward=3.125,
+                               outcome=Outcome.SNAKE, epsilon_injections=7)
 
     def test_submission_after_idle_connection_timeout(self):
         connection = self.manager._connection
@@ -135,11 +137,29 @@ class DatabaseIntegrationTests(unittest.TestCase):
         self.assertEqual(self.execute("SELECT loss FROM simulation_episodes")[0]["loss"], 0.125)
         self.assertEqual(self.execute("SELECT epsilon_nice_injections FROM simulation_episodes")[0]
                          ["epsilon_nice_injections"], 2)
+        self.assertEqual(self.execute(
+            "SELECT reward, outcome, epsilon_injections FROM simulation_episodes"
+        ), [{"reward": 3.125, "outcome": "snake", "epsilon_injections": 7}])
         snapshot = {"episode": 1, "board": {"score": 4}}
         self.store.finish_run("run", "completed", 1, 4, high_score_snapshot=snapshot)
         self.assertEqual(reader.get_high_score_snapshot("run")["high_score_snapshot"], snapshot)
         self.assertEqual(self.row("run")["status"], "completed")
         self.assertIsInstance(self.row("run")["completed_at"], datetime)
+
+    def test_terminal_diagnostics_are_committed_for_each_episode(self):
+        self.create()
+        outcomes = (Outcome.WALL, Outcome.SNAKE, Outcome.MAX_MOVES, Outcome.BOARD_FILLED)
+        for number, outcome in enumerate(outcomes, start=1):
+            result = self.episode(number)
+            result.outcome = outcome
+            result.reward = -.125 * number
+            result.epsilon_injections = number - 1
+            self.store.record_episode("run", result, number, 4)
+        self.assertEqual(self.execute(
+            "SELECT episode, reward, outcome, epsilon_injections "
+            "FROM simulation_episodes WHERE run_id = 'run' ORDER BY episode"
+        ), [dict(episode=n, reward=-.125 * n, outcome=outcome.value, epsilon_injections=n - 1)
+            for n, outcome in enumerate(outcomes, start=1)])
 
     def test_winning_frames_completion_rollback_and_cascade(self):
         self.create()

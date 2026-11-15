@@ -232,7 +232,9 @@ class SnakeLabClient(App[None]):
         self._reported_missing_high_score = 0
         self._control_busy = False
         self._high_score = 0
-        self._last_config_path = "examples/sample-config.json"
+        self._last_config_path = str(
+            Path(__file__).resolve().parents[2] / "examples/sample-config.json"
+        )
 
     def compose(self) -> ComposeResult:
         delay_options = [("Off — full speed", 0)] + [

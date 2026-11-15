@@ -180,12 +180,12 @@ not supported.
 ## Configuration Queries
 
 The `configurations` table stores one row per accepted run, linked to
-`simulation_runs.run_id`. Its 26 numeric columns follow the configuration
+`simulation_runs.run_id`. Its 30 setting columns follow the configuration
 schema, replacing dots with underscores: `training.learning_rate` becomes
 `training_learning_rate`, and `game.rewards.food` becomes `game_rewards_food`.
 `seed` uses `BIGINT UNSIGNED`; epoch counts, dimensions, lengths, and model
 sizes use `INT UNSIGNED`. Rewards and floating-point settings use `DOUBLE`,
-including rewards constrained to integers by configuration schema v2.
+including fractional rewards. `model_type` uses `VARCHAR(16)`.
 Configuration and run creation commit together. Configuration values are stored
 only in `configurations`.
 
@@ -220,6 +220,14 @@ every move of the most recent game tied for the run's highest score. Capture
 retains immutable states in memory during simulation and saves only the final
 winner, atomically with completion. Deleting a run cascades to its frames.
 The migration is safe to reapply and does not backfill old runs.
+
+Schema `snakelab/schemas/database-v7.sql` adds `reward` (`DOUBLE`), `outcome`
+(`VARCHAR(16)`), and `epsilon_injections` (`INT UNSIGNED`) to
+`simulation_episodes`. Each completed episode stores these with its score,
+steps, epsilon, loss, and Nice override count in the same transaction as run
+progress. Outcomes are `wall`, `snake`, `max_moves`, or `board_filled`.
+Older episodes retain `NULL` for diagnostics that were not recorded. The schema
+is safe to reapply; installation includes it automatically.
 
 Retrieve frames over ZMQ with `simulation.highscore_frames` and
 `{"run_id": "..."}`, or `await client.highscore_frames(run_id)`. The response

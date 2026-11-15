@@ -1,5 +1,5 @@
 {
-  "epochs": 1500,
+  "epochs": 500,
   "seed": 1970,
   "game": {
     "board_width": 20,
@@ -12,8 +12,8 @@
       "snake": -10,
       "max_moves": -10,
       "empty": 0,
-      "closer_to_food": 2,
-      "further_from_food": -2
+      "closer_to_food": 1,
+      "further_from_food": -1
     }
   },
   "model": {
