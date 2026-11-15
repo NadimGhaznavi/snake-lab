@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-14 @ 19:25
+
 - Persist each episode's total reward, termination outcome, and ordinary
   epsilon injection count atomically with episode results and run progress.
   Include database schema v7 in installation and deployment.
