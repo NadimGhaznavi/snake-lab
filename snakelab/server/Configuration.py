@@ -1,6 +1,7 @@
 """Public interface for constructing valid Snake Lab configurations."""
 
 import json
+import math
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,9 @@ class Configuration:
             )
 
         game = resolved.get("game", {})
+        for name, value in game.get("rewards", {}).items():
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ConfigurationError(f"$.game.rewards.{name}: must be finite")
         initial_length = game.get("initial_snake_length")
         width = game.get("board_width")
         height = game.get("board_height")

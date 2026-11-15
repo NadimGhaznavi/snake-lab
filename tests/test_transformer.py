@@ -24,7 +24,7 @@ class SequenceModelTests(unittest.TestCase):
     def test_shapes_and_final_values_for_both_models(self):
         for model_type in (RNNModel, TransformerModel):
             model = make_model(model_type).eval()
-            for shape in ((23,), (4, 23), (2, 4, 23)):
+            for shape in ((DNetDef.INPUT_SIZE,), (4, DNetDef.INPUT_SIZE), (2, 4, DNetDef.INPUT_SIZE)):
                 with self.subTest(model=model_type, shape=shape):
                     inputs = torch.randn(shape)
                     sequence = model.forward_sequence(inputs)
@@ -35,12 +35,12 @@ class SequenceModelTests(unittest.TestCase):
     def test_invalid_dimensions_features_and_empty_sequences(self):
         for model_type in (RNNModel, TransformerModel):
             model = make_model(model_type)
-            for shape in ((), (2, 3, 4, 23), (2, 4, 51), (2, 0, 23)):
+            for shape in ((), (2, 3, 4, DNetDef.INPUT_SIZE), (2, 4, 23), (2, 4, 51), (2, 0, DNetDef.INPUT_SIZE)):
                 with self.subTest(model=model_type, shape=shape), self.assertRaises(ValueError):
                     model(torch.zeros(shape))
 
     def test_same_seed_reproduces_parameters_and_outputs(self):
-        states = torch.randn(2, 4, 23)
+        states = torch.randn(2, 4, DNetDef.INPUT_SIZE)
         for model_type in (RNNModel, TransformerModel):
             first, second = make_model(model_type).eval(), make_model(model_type).eval()
             for left, right in zip(first.parameters(), second.parameters()):
@@ -48,9 +48,9 @@ class SequenceModelTests(unittest.TestCase):
             torch.testing.assert_close(first(states), second(states), rtol=0, atol=0)
 
     def test_causal_prefix_cannot_see_future_frames(self):
-        states = torch.randn(2, 6, 23)
+        states = torch.randn(2, 6, DNetDef.INPUT_SIZE)
         changed = states.clone()
-        changed[:, 3:] = torch.randn(2, 3, 23) * 50
+        changed[:, 3:] = torch.randn(2, 3, DNetDef.INPUT_SIZE) * 50
         model = make_model().eval()
         # Exercise both autograd and PyTorch's optimized inference path.
         expected = model.forward_sequence(states)[:, :3]
@@ -63,7 +63,7 @@ class SequenceModelTests(unittest.TestCase):
 
     def test_positions_distinguish_reordered_history(self):
         model = make_model().eval()
-        states = torch.randn(1, 4, 23)
+        states = torch.randn(1, 4, DNetDef.INPUT_SIZE)
         reordered = states[:, [2, 1, 0, 3]]
         self.assertFalse(torch.allclose(model(states), model(reordered)))
 
@@ -84,15 +84,15 @@ class SequenceModelTests(unittest.TestCase):
 
     def test_context_limit_is_explicit(self):
         with self.assertRaisesRegex(ValueError, 'sequence length'):
-            make_model()(torch.zeros(9, 23))
+            make_model()(torch.zeros(9, DNetDef.INPUT_SIZE))
 
     def test_transformer_updates_weights_and_target_from_replay(self):
         replay = ReplayMemory(state_size=DNetDef.INPUT_SIZE, sequence_length=4,
                               batch_size=2, max_frames=16, seed=7, log=FakeLog())
         for index in range(8):
             replay.append(Transition(
-                state=(float(index),) * 23, action=index % 3, reward=1.,
-                next_state=(float(index + 1),) * 23, done=index == 7,
+                state=(float(index),) * DNetDef.INPUT_SIZE, action=index % 3, reward=1.,
+                next_state=(float(index + 1),) * DNetDef.INPUT_SIZE, done=index == 7,
             ))
         model = make_model(dropout=0.1)
         trainer = Trainer(model=model, replay=replay, device=torch.device('cpu'),

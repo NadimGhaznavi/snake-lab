@@ -89,7 +89,6 @@ class SnakeGame:
             action,
             rng=self._rng,
             rewards=self.rewards,
-            max_moves_multiplier=self.max_moves_multiplier,
         )
         self._state = result.new_state
         self._done = result.done
@@ -123,4 +122,5 @@ class SnakeGame:
             grid_size=self.grid_size,
             seed=self.seed,
             episode_id=self._episode_id,
+            max_moves_multiplier=self.max_moves_multiplier,
         )

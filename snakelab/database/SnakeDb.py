@@ -63,6 +63,8 @@ class SnakeDb:
                 "run_id": run_id, "episode": result.episode, "score": result.score,
                 "steps": result.steps, "epsilon": result.epsilon, "loss": result.loss,
                 "epsilon_nice_injections": result.epsilon_nice_injections,
+                "reward": result.reward, "outcome": result.outcome.value,
+                "epsilon_injections": result.epsilon_injections,
             })
             self._dbmgr.update("simulation_runs", {
                 "episode_count": episode_count, "high_score": high_score,

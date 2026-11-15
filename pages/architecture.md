@@ -53,8 +53,9 @@ transaction for its configuration panel.
 
 ## Observations, models, and exploration
 
-Both models consume the same 23-value feature vector adapted from Hydra's
-older `UNUSED_get_state()` representation. There is no rotating board window.
+Both models consume the same compact 24-value feature vector. Its first 23
+features come from Hydra's older `UNUSED_get_state()` representation; the
+last feature exposes the remaining move budget. There is no rotating board window.
 
 | Indices (zero-based) | Features |
 | --- | --- |
@@ -64,8 +65,11 @@ older `UNUSED_get_state()` representation. There is no rotating board window.
 | 10–13 | Food direction: left, right, up, down |
 | 14–15 | Food shares the head's X coordinate, Y coordinate |
 | 16–22 | Snake length, seven big-endian bits |
+| 23 | Remaining move budget: `max(0, 1 - move_count / (max_moves_multiplier * snake_length))` |
 
-All values are floats containing zero or one. Danger checks share the actual
+The first 23 values are floats containing zero or one; the final value ranges
+from zero to one. The budget starts at one, decreases with each move, and
+uses the increased move limit after food grows the snake. Danger checks share the actual
 game collision rules, including legal moves into a vacating tail. Terminal
 boards without food have six zero food features. Length saturates at 127;
 longer snakes remain encoded as 127, rather than wrapping to zero.
@@ -77,7 +81,7 @@ encoding, and causal attention over the configured observation window. Its
 position encodings and causal mask are cached buffers. `forward_sequence()`
 returns `[batch, time, action]`; `forward()` returns `[batch, action]` for the
 last frame. Replay and Double DQN training are independent of model choice.
-Models trained with the former 51-value observation have incompatible inputs.
+Models trained with the former 23- or 51-value observations have incompatible inputs.
 
 Ordinary epsilon chooses random actions during its decay schedule. Once it
 falls below 0.0001, EpsilonNice can start occasional exploration detours. With
@@ -94,10 +98,19 @@ overrides are counted separately in episode results, run summaries, the
 client, and persisted episode rows; cumulative algorithm statistics are
 logged with the periodic run progress.
 
+Ordinary epsilon snaps to zero below its 0.001 cutoff. With the defaults
+`initial: 0.96` and `decay: 0.97`, Nice is first eligible in episode 227,
+leaving 274 eligible episodes in a 500-episode run. Slower decay can keep Nice
+inactive for an entire run; enabling it does not change the decay schedule.
+
 Database migration v6 adds the model/exploration configuration and Nice
 override counts. Historical rows default to RNN and disabled EpsilonNice.
 Run the usual upgrade or schema application script before starting the new
 server against an existing database.
+
+Database schema v7 also persists episode reward totals, termination outcomes,
+and ordinary epsilon injection counts. These diagnostics commit together with
+the episode and run progress.
 
 ## Supporting folders
 
@@ -108,7 +121,7 @@ server against an existing database.
 | `scripts/` | Installation, upgrades, schema application, environment setup, backups, cleanup, benchmarks, and isolated database tests. |
 | `systemd/` | Service definition for the installed server. |
 | `tests/` | Unit, boundary, and integration tests, including ZeroMQ and optional MariaDB tests. |
-| `examples/` | Sample simulation configuration. |
+| `examples/` | Complete RNN and Transformer configurations with epsilon and optional EpsilonNice, also bundled by installation. |
 | `pages/`, `notes/` | Website documentation, images, and release notes; `index.md` is the homepage. |
 | `.github/` | Repository automation. |
 

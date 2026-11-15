@@ -15,7 +15,7 @@ class V2ConfigurationTests(unittest.TestCase):
             with self.assertRaises(ConfigurationError):
                 template.resolve({'training': {'learning_rate': value}})
 
-    def test_continuous_epsilon_gamma_and_integer_rewards_are_accepted(self):
+    def test_continuous_epsilon_gamma_and_rewards_are_accepted(self):
         template = simulation_config_template()
         for initial in range(85, 100):
             for decay in range(90, 100):
@@ -26,6 +26,7 @@ class V2ConfigurationTests(unittest.TestCase):
         for closer in range(7):
             for further in range(-6, 1):
                 template.resolve({'game': {'rewards': {'closer_to_food': closer, 'further_from_food': further}}})
+        template.resolve({'game': {'rewards': {'closer_to_food': .125, 'further_from_food': -.25}}})
 
     def test_server_keeps_integer_steps_and_cross_field_validation(self):
         template = simulation_config_template()
