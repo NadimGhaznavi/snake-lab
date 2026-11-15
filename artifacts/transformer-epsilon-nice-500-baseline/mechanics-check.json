@@ -1,0 +1,75 @@
+{
+  "purpose": "Game-mechanics diagnostic using a deterministic greedy policy; this is not a trained transformer result.",
+  "episodes": [
+    {
+      "episode": 1,
+      "seed": 7189514137012085340,
+      "score": 5,
+      "steps": 71,
+      "outcome": "food"
+    },
+    {
+      "episode": 2,
+      "seed": 7344632481017067346,
+      "score": 5,
+      "steps": 62,
+      "outcome": "food"
+    },
+    {
+      "episode": 3,
+      "seed": 8551575718098691692,
+      "score": 5,
+      "steps": 78,
+      "outcome": "food"
+    },
+    {
+      "episode": 4,
+      "seed": 2624475424558308723,
+      "score": 5,
+      "steps": 69,
+      "outcome": "food"
+    },
+    {
+      "episode": 5,
+      "seed": 6134625364921866381,
+      "score": 5,
+      "steps": 69,
+      "outcome": "food"
+    },
+    {
+      "episode": 6,
+      "seed": 1062107247543243069,
+      "score": 5,
+      "steps": 87,
+      "outcome": "food"
+    },
+    {
+      "episode": 7,
+      "seed": 5968226113190448902,
+      "score": 5,
+      "steps": 82,
+      "outcome": "food"
+    },
+    {
+      "episode": 8,
+      "seed": 8844410882651339506,
+      "score": 5,
+      "steps": 79,
+      "outcome": "food"
+    },
+    {
+      "episode": 9,
+      "seed": 8365555912082901434,
+      "score": 5,
+      "steps": 74,
+      "outcome": "food"
+    },
+    {
+      "episode": 10,
+      "seed": 8982808193907134445,
+      "score": 5,
+      "steps": 76,
+      "outcome": "food"
+    }
+  ]
+}
