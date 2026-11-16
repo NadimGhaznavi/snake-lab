@@ -32,7 +32,7 @@ class ConfigTemplateTests(unittest.TestCase):
             "model": {
                 "type": "rnn",
                 "heads": 4,
-                "hidden_size": 224,
+                "hidden_size": 64,
                 "layers": 4,
                 "dropout": 0.1,
             },
@@ -169,7 +169,7 @@ class ConfigTemplateTests(unittest.TestCase):
         })
         self.assertEqual(resolved["model"]["type"], "transformer")
         self.assertEqual(resolved["model"]["heads"], 8)
-        self.assertEqual(resolved["model"]["hidden_size"], 224)
+        self.assertEqual(resolved["model"]["hidden_size"], 64)
         self.assertEqual(resolved["epsilon_nice"], {"probability": 0, "steps": 20})
 
     def test_tunable_depth_dropout_and_target_rate(self):

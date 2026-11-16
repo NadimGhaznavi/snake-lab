@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-15 @ 20:42
+
+### Summary
+
+Use compact model widths for RNN and Transformer experiments.
+
+### Changed
+
+- Set v2 hidden sizes to 32–128 in multiples of 8, with a default of 64.
+  Update the RNN examples to use the new default. Verify all supported widths
+  and attention-head counts, plus training and target-network updates at
+  widths 32, 72, and 128.
+
 ## [3.0.4] - 2026-11-15 @ 20:12
 
 - Use a smaller Transformer in all Transformer examples: one 64-wide layer,
