@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4] - 2026-11-15 @ 20:12
+
 - Use a smaller Transformer in all Transformer examples: one 64-wide layer,
   four-frame sequences, zero dropout, batch size 64, learning rate 0.001,
   and target update rate 0.05. Allow configurable depth, dropout, and target
