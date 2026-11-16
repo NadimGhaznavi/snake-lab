@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import unittest
 
 from snakelab.server.Configuration import (
@@ -169,6 +171,37 @@ class ConfigTemplateTests(unittest.TestCase):
         self.assertEqual(resolved["model"]["heads"], 8)
         self.assertEqual(resolved["model"]["hidden_size"], 224)
         self.assertEqual(resolved["epsilon_nice"], {"probability": 0, "steps": 20})
+
+    def test_tunable_depth_dropout_and_target_rate(self):
+        for model_type in ("rnn", "transformer"):
+            for layers, dropout, tau in ((1, 0., .05), (4, .1, .001), (2, .5, 1.)):
+                submitted = {
+                    "model": {"type": model_type, "layers": layers, "dropout": dropout},
+                    "training": {"tau": tau},
+                }
+                with self.subTest(submitted=submitted):
+                    resolved = self.template.resolve(submitted)
+                    self.assertEqual(resolved["model"]["layers"], layers)
+                    self.assertEqual(resolved["model"]["dropout"], dropout)
+                    self.assertEqual(resolved["training"]["tau"], tau)
+
+    def test_invalid_depth_dropout_and_target_rate_are_rejected(self):
+        for section, field, values in (
+            ("model", "layers", (0, 5, 1.5, True, "1")),
+            ("model", "dropout", (-.01, 1., True, "0", float('nan'), float('inf'))),
+            ("training", "tau", (0., -.01, 1.01, True, "0.05", float('nan'), float('inf'))),
+        ):
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    with self.assertRaisesRegex(ConfigurationError, rf'\$\.{section}\.{field}'):
+                        self.template.resolve({section: {field: value}})
+
+    def test_bundled_examples_resolve_without_changing_submitted_values(self):
+        examples = Path(__file__).resolve().parents[1] / "examples"
+        for path in examples.glob("*.json"):
+            with self.subTest(example=path.name):
+                submitted = json.loads(path.read_text())
+                self.assertEqual(self.template.resolve(submitted), submitted)
 
     def test_invalid_new_settings_are_rejected_at_configuration_boundary(self):
         for submitted in (

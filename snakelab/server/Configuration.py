@@ -73,6 +73,12 @@ class Configuration:
 
         training = resolved.get("training", {})
         model = resolved.get("model", {})
+        for path, value in (
+            ("$.model.dropout", model.get("dropout")),
+            ("$.training.tau", training.get("tau")),
+        ):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ConfigurationError(f"{path}: must be finite")
         if model.get("type") == "transformer":
             hidden_size, heads = model.get("hidden_size"), model.get("heads")
             if isinstance(hidden_size, int) and isinstance(heads, int) and (
