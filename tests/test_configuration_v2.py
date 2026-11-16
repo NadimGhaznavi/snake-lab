@@ -4,6 +4,26 @@ from snakelab.server.Configuration import Configuration, ConfigurationError, sim
 
 
 class V2ConfigurationTests(unittest.TestCase):
+    def test_model_widths_accept_multiples_of_eight(self):
+        template = simulation_config_template()
+        for model_type in ('rnn', 'transformer'):
+            for hidden_size in range(32, 129, 8):
+                for heads in (1, 2, 4, 8):
+                    with self.subTest(model=model_type, hidden_size=hidden_size, heads=heads):
+                        resolved = template.resolve({'model': {
+                            'type': model_type, 'hidden_size': hidden_size, 'heads': heads,
+                        }})
+                        self.assertEqual(resolved['model']['hidden_size'], hidden_size)
+                        self.assertEqual(resolved['model']['heads'], heads)
+
+    def test_invalid_model_widths_are_rejected(self):
+        template = simulation_config_template()
+        for model_type in ('rnn', 'transformer'):
+            for hidden_size in (24, 31, 33, 36, 127, 129, 136, 224, 64.5, True, '64'):
+                with self.subTest(model=model_type, hidden_size=hidden_size):
+                    with self.assertRaisesRegex(ConfigurationError, r'\$\.model\.hidden_size'):
+                        template.resolve({'model': {'type': model_type, 'hidden_size': hidden_size}})
+
     def test_v2_default_and_continuous_learning_rate(self):
         template = simulation_config_template()
         default = template.resolve({})

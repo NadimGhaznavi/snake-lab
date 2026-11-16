@@ -140,10 +140,10 @@
         },
         "hidden_size": {
           "type": "integer",
-          "default": 224,
-          "minimum": 64,
-          "maximum": 384,
-          "multipleOf": 16,
+          "default": 64,
+          "minimum": 32,
+          "maximum": 128,
+          "multipleOf": 8,
           "x-snakelab-unit": "neurons",
           "description": "Hidden width of the RNN or Transformer."
         },

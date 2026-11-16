@@ -13,10 +13,10 @@ from snakelab.nn.TransformerModel import TransformerModel
 from tests.test_training import FakeLog
 
 
-def make_model(model_type=TransformerModel, *, seed=7, layers=2, dropout=0):
-    options = dict(seed=seed, hidden_size=8, dropout=dropout, layers=layers, log=FakeLog())
+def make_model(model_type=TransformerModel, *, seed=7, hidden_size=8, layers=2, dropout=0, heads=2):
+    options = dict(seed=seed, hidden_size=hidden_size, dropout=dropout, layers=layers, log=FakeLog())
     if model_type is TransformerModel:
-        options.update(heads=2, max_sequence_length=8)
+        options.update(heads=heads, max_sequence_length=8)
     return model_type(**options)
 
 
@@ -94,20 +94,22 @@ class SequenceModelTests(unittest.TestCase):
                 state=(float(index),) * DNetDef.INPUT_SIZE, action=index % 3, reward=1.,
                 next_state=(float(index + 1),) * DNetDef.INPUT_SIZE, done=index == 7,
             ))
-        model = make_model(dropout=0.1)
-        trainer = Trainer(model=model, replay=replay, device=torch.device('cpu'),
-                          learning_rate=0.002, gamma=.96, tau=.1,
-                          max_gradient_norm=1., log=FakeLog())
-        before = model.input_layer.weight.detach().clone()
-        target_before = trainer.target_model.input_layer.weight.detach().clone()
-        self.assertTrue(math.isfinite(trainer.train()))
-        self.assertFalse(torch.equal(before, model.input_layer.weight))
-        self.assertFalse(torch.equal(target_before, trainer.target_model.input_layer.weight))
-        self.assertTrue(all(p.grad is None for p in trainer.target_model.parameters()))
-        trainer.reset()
-        self.assertFalse(trainer.target_model.training)
-        for online, target in zip(model.parameters(), trainer.target_model.parameters()):
-            torch.testing.assert_close(online, target)
+        for hidden_size, heads in ((8, 2), (32, 8), (72, 4), (128, 4)):
+            with self.subTest(hidden_size=hidden_size, heads=heads):
+                model = make_model(hidden_size=hidden_size, heads=heads, dropout=0.1)
+                trainer = Trainer(model=model, replay=replay, device=torch.device('cpu'),
+                                  learning_rate=0.002, gamma=.96, tau=.1,
+                                  max_gradient_norm=1., log=FakeLog())
+                before = model.input_layer.weight.detach().clone()
+                target_before = trainer.target_model.input_layer.weight.detach().clone()
+                self.assertTrue(math.isfinite(trainer.train()))
+                self.assertFalse(torch.equal(before, model.input_layer.weight))
+                self.assertFalse(torch.equal(target_before, trainer.target_model.input_layer.weight))
+                self.assertTrue(all(p.grad is None for p in trainer.target_model.parameters()))
+                trainer.reset()
+                self.assertFalse(trainer.target_model.training)
+                for online, target in zip(model.parameters(), trainer.target_model.parameters()):
+                    torch.testing.assert_close(online, target)
 
 
 if __name__ == '__main__':
