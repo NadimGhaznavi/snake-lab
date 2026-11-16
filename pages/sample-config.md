@@ -52,9 +52,10 @@ and larger batch let each update cover more observations with fewer weights
 to fit. Zero dropout keeps action values deterministic during training, and
 the higher `tau` lets the target network follow learning within 500 updates.
 
-Model depth accepts 1–4 layers, dropout accepts values from 0 up to but
-excluding 1, and `tau` accepts values greater than 0 up to 1. Their defaults
-remain 4, 0.1, and 0.001, respectively.
+Hidden size accepts multiples of 8 from 32 to 128 for both models, with a
+default of 64. Model depth accepts 1–4 layers, dropout accepts values from 0
+up to but excluding 1, and `tau` accepts values greater than 0 up to 1. Their
+defaults remain 4, 0.1, and 0.001, respectively.
 
 The smaller epsilon-only example reached score 10 at episode 106 and a high
 score of 39 in a complete 500-episode run with seed 1970, PyTorch 2.8.0 CPU,
