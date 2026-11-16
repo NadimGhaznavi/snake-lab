@@ -11,9 +11,11 @@ Use [sample-config.json](/examples/sample-config.json) as a starting point. The
 fields, defaults, and validation limits. Partial configurations are accepted;
 the server fills in defaults before validation and storage.
 
-These complete 500-episode configurations use the same seed, rewards, training
-settings, and ordinary epsilon schedule. They differ only in the model and
-whether EpsilonNice is enabled:
+These complete 500-episode configurations use the same seed, game rules,
+rewards, and ordinary epsilon schedule. The RNN samples use the default model
+and training settings; the Transformer samples use a smaller model and tuned
+training settings. Each architecture has a sample with EpsilonNice enabled
+and one with it disabled:
 
 | Model and exploration | Configuration |
 | --- | --- |
@@ -32,6 +34,37 @@ running the TUI, including when connecting to a remote simulation server.
 
 `sample-config.json` contains the RNN + Epsilon + EpsilonNice configuration;
 `transformer-config.json` contains the corresponding Transformer configuration.
+
+For the smaller Transformer with ordinary epsilon, submit
+`/opt/prod/snakelab/examples/transformer-epsilon.json`. All three Transformer
+examples use these settings:
+
+| Setting | Transformer example |
+| --- | --- |
+| Hidden size / encoder layers / attention heads | 64 / 1 / 4 |
+| Dropout | 0 |
+| Sequence length / batch size | 4 / 64 |
+| Learning rate | 0.001 |
+| Gamma / target update rate (`tau`) | 0.96 / 0.05 |
+
+The trainer samples one replay batch per completed episode. The smaller model
+and larger batch let each update cover more observations with fewer weights
+to fit. Zero dropout keeps action values deterministic during training, and
+the higher `tau` lets the target network follow learning within 500 updates.
+
+Model depth accepts 1–4 layers, dropout accepts values from 0 up to but
+excluding 1, and `tau` accepts values greater than 0 up to 1. Their defaults
+remain 4, 0.1, and 0.001, respectively.
+
+The smaller epsilon-only example reached score 10 at episode 106 and a high
+score of 39 in a complete 500-episode run with seed 1970, PyTorch 2.8.0 CPU,
+and the server's five Torch threads. It scored at least 10 in 302 episodes
+and averaged 19.78 over the final 100. See the
+[run summary](/artifacts/transformer-epsilon-500-small/summary.json) and
+[episode results](/artifacts/transformer-epsilon-500-small/episodes.jsonl).
+Reproduce it from the repository root with
+`venv/bin/python artifacts/transformer-epsilon-500-small/run.py`.
+Scores can vary with the seed, Torch version, and thread count.
 
 The RNN remains the default. To use the Transformer with the shared 24-feature
 state, submit [transformer-config.json](/examples/transformer-config.json), or
