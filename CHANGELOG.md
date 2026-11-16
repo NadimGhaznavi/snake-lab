@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Use a smaller Transformer in all Transformer examples: one 64-wide layer,
+  four-frame sequences, zero dropout, batch size 64, learning rate 0.001,
+  and target update rate 0.05. Allow configurable depth, dropout, and target
+  update rate while retaining the existing defaults for other configurations.
+  Record a 500-episode epsilon-only run reaching score 10 at episode 106 and
+  a high score of 39, with a reproducible runner and per-episode results.
+
 ## [3.0.2] - 2026-11-15 @ 12:15
 
 - Profiled in DEV looks good.
