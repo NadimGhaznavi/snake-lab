@@ -82,11 +82,24 @@ class ConfigTemplateTests(unittest.TestCase):
 
     def test_reward_signs_types_and_finiteness_are_validated(self):
         for name in self.defaults["game"]["rewards"]:
-            wrong_sign = -1 if name in ("food", "closer_to_food") else 1
-            for value in (wrong_sign, True, "1", float('nan'), float('inf'), -float('inf')):
+            invalid_reward = {"food": -1, "closer_to_food": -1, "empty": 3}.get(name, 1)
+            for value in (invalid_reward, True, "1", float('nan'), float('inf'), -float('inf')):
                 with self.subTest(name=name, value=value):
                     with self.assertRaisesRegex(ConfigurationError, rf'\$\.game\.rewards\.{name}'):
                         self.template.resolve({"game": {"rewards": {name: value}}})
+
+    def test_empty_move_rewards_accept_both_bounds_and_fractional_values(self):
+        for value in (-2, -1.25, 0, .25, 2):
+            with self.subTest(value=value):
+                resolved = self.template.resolve({"game": {"rewards": {"empty": value}}})
+                self.assertEqual(resolved["game"]["rewards"],
+                                 {**self.defaults["game"]["rewards"], "empty": value})
+
+    def test_empty_move_rewards_outside_the_range_are_rejected(self):
+        for value in (-2.001, 2.001):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ConfigurationError, r'\$\.game\.rewards\.empty'):
+                    self.template.resolve({"game": {"rewards": {"empty": value}}})
 
     def test_unknown_field_is_rejected(self) -> None:
         with self.assertRaises(ConfigurationError):

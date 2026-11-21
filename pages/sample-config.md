@@ -84,8 +84,9 @@ zero below 0.001. Nice-enabled samples use probability 0.005 and 20 detour
 steps; Epsilon-only samples explicitly set the Nice probability to zero.
 
 Reward values accept finite fractional numbers. Food and closer-to-food rewards
-are non-negative; wall, body, move-limit, empty-move, and further-from-food
-rewards are non-positive. Distance shaping retains its bounds of 0 to 6 and
+are non-negative; wall, body, move-limit, and further-from-food rewards are
+non-positive. Empty-move rewards range from -2 to +2, inclusive, with a default
+of 0. Distance shaping retains its bounds of 0 to 6 and
 -6 to 0. For gentler shaping, try `"closer_to_food": 0.1` and
 `"further_from_food": -0.1`. A positive sum of the closer and further values
 can reward loops without eating food; use balanced or net-negative pairs when
