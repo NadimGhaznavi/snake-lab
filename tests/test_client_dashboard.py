@@ -92,7 +92,7 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(histogram.visible)
             self.assertEqual(histogram._datasets[0].x.tolist(), list(range(8)))
             self.assertEqual(histogram._datasets[0].y.tolist(), [75] * 8)
-            self.assertIn("Learning rate", str(app.query_one("#configuration-values", Label).content))
+            self.assertIn("Learning Rate", str(app.query_one("#configuration-values", Label).content))
             self.assertIn("5990", str(app.query_one("#total-steps", Label).content))
             app._activate_run("second")
             self.assertEqual(len(plots.episodes), 0)
