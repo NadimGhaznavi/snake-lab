@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+Allow signed empty move rewards for Ax3l tuning.
+
+### Changed
+
+- Accept finite empty move rewards from -2 to +2 in v2 configuration validation,
+  including fractional values, while keeping the default at 0.
+
 ## [3.2.0] - 2026-11-21 @ 05:20
 
 ### Summary
