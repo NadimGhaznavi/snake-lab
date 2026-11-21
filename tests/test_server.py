@@ -351,6 +351,18 @@ class AsyncWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.server._run_queue.qsize(), 2)
         self.ended.assert_not_called()
 
+    async def test_submission_preserves_signed_empty_move_rewards(self) -> None:
+        self.server.store = MemorySimulationStore()
+        for value in (-2, .25, 2):
+            with self.subTest(value=value):
+                response = self.server.handle_request(self._request(
+                    "simulation.submit", {"config": {"game": {"rewards": {"empty": value}}}}
+                ))
+                self.assertEqual(response["status"], "ok")
+                saved = self.server.store.runs[response["payload"]["run_id"]]
+                self.assertEqual(saved["config"]["game"]["rewards"]["empty"], value)
+                self.assertEqual(saved["status"], "queued")
+
     @staticmethod
     def _request(method: str, payload: dict) -> dict:
         return {

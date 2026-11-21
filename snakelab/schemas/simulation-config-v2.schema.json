@@ -83,7 +83,8 @@
             },
             "empty": {
               "type": "number",
-              "maximum": 0,
+              "minimum": -2,
+              "maximum": 2,
               "default": 0,
               "description": "Reward for a normal move that does not eat food."
             },
